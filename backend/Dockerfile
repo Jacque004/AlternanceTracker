@@ -4,9 +4,8 @@ WORKDIR /app
 
 COPY package*.json ./
 
-# Utiliser npm install en production plutôt que npm ci,
-# car il n'y a pas de package-lock.json dans le dossier backend
-RUN npm install --omit=dev
+# Installer toutes les dépendances (y compris dev) pour disposer de TypeScript (tsc) lors du build
+RUN npm install
 
 COPY . .
 
