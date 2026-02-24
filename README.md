@@ -2,6 +2,8 @@
 
 SaaS de gestion intelligente de candidatures d'alternance et d'emploi.
 
+**Dépôt** : [github.com/Jacque004/AlternanceTracker](https://github.com/Jacque004/AlternanceTracker)
+
 ## 🚀 Technologies
 
 - **Frontend**: React + TypeScript
