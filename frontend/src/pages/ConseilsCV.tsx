@@ -53,15 +53,9 @@ const ConseilsCV = () => {
   const [loading, setLoading] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
-      return;
-    }
-
-    if (file.type !== 'text/plain') {
-      toast.error('Pour le moment, seuls les fichiers .txt sont supportés. Exportez votre CV en texte ou copiez/collez son contenu.');
-      event.target.value = '';
       return;
     }
 
@@ -71,21 +65,70 @@ const ConseilsCV = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const content = typeof reader.result === 'string' ? reader.result : '';
-      if (!content.trim()) {
-        toast.error('Le fichier sélectionné ne contient pas de texte lisible.');
+    try {
+      const lowerName = file.name.toLowerCase();
+      const isPdf = file.type === 'application/pdf' || lowerName.endsWith('.pdf');
+      const isText = file.type === 'text/plain' || lowerName.endsWith('.txt');
+
+      if (!isPdf && !isText) {
+        toast.error('Formats supportés : .pdf et .txt. Pour d\'autres formats, copiez/collez le texte de votre CV.');
+        event.target.value = '';
         return;
       }
-      setCvText((prev) => (prev ? `${prev.trim()}\n\n${content.trim()}` : content.trim()));
+
+      let extractedText = '';
+
+      if (isText) {
+        const reader = new FileReader();
+        extractedText = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const content = typeof reader.result === 'string' ? reader.result : '';
+            resolve(content);
+          };
+          reader.onerror = () => reject(new Error('Impossible de lire le fichier texte.'));
+          reader.readAsText(file, 'utf-8');
+        });
+      } else if (isPdf) {
+        toast.loading('Extraction du texte du PDF...', { id: 'pdf-extract' });
+        try {
+          const pdfjsLib = await import('pdfjs-dist');
+          // Utiliser un worker hébergé sur CDN pour simplifier la configuration
+          (pdfjsLib as any).GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await (pdfjsLib as any).getDocument({ data: arrayBuffer }).promise;
+
+          let fullText = '';
+          for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const content = await page.getTextContent();
+            const pageText = content.items
+              .map((item: any) => ('str' in item ? item.str : ''))
+              .join(' ');
+            fullText += pageText + '\n\n';
+          }
+          extractedText = fullText;
+        } finally {
+          toast.dismiss('pdf-extract');
+        }
+      }
+
+      const trimmed = extractedText.trim();
+      if (!trimmed) {
+        toast.error('Le fichier sélectionné ne contient pas de texte lisible.');
+        event.target.value = '';
+        return;
+      }
+
+      setCvText((prev) => (prev ? `${prev.trim()}\n\n${trimmed}` : trimmed));
       setUploadedFileName(file.name);
       toast.success('CV importé, vous pouvez lancer l’analyse.');
-    };
-    reader.onerror = () => {
-      toast.error('Impossible de lire le fichier. Vérifiez son format.');
-    };
-    reader.readAsText(file, 'utf-8');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || 'Erreur lors de la lecture du fichier. Vérifiez son format.');
+      event.target.value = '';
+    }
   };
 
   const handleAnalyze = async () => {
@@ -125,7 +168,7 @@ const ConseilsCV = () => {
         <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <label className="text-sm font-medium text-gray-700">
-              Importer votre CV (.txt)
+              Importer votre CV (.pdf ou .txt)
             </label>
             <p className="text-xs text-gray-500">
               Pour les fichiers PDF / Word, exportez d&apos;abord le contenu en texte, ou copiez/collez-le dans la zone ci-dessous.
@@ -134,7 +177,7 @@ const ConseilsCV = () => {
           <div>
             <input
               type="file"
-              accept=".txt,text/plain"
+              accept=".pdf,.txt,application/pdf,text/plain"
               onChange={handleFileChange}
               disabled={loading}
               className="block w-full text-sm text-gray-700
