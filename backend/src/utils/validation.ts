@@ -91,19 +91,21 @@ export const validate = (schema: z.ZodSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       schema.parse(req.body);
-      next();
+      return next();
     } catch (error) {
       if (error instanceof z.ZodError) {
         const errors = error.errors.map((err) => ({
           field: err.path.join('.'),
           message: err.message,
         }));
-        return res.status(400).json({
+        res.status(400).json({
           message: 'Erreur de validation',
           errors,
         });
+        return;
       }
-      return res.status(500).json({ message: 'Erreur de validation' });
+      res.status(500).json({ message: 'Erreur de validation' });
+      return;
     }
   };
 };
@@ -116,5 +118,7 @@ export const validateApplicationUpdate = [validate(applicationUpdateSchema)];
 
 export const handleValidationErrors = (req: Request, res: Response, next: NextFunction) => {
   // Cette fonction n'est plus nécessaire avec Zod, mais conservée pour compatibilité
+  void req;
+  void res;
   next();
 };

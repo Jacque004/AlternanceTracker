@@ -14,7 +14,7 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
     }
 
     const user = result.rows[0];
-    res.json({
+    return res.json({
       id: user.id,
       email: user.email,
       firstName: user.first_name,
@@ -23,7 +23,7 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     console.error('Erreur lors de la récupération du profil:', error);
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    return res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
 
@@ -72,7 +72,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       values
     );
 
-    res.json({
+    return res.json({
       message: 'Profil mis à jour avec succès',
       user: {
         id: result.rows[0].id,
@@ -83,7 +83,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     console.error('Erreur lors de la mise à jour du profil:', error);
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    return res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
 

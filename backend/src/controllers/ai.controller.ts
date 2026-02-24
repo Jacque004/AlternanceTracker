@@ -55,7 +55,7 @@ Commence directement par "Madame, Monsieur," ou "Monsieur," ou "Madame," selon l
       return res.status(500).json({ message: 'Erreur lors de la génération de la lettre' });
     }
 
-    res.json({
+    return res.json({
       message: 'Lettre de motivation générée avec succès',
       coverLetter
     });
@@ -68,7 +68,7 @@ Commence directement par "Madame, Monsieur," ou "Monsieur," ou "Madame," selon l
       });
     }
 
-    res.status(500).json({ 
+    return res.status(500).json({ 
       message: 'Erreur lors de la génération de la lettre de motivation',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });

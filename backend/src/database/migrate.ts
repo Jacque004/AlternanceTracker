@@ -56,8 +56,8 @@ const createTables = async () => {
   }
 };
 
-// Exécuter les migrations si le script est appelé directement
-if (require.main === module || import.meta.url === `file://${process.argv[1]}`) {
+// Exécuter les migrations si le script est appelé directement (CommonJS)
+if (require.main === module) {
   createTables()
     .then(() => {
       console.log('✅ Migration terminée avec succès');
