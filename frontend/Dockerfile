@@ -4,7 +4,9 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci
+# Pas de package-lock.json dans le dossier frontend (monorepo),
+# on utilise donc npm install au lieu de npm ci
+RUN npm install
 
 COPY . .
 
