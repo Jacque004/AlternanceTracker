@@ -4,7 +4,7 @@
   "description": "Backend API pour AlternanceTracker",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon src/index.ts",
+    "dev": "cross-env NODE_OPTIONS=--max_old_space_size=4096 nodemon",
     "build": "tsc",
     "start": "node dist/index.js",
     "migrate": "ts-node src/database/run-migration.ts",
@@ -31,6 +31,7 @@
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.10.5",
     "@types/pg": "^8.10.9",
+    "cross-env": "^7.0.3",
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
     "ts-jest": "^29.4.6",

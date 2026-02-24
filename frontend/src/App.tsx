@@ -20,7 +20,7 @@ function App() {
     <>
       <SupabaseConfigCheck />
       <SupabaseAuthProvider>
-        <Router>
+        <Router basename={import.meta.env.BASE_URL}>
           <Toaster position="top-right" />
           <Routes>
             <Route path="/login" element={<Login />} />
