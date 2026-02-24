@@ -51,6 +51,42 @@ const ConseilsCV = () => {
   const [cvText, setCvText] = useState('');
   const [advice, setAdvice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (file.type !== 'text/plain') {
+      toast.error('Pour le moment, seuls les fichiers .txt sont supportés. Exportez votre CV en texte ou copiez/collez son contenu.');
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > 1024 * 1024) {
+      toast.error('Le fichier est trop volumineux (max 1 Mo).');
+      event.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const content = typeof reader.result === 'string' ? reader.result : '';
+      if (!content.trim()) {
+        toast.error('Le fichier sélectionné ne contient pas de texte lisible.');
+        return;
+      }
+      setCvText((prev) => (prev ? `${prev.trim()}\n\n${content.trim()}` : content.trim()));
+      setUploadedFileName(file.name);
+      toast.success('CV importé, vous pouvez lancer l’analyse.');
+    };
+    reader.onerror = () => {
+      toast.error('Impossible de lire le fichier. Vérifiez son format.');
+    };
+    reader.readAsText(file, 'utf-8');
+  };
 
   const handleAnalyze = async () => {
     const text = cvText.trim();
@@ -86,6 +122,35 @@ const ConseilsCV = () => {
         <label htmlFor="cv-input" className="block text-sm font-medium text-gray-700 mb-2">
           Votre CV (texte brut ou copié depuis Word / PDF)
         </label>
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <label className="text-sm font-medium text-gray-700">
+              Importer votre CV (.txt)
+            </label>
+            <p className="text-xs text-gray-500">
+              Pour les fichiers PDF / Word, exportez d&apos;abord le contenu en texte, ou copiez/collez-le dans la zone ci-dessous.
+            </p>
+          </div>
+          <div>
+            <input
+              type="file"
+              accept=".txt,text/plain"
+              onChange={handleFileChange}
+              disabled={loading}
+              className="block w-full text-sm text-gray-700
+                         file:mr-3 file:py-2 file:px-4
+                         file:rounded-md file:border-0
+                         file:text-sm file:font-medium
+                         file:bg-primary-50 file:text-primary-700
+                         hover:file:bg-primary-100"
+            />
+            {uploadedFileName && (
+              <p className="mt-1 text-xs text-gray-500">
+                Fichier importé : <span className="font-medium">{uploadedFileName}</span>
+              </p>
+            )}
+          </div>
+        </div>
         <textarea
           id="cv-input"
           rows={12}
