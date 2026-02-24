@@ -1,0 +1,28 @@
+{
+  "name": "alternance-tracker",
+  "version": "1.0.0",
+  "description": "SaaS de gestion intelligente de candidatures",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "supabase:deploy": "supabase functions deploy analyze-cv-alternance",
+    "supabase:login": "supabase login",
+    "supabase:link": "supabase link"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "supabase": "^2.0.0"
+  }
+}
+

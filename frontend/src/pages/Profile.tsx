@@ -1,0 +1,224 @@
+import { useEffect, useState } from 'react';
+import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import toast from 'react-hot-toast';
+
+function toInputDate(s: string | undefined) {
+  if (!s) return '';
+  return s.slice(0, 10);
+}
+
+const Profile = () => {
+  const { user, updateProfile } = useSupabaseAuth();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    school: '',
+    formation: '',
+    studyYear: '',
+    alternanceRhythm: '',
+    desiredStartDate: '',
+    linkedinUrl: '',
+  });
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        school: user.school || '',
+        formation: user.formation || '',
+        studyYear: user.studyYear || '',
+        alternanceRhythm: user.alternanceRhythm || '',
+        desiredStartDate: toInputDate(user.desiredStartDate) || '',
+        linkedinUrl: user.linkedinUrl || '',
+      });
+    }
+  }, [user]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { error } = await updateProfile({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        school: formData.school || undefined,
+        formation: formData.formation || undefined,
+        studyYear: formData.studyYear || undefined,
+        alternanceRhythm: formData.alternanceRhythm || undefined,
+        desiredStartDate: formData.desiredStartDate || undefined,
+        linkedinUrl: formData.linkedinUrl || undefined,
+      });
+      if (error) {
+        toast.error(error.message || 'Erreur lors de la mise à jour');
+      } else {
+        toast.success('Profil mis à jour avec succès');
+      }
+    } catch (_) {
+      toast.error('Erreur lors de la mise à jour');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Mon profil</h1>
+
+      <div className="bg-white shadow rounded-lg p-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                Prénom
+              </label>
+              <input
+                type="text"
+                id="firstName"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                Nom
+              </label>
+              <input
+                type="text"
+                id="lastName"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                disabled
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed"
+              />
+              <p className="mt-1 text-sm text-gray-500">L'email ne peut pas être modifié</p>
+            </div>
+
+            <div className="md:col-span-2 border-t border-gray-200 pt-6 mt-2">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Profil étudiant</h2>
+            </div>
+            <div>
+              <label htmlFor="school" className="block text-sm font-medium text-gray-700">
+                École / établissement
+              </label>
+              <input
+                type="text"
+                id="school"
+                name="school"
+                value={formData.school}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                placeholder="Ex. Université Paris-Saclay"
+              />
+            </div>
+            <div>
+              <label htmlFor="formation" className="block text-sm font-medium text-gray-700">
+                Formation
+              </label>
+              <input
+                type="text"
+                id="formation"
+                name="formation"
+                value={formData.formation}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                placeholder="Ex. Master Informatique"
+              />
+            </div>
+            <div>
+              <label htmlFor="studyYear" className="block text-sm font-medium text-gray-700">
+                Année
+              </label>
+              <input
+                type="text"
+                id="studyYear"
+                name="studyYear"
+                value={formData.studyYear}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                placeholder="Ex. L2, M1"
+              />
+            </div>
+            <div>
+              <label htmlFor="alternanceRhythm" className="block text-sm font-medium text-gray-700">
+                Rythme d'alternance
+              </label>
+              <input
+                type="text"
+                id="alternanceRhythm"
+                name="alternanceRhythm"
+                value={formData.alternanceRhythm}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                placeholder="Ex. 2j école / 3j entreprise"
+              />
+            </div>
+            <div>
+              <label htmlFor="desiredStartDate" className="block text-sm font-medium text-gray-700">
+                Date de début recherchée
+              </label>
+              <input
+                type="date"
+                id="desiredStartDate"
+                name="desiredStartDate"
+                value={formData.desiredStartDate}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label htmlFor="linkedinUrl" className="block text-sm font-medium text-gray-700">
+                Lien LinkedIn
+              </label>
+              <input
+                type="url"
+                id="linkedinUrl"
+                name="linkedinUrl"
+                value={formData.linkedinUrl}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                placeholder="https://linkedin.com/in/..."
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+            >
+              {loading ? 'Enregistrement...' : 'Enregistrer les modifications'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default Profile;
