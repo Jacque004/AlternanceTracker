@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { applicationService } from '../services/supabaseService';
 import toast from 'react-hot-toast';
 import type { Application } from '../types';
@@ -18,6 +18,14 @@ function toInputDate(s: string | undefined) {
   return d.toISOString().slice(0, 10);
 }
 
+/** Heure au format HH:MM pour input time */
+function toInputTime(s: string | undefined) {
+  if (!s) return '';
+  if (/^\d{2}:\d{2}/.test(s)) return s.slice(0, 5);
+  const d = new Date(s);
+  return d.toTimeString().slice(0, 5);
+}
+
 const ApplicationForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -34,6 +42,9 @@ const ApplicationForm = () => {
     location: '',
     salaryRange: '',
     jobUrl: '',
+    interviewDate: '',
+    interviewTime: '',
+    interviewPlace: '',
   });
 
   useEffect(() => {
@@ -54,6 +65,9 @@ const ApplicationForm = () => {
           location: app.location || '',
           salaryRange: app.salaryRange || '',
           jobUrl: app.jobUrl || '',
+          interviewDate: toInputDate(app.interviewDate),
+          interviewTime: toInputTime(app.interviewTime),
+          interviewPlace: app.interviewPlace || '',
         });
       })
       .catch(() => toast.error('Candidature introuvable'))
@@ -85,6 +99,9 @@ const ApplicationForm = () => {
         location: formData.location.trim() || undefined,
         salaryRange: formData.salaryRange.trim() || undefined,
         jobUrl: formData.jobUrl.trim() || undefined,
+        interviewDate: formData.status === 'interview' && formData.interviewDate ? formData.interviewDate : undefined,
+        interviewTime: formData.status === 'interview' && formData.interviewTime ? formData.interviewTime : undefined,
+        interviewPlace: formData.status === 'interview' && formData.interviewPlace.trim() ? formData.interviewPlace.trim() : undefined,
       };
       if (isEdit && id) {
         await applicationService.update(Number(id), payload);
@@ -121,7 +138,7 @@ const ApplicationForm = () => {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg border border-gray-200 p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white shadow-card rounded-xl border border-gray-200 p-6 space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="sm:col-span-2">
             <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">
@@ -209,6 +226,52 @@ const ApplicationForm = () => {
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
             />
           </div>
+
+          {formData.status === 'interview' && (
+            <>
+              <div>
+                <label htmlFor="interviewDate" className="block text-sm font-medium text-gray-700">
+                  Date d'entretien *
+                </label>
+                <input
+                  type="date"
+                  id="interviewDate"
+                  name="interviewDate"
+                  value={formData.interviewDate}
+                  onChange={handleChange}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="interviewTime" className="block text-sm font-medium text-gray-700">
+                  Heure (optionnel)
+                </label>
+                <input
+                  type="time"
+                  id="interviewTime"
+                  name="interviewTime"
+                  value={formData.interviewTime}
+                  onChange={handleChange}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label htmlFor="interviewPlace" className="block text-sm font-medium text-gray-700">
+                  Lieu (optionnel)
+                </label>
+                <input
+                  type="text"
+                  id="interviewPlace"
+                  name="interviewPlace"
+                  value={formData.interviewPlace}
+                  onChange={handleChange}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                  placeholder="Adresse ou visio"
+                />
+              </div>
+            </>
+          )}
+
           <div className="sm:col-span-2">
             <label htmlFor="salaryRange" className="block text-sm font-medium text-gray-700">
               Fourchette salariale
@@ -268,6 +331,14 @@ const ApplicationForm = () => {
           >
             Annuler
           </button>
+          {formData.companyName.trim() && formData.position.trim() && (
+            <Link
+              to={`/preparer/lettres?company=${encodeURIComponent(formData.companyName)}&position=${encodeURIComponent(formData.position)}`}
+              className="inline-flex items-center gap-1 bg-primary-50 hover:bg-primary-100 text-primary-700 px-4 py-2 rounded-md text-sm font-medium"
+            >
+              ✉️ Générer une lettre pour cette candidature
+            </Link>
+          )}
         </div>
       </form>
     </div>

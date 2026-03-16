@@ -59,6 +59,9 @@ export const applicationSchema = z.object({
   location: z.string().max(255).optional().nullable(),
   salaryRange: z.string().max(100).optional().nullable(),
   jobUrl: z.string().url('URL invalide').optional().nullable().or(z.literal('')),
+  interviewDate: z.string().optional().nullable(),
+  interviewTime: z.string().optional().nullable(),
+  interviewPlace: z.string().max(500).optional().nullable(),
 });
 
 // Schéma de validation partiel pour les mises à jour (tous les champs optionnels)
@@ -84,6 +87,9 @@ export const applicationUpdateSchema = z.object({
   location: z.string().max(255).optional().nullable(),
   salaryRange: z.string().max(100).optional().nullable(),
   jobUrl: z.string().url('URL invalide').optional().nullable().or(z.literal('')),
+  interviewDate: z.string().optional().nullable(),
+  interviewTime: z.string().optional().nullable(),
+  interviewPlace: z.string().max(500).optional().nullable(),
 });
 
 // Middleware de validation avec Zod

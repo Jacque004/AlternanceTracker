@@ -36,7 +36,7 @@ const Coaching = () => {
       </div>
 
       {/* Navigation rapide */}
-      <div className="bg-white shadow rounded-lg p-4">
+      <div className="bg-white shadow-card rounded-xl border border-gray-200 p-4">
         <p className="text-sm font-medium text-gray-700 mb-2">Aller à une section :</p>
         <div className="flex flex-wrap gap-2">
           {sections.map(({ id, title, icon }) => (
@@ -101,7 +101,7 @@ const Coaching = () => {
             <li>Personnaliser chaque lettre : nom de l’entreprise, du recruteur si connu, référence à une offre ou un projet.</li>
             <li>Utiliser des verbes d’action et des chiffres (durée de stage, nombre de projets, etc.).</li>
             <li>Rester court : une page, 3 paragraphes, pas de redite avec le CV.</li>
-            <li>Des modèles par type d'entreprise sont disponibles dans <Link to="/modeles-lettres" className="font-medium text-primary-600 hover:underline">Modèles de lettres</Link>.</li>
+            <li>Des modèles par type d'entreprise sont disponibles dans <Link to="/preparer/lettres" className="font-medium text-primary-600 hover:underline">Lettres</Link>.</li>
           </ul>
         </SectionCard>
 
@@ -142,6 +142,18 @@ const Coaching = () => {
             <li>Résumé court : formation, compétences, type d’alternance recherchée.</li>
             <li>Ajoutez recruteurs et professionnels du secteur ; envoyez un message personnalisé avec chaque demande.</li>
             <li>Publiez ou commentez (projets, articles) pour augmenter votre visibilité.</li>
+          </ul>
+          <h3 className="text-lg font-semibold text-gray-900 mt-4">Méthode pour postuler par e-mail à une offre LinkedIn</h3>
+          <p className="text-gray-700 my-2">Une approche efficace pour contacter directement le recruteur :</p>
+          <ol className="list-decimal list-inside space-y-2 text-gray-700 my-2">
+            <li><strong>Identifier le RH</strong> : quand vous voyez une offre sur LinkedIn, repérez par qui elle a été postée (nom du recruteur / RH).</li>
+            <li><strong>Récupérer ou déduire l’e-mail</strong> : vérifiez si une adresse e-mail est indiquée sous l’offre. Sinon, notez le <strong>nom du recruteur</strong> et le <strong>nom de l’entreprise</strong>, puis demandez à ChatGPT (ou un outil équivalent) de vous proposer une adresse e-mail plausible pour ce RH à partir de ces deux informations (ex. : prénom.nom@entreprise.com).</li>
+            <li><strong>Faire rédiger le mail de candidature</strong> : demandez ensuite à ChatGPT de vous générer un mail de candidature personnalisé (poste, entreprise, votre profil).</li>
+          </ol>
+          <p className="text-gray-700 mt-3 font-medium">À inclure dans le mail de candidature :</p>
+          <ul className="list-disc list-inside space-y-1 text-gray-700 my-2">
+            <li><strong>Objet</strong> : indiquez la référence de l’offre, par exemple : « Candidature pour le poste [intitulé du poste] – réf LinkedIn ».</li>
+            <li><strong>En fin de mail</strong> : après votre signature (nom et adresse e-mail), ajoutez une ligne avec le lien de l’offre : « Lien de l’offre : https://… » (collez l’URL de l’annonce LinkedIn). Cela facilite le travail du recruteur et montre que vous ciblez bien cette offre.</li>
           </ul>
           <h3 className="text-lg font-semibold text-gray-900 mt-4">Réseau physique et événements</h3>
           <ul className="list-disc list-inside space-y-1 text-gray-700 my-2">
@@ -221,7 +233,7 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white shadow rounded-lg border border-gray-200 overflow-hidden">
+    <div className="bg-white shadow-card rounded-xl border border-gray-200 overflow-hidden">
       <button
         type="button"
         onClick={onToggle}

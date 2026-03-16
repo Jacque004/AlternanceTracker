@@ -20,6 +20,9 @@ const Profile = () => {
     alternanceRhythm: '',
     desiredStartDate: '',
     linkedinUrl: '',
+    weeklySummaryEnabled: false,
+    reminderEmailsEnabled: true,
+    applicationsGoal: '' as string | number,
   });
 
   useEffect(() => {
@@ -34,13 +37,19 @@ const Profile = () => {
         alternanceRhythm: user.alternanceRhythm || '',
         desiredStartDate: toInputDate(user.desiredStartDate) || '',
         linkedinUrl: user.linkedinUrl || '',
+        weeklySummaryEnabled: user.weeklySummaryEnabled ?? false,
+        reminderEmailsEnabled: user.reminderEmailsEnabled ?? true,
+        applicationsGoal: user.applicationsGoal != null ? user.applicationsGoal : '',
       });
     }
   }, [user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,6 +65,9 @@ const Profile = () => {
         alternanceRhythm: formData.alternanceRhythm || undefined,
         desiredStartDate: formData.desiredStartDate || undefined,
         linkedinUrl: formData.linkedinUrl || undefined,
+        weeklySummaryEnabled: formData.weeklySummaryEnabled,
+        reminderEmailsEnabled: formData.reminderEmailsEnabled,
+        applicationsGoal: formData.applicationsGoal === '' ? null : (typeof formData.applicationsGoal === 'number' ? formData.applicationsGoal : parseInt(String(formData.applicationsGoal), 10) || null),
       });
       if (error) {
         toast.error(error.message || 'Erreur lors de la mise à jour');
@@ -73,7 +85,7 @@ const Profile = () => {
     <div className="max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Mon profil</h1>
 
-      <div className="bg-white shadow rounded-lg p-6">
+      <div className="bg-white shadow-card rounded-xl border border-gray-200 p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -203,6 +215,52 @@ const Profile = () => {
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                 placeholder="https://linkedin.com/in/..."
               />
+            </div>
+
+            <div>
+              <label htmlFor="applicationsGoal" className="block text-sm font-medium text-gray-700">
+                Objectif candidatures / semaine
+              </label>
+              <input
+                type="number"
+                id="applicationsGoal"
+                name="applicationsGoal"
+                min={0}
+                value={formData.applicationsGoal}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                placeholder="Ex. 5"
+              />
+              <p className="mt-1 text-xs text-gray-500">Affiché sur le tableau de bord (0 = masqué)</p>
+            </div>
+
+            <div className="md:col-span-2 border-t border-gray-200 pt-6 mt-2">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Notifications</h2>
+              <p className="text-sm text-gray-500 mb-4">
+                Les rappels par email (relances, entretiens) et le résumé hebdo seront disponibles prochainement.
+              </p>
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="reminderEmailsEnabled"
+                    checked={formData.reminderEmailsEnabled}
+                    onChange={handleChange}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-sm text-gray-700">Recevoir les rappels (relances, entretiens) par email</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="weeklySummaryEnabled"
+                    checked={formData.weeklySummaryEnabled}
+                    onChange={handleChange}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-sm text-gray-700">Résumé hebdomadaire par email (bientôt disponible)</span>
+                </label>
+              </div>
             </div>
           </div>
 

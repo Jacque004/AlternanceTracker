@@ -1,25 +1,42 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import PageTransition from './PageTransition';
+import Footer from './Footer';
 
 const navItems = [
-  { to: '/', label: 'Tableau de bord', match: (path: string) => path === '/' },
-  { to: '/applications', label: 'Mes candidatures', match: (path: string) => path.startsWith('/applications') },
-  { to: '/conseils-cv', label: 'Conseils CV', match: (path: string) => path === '/conseils-cv' },
-  { to: '/analyser-offre', label: 'Analyser une offre', match: (path: string) => path === '/analyser-offre' },
-  { to: '/coaching', label: 'Coaching', match: (path: string) => path === '/coaching' },
-  { to: '/modeles-lettres', label: 'Modèles de lettres', match: (path: string) => path === '/modeles-lettres' },
+  { to: '/', label: 'Accueil', match: (path: string) => path === '/' },
+  { to: '/applications', label: 'Candidatures', match: (path: string) => path.startsWith('/applications') },
+  { to: '/preparer', label: 'Préparer', match: (path: string) => path.startsWith('/preparer') },
   { to: '/profile', label: 'Profil', match: (path: string) => path === '/profile' },
 ];
+
+const ONBOARDING_KEY = 'alternancetracker_onboarding_done';
 
 const Layout = () => {
   const { user, signOut } = useSupabaseAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    try {
+      setShowOnboarding(!localStorage.getItem(ONBOARDING_KEY));
+    } catch {
+      setShowOnboarding(false);
+    }
+  }, []);
+
+  const dismissOnboarding = () => {
+    try {
+      localStorage.setItem(ONBOARDING_KEY, '1');
+    } catch {}
+    setShowOnboarding(false);
+  };
 
   useEffect(() => {
     if (mobileOpen) {
@@ -40,39 +57,39 @@ const Layout = () => {
     }`;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100/80">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
       >
         Aller au contenu principal
       </a>
 
-      <nav className="bg-white shadow-sm border-b border-gray-200">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200/80 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-14 sm:h-16">
-            <div className="flex items-center">
+            <div className="flex items-center gap-8">
               <Link
                 to="/"
-                className="flex-shrink-0 text-xl font-bold text-primary-600 hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
+                className="flex-shrink-0 text-xl font-bold tracking-tight text-primary-600 hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-lg transition-colors duration-200"
               >
                 AlternanceTracker
               </Link>
-              <div className="hidden lg:ml-8 lg:flex lg:gap-1">
+              <nav className="hidden lg:flex lg:gap-0.5" aria-label="Navigation principale">
                 {navItems.map(({ to, label, match }) => (
                   <Link
                     key={to}
                     to={to}
-                    className={`inline-flex items-center px-3 py-2 border-b-2 text-sm font-medium rounded-t ${
+                    className={`px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                       match(location.pathname)
-                        ? 'border-primary-500 text-gray-900 bg-gray-50/50'
-                        : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                        ? 'bg-primary-100 text-primary-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                     }`}
                   >
                     {label}
                   </Link>
                 ))}
-              </div>
+              </nav>
             </div>
 
             <div className="hidden lg:flex lg:items-center lg:gap-4">
@@ -114,7 +131,7 @@ const Layout = () => {
         </div>
 
         {mobileOpen && (
-          <div className="lg:hidden border-t border-gray-200 bg-white" role="dialog" aria-label="Menu de navigation">
+          <div className="lg:hidden border-t border-gray-200 bg-white menu-enter" role="dialog" aria-label="Menu de navigation">
             <div className="pt-2 pb-4 px-4 space-y-1 max-h-[calc(100vh-4rem)] overflow-y-auto">
               {navItems.map(({ to, label, match }) => (
                 <Link
@@ -145,11 +162,33 @@ const Layout = () => {
             </div>
           </div>
         )}
-      </nav>
+      </header>
 
-      <main id="main" className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8" role="main">
-        <Outlet />
+      {showOnboarding && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-card animate-in">
+            <div>
+              <p className="font-medium text-primary-900">Bienvenue sur AlternanceTracker</p>
+              <p className="text-sm text-primary-800 mt-0.5">
+                Commencez par <Link to="/applications/new" className="underline font-medium">ajouter une candidature</Link>, 
+                complétez votre <Link to="/profile" className="underline font-medium">profil</Link> et 
+                utilisez <Link to="/preparer/lettres" className="underline font-medium">Préparer → Lettres</Link> pour générer vos lettres avec l'IA.
+              </p>
+            </div>
+            <button type="button" onClick={dismissOnboarding} className="shrink-0 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded">
+              Compris
+            </button>
+          </div>
+        </div>
+      )}
+
+      <main id="main" className="flex-1 max-w-7xl w-full mx-auto py-8 px-4 sm:px-6 lg:px-8" role="main">
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
       </main>
+
+      <Footer />
     </div>
   );
 };

@@ -19,6 +19,9 @@ interface SupabaseAuthContextType {
     alternanceRhythm?: string;
     desiredStartDate?: string;
     linkedinUrl?: string;
+    weeklySummaryEnabled?: boolean;
+    reminderEmailsEnabled?: boolean;
+    applicationsGoal?: number | null;
   }) => Promise<{ error: any }>;
 }
 
@@ -106,7 +109,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('id, email, first_name, last_name, created_at, school, formation, study_year, alternance_rhythm, desired_start_date, linkedin_url')
+        .select('id, email, first_name, last_name, created_at, school, formation, study_year, alternance_rhythm, desired_start_date, linkedin_url, weekly_summary_enabled, reminder_emails_enabled, applications_goal')
         .eq('id', authUser.id)
         .single();
 
@@ -125,6 +128,9 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
           alternanceRhythm: data.alternance_rhythm,
           desiredStartDate: data.desired_start_date,
           linkedinUrl: data.linkedin_url,
+          weeklySummaryEnabled: data.weekly_summary_enabled ?? false,
+          reminderEmailsEnabled: data.reminder_emails_enabled ?? true,
+          applicationsGoal: data.applications_goal ?? null,
         });
       }
     } catch (error) {
@@ -143,6 +149,10 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
           first_name: firstName,
           last_name: lastName,
         },
+        emailRedirectTo: (() => {
+          const base = (import.meta.env.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin + (import.meta.env.BASE_URL || '') : '')).replace(/\/$/, '');
+          return base ? `${base}/login?confirmed=1` : undefined;
+        })(),
       },
     });
 
@@ -176,6 +186,8 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     alternanceRhythm?: string;
     desiredStartDate?: string;
     linkedinUrl?: string;
+    weeklySummaryEnabled?: boolean;
+    reminderEmailsEnabled?: boolean;
   }) => {
     if (!session?.user) return { error: new Error('No user session') };
 
@@ -188,6 +200,9 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     if (data.alternanceRhythm !== undefined) updates.alternance_rhythm = data.alternanceRhythm;
     if (data.desiredStartDate !== undefined) updates.desired_start_date = data.desiredStartDate || null;
     if (data.linkedinUrl !== undefined) updates.linkedin_url = data.linkedinUrl;
+    if (data.weeklySummaryEnabled !== undefined) updates.weekly_summary_enabled = data.weeklySummaryEnabled;
+    if (data.reminderEmailsEnabled !== undefined) updates.reminder_emails_enabled = data.reminderEmailsEnabled;
+    if (data.applicationsGoal !== undefined) updates.applications_goal = data.applicationsGoal === null || data.applicationsGoal === 0 ? null : data.applicationsGoal;
 
     const { error } = await supabase
       .from('users')

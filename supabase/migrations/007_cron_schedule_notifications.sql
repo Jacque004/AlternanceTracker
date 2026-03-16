@@ -1,0 +1,42 @@
+-- Planification des rappels et du résumé hebdo par email
+-- Prérequis : extensions pg_cron et pg_net activées (Dashboard Supabase → Database → Extensions)
+-- Remplacez VOTRE_PROJECT_REF et VOTRE_CRON_SECRET avant d'exécuter, ou utilisez un cron externe (voir docs/NOTIFICATIONS_EMAIL.md).
+
+-- CREATE EXTENSION IF NOT EXISTS pg_cron;
+-- CREATE EXTENSION IF NOT EXISTS pg_net;
+
+-- Exemple : rappels quotidiens à 8h00 (UTC)
+-- SELECT cron.schedule(
+--   'send-reminders-daily',
+--   '0 8 * * *',
+--   $$
+--   SELECT net.http_post(
+--     url := 'https://VOTRE_PROJECT_REF.supabase.co/functions/v1/send-reminders',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'Authorization', 'Bearer VOTRE_CRON_SECRET'
+--     ),
+--     body := '{}'::jsonb
+--   ) AS request_id;
+--   $$
+-- );
+
+-- Exemple : résumé hebdo le lundi à 8h00 (UTC)
+-- SELECT cron.schedule(
+--   'send-weekly-summary',
+--   '0 8 * * 1',
+--   $$
+--   SELECT net.http_post(
+--     url := 'https://VOTRE_PROJECT_REF.supabase.co/functions/v1/send-weekly-summary',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'Authorization', 'Bearer VOTRE_CRON_SECRET'
+--     ),
+--     body := '{}'::jsonb
+--   ) AS request_id;
+--   $$
+-- );
+
+-- Pour supprimer les jobs plus tard :
+-- SELECT cron.unschedule('send-reminders-daily');
+-- SELECT cron.unschedule('send-weekly-summary');

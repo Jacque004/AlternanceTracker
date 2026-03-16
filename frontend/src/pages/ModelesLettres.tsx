@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { aiService, letterService } from '../services/supabaseService';
+import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import type { GeneratedLetter } from '../types';
 
 type TemplateId = 'pme' | 'grande_entreprise' | 'startup' | 'association' | 'public' | 'cabinet';
 
@@ -111,13 +114,81 @@ Je reste à votre disposition pour un entretien et vous prie d'agréer, Madame, 
 ];
 
 const ModelesLettres = () => {
+  const [searchParams] = useSearchParams();
+  const { user } = useSupabaseAuth();
   const [openId, setOpenId] = useState<TemplateId | null>('pme');
+  const [company, setCompany] = useState('');
+  const [position, setPosition] = useState('');
+  const [additionalContext, setAdditionalContext] = useState('');
+  const [generatedLetter, setGeneratedLetter] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [savingLetterId, setSavingLetterId] = useState<string | null>(null);
+  const [savedLetters, setSavedLetters] = useState<GeneratedLetter[]>([]);
+  const [lettersLoading, setLettersLoading] = useState(true);
+
+  useEffect(() => {
+    const c = searchParams.get('company') || '';
+    const p = searchParams.get('position') || '';
+    setCompany(c);
+    setPosition(p);
+  }, [searchParams]);
+
+  useEffect(() => {
+    letterService.getAll().then(setSavedLetters).catch(() => setSavedLetters([])).finally(() => setLettersLoading(false));
+  }, []);
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text).then(
       () => toast.success('Modèle copié dans le presse-papier'),
       () => toast.error('Copie impossible')
     );
+  };
+
+  const userInfo = user ? [user.formation, user.school, user.studyYear].filter(Boolean).join(', ') : '';
+  const handleGenerate = async () => {
+    if (!company.trim() || !position.trim()) {
+      toast.error('Entreprise et poste sont requis');
+      return;
+    }
+    setGenerating(true);
+    setGeneratedLetter('');
+    try {
+      const letter = await aiService.generateCoverLetter({
+        companyName: company.trim(),
+        position: position.trim(),
+        userInfo: userInfo || undefined,
+        additionalContext: additionalContext.trim() || undefined,
+      });
+      setGeneratedLetter(letter);
+      toast.success('Lettre générée');
+    } catch (e: any) {
+      toast.error(e?.message || 'Erreur lors de la génération');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleSaveLetter = async () => {
+    if (!generatedLetter.trim()) return;
+    setSavingLetterId('new');
+    try {
+      await letterService.create({
+        title: `Lettre ${company || 'sans entreprise'} – ${position || ''}`.trim(),
+        content: generatedLetter,
+        companyName: company.trim() || undefined,
+        position: position.trim() || undefined,
+      });
+      refreshLetters();
+      toast.success('Lettre enregistrée');
+    } catch (e: any) {
+      toast.error(e?.message || 'Erreur');
+    } finally {
+      setSavingLetterId(null);
+    }
+  };
+
+  const refreshLetters = () => {
+    letterService.getAll().then(setSavedLetters).catch(() => {});
   };
 
   return (
@@ -127,15 +198,123 @@ const ModelesLettres = () => {
           Modèles de lettres de motivation
         </h1>
         <p className="mt-2 text-gray-600">
-          Choisissez un type d'entreprise et personnalisez le modèle avec vos informations. Copiez-collez puis adaptez les parties entre crochets [ ].
+          Choisissez un type d'entreprise et personnalisez le modèle avec vos informations. Vous pouvez aussi générer une lettre avec l'IA à partir d'une candidature.
         </p>
+      </div>
+
+      {/* Générer avec l'IA */}
+      <div className="bg-white shadow-card rounded-xl border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Générer une lettre avec l'IA</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Entreprise et poste peuvent être pré-remplis si vous venez depuis une candidature.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Entreprise</label>
+            <input
+              type="text"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              placeholder="Nom de l'entreprise"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Poste</label>
+            <input
+              type="text"
+              value={position}
+              onChange={(e) => setPosition(e.target.value)}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              placeholder="Intitulé du poste"
+            />
+          </div>
+        </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Contexte supplémentaire (optionnel)</label>
+          <textarea
+            value={additionalContext}
+            onChange={(e) => setAdditionalContext(e.target.value)}
+            rows={2}
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+            placeholder="Points à mettre en avant, secteur..."
+          />
+        </div>
+        <button
+          type="button"
+          onClick={handleGenerate}
+          disabled={generating || !company.trim() || !position.trim()}
+          className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+        >
+          {generating ? 'Génération...' : 'Générer la lettre'}
+        </button>
+        {generatedLetter && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="relative">
+              <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-800 whitespace-pre-wrap font-sans overflow-x-auto max-h-96 overflow-y-auto">
+                {generatedLetter}
+              </pre>
+              <div className="flex gap-2 mt-2">
+                <button type="button" onClick={() => handleCopy(generatedLetter)} className="text-sm font-medium text-primary-600 hover:underline">
+                  Copier
+                </button>
+                <button type="button" onClick={handleSaveLetter} disabled={savingLetterId !== null} className="text-sm font-medium text-primary-600 hover:underline disabled:opacity-50">
+                  {savingLetterId ? 'Enregistrement...' : 'Enregistrer cette lettre'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Mes lettres enregistrées */}
+      <div className="bg-white shadow-card rounded-xl border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Mes lettres enregistrées</h2>
+        {lettersLoading ? (
+          <p className="text-sm text-gray-500">Chargement...</p>
+        ) : savedLetters.length === 0 ? (
+          <p className="text-sm text-gray-500">Aucune lettre enregistrée. Générez une lettre ci-dessus puis cliquez sur « Enregistrer ».</p>
+        ) : (
+          <ul className="space-y-2">
+            {savedLetters.map((letter) => (
+              <li key={letter.id} className="flex items-center justify-between gap-2 p-3 bg-gray-50 rounded border border-gray-200">
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 truncate">{letter.title || 'Sans titre'}</p>
+                  {(letter.companyName || letter.position) && (
+                    <p className="text-xs text-gray-500">{letter.companyName} – {letter.position}</p>
+                  )}
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <button type="button" onClick={() => handleCopy(letter.content)} className="text-sm text-primary-600 hover:underline">Copier</button>
+                  {letter.id && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await letterService.delete(letter.id!);
+                          refreshLetters();
+                          toast.success('Lettre supprimée');
+                        } catch {
+                          toast.error('Erreur');
+                        }
+                      }}
+                      className="text-sm text-red-600 hover:underline"
+                    >
+                      Supprimer
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="space-y-4">
         {TEMPLATES.map((t) => (
           <div
             key={t.id}
-            className="bg-white shadow rounded-lg border border-gray-200 overflow-hidden"
+            className="bg-white shadow-card rounded-xl border border-gray-200 overflow-hidden"
           >
             <button
               type="button"
@@ -178,7 +357,7 @@ const ModelesLettres = () => {
         <p className="font-medium text-gray-900 mb-1">Conseil</p>
         <p>
           Personnalisez toujours la lettre : nom de l'entreprise, du recruteur si vous le connaissez, et une phrase sur ce qui vous attire chez eux. 
-          Retrouvez plus de conseils dans l'onglet <Link to="/coaching" className="text-primary-600 font-medium hover:underline">Coaching</Link>.
+          Retrouvez plus de conseils dans l'onglet <Link to="/preparer/conseils" className="text-primary-600 font-medium hover:underline">Conseils</Link>.
         </p>
       </div>
     </div>

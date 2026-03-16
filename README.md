@@ -64,6 +64,14 @@ ProjetSaaS/
 └── docker-compose.yml
 ```
 
+## 🔐 Authentification et données
+
+- **Auth et données** : L'application utilise **Supabase** pour l'authentification (inscription, connexion, confirmation email) et le stockage des données (candidatures, profil, CV, lettres générées). Les utilisateurs se connectent via Supabase Auth.
+- **IA** : Les fonctionnalités IA (analyse CV, score ATS, génération de lettre, analyse d'offre) peuvent passer par :
+  - **Backend Express** : si `VITE_API_URL` est défini côté frontend, les appels IA sont envoyés au backend (routes `/ai/*`). Le backend utilise une clé OpenAI. L'authentification des requêtes vers le backend peut reposer sur un JWT (backend) ou sur le JWT Supabase si le backend est configuré pour le vérifier.
+  - **Supabase Edge Functions** : si `VITE_API_URL` n'est pas défini, le frontend appelle les Edge Functions Supabase (ex. `generate-cover-letter`, `analyze-cv-alternance`, `analyze-job-offer`). Aucune configuration backend n'est alors nécessaire pour l'IA.
+- En résumé : **données et auth = Supabase** ; **IA = backend Express (si VITE_API_URL) ou Edge Functions Supabase**.
+
 ## 🔐 Variables d'environnement
 
 ### Backend (.env)
@@ -78,7 +86,12 @@ OPENAI_API_KEY=your-openai-api-key
 
 ### Frontend (.env)
 ```
+# Optionnel : backend Express pour l'IA (analyse CV, ATS, etc.)
 VITE_API_URL=http://localhost:5000/api
+
+# Supabase (auth + données)
+VITE_SUPABASE_URL=https://votre-projet.supabase.co
+VITE_SUPABASE_ANON_KEY=votre-cle-anon
 ```
 
 ## 📝 Scripts disponibles
