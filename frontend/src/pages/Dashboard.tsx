@@ -54,7 +54,7 @@ const Dashboard = () => {
         dashboardService.getStatistics(),
         dashboardService.getRecent(5),
         applicationService.getAll({ status: 'pending' }),
-        applicationService.getUpcomingInterviews(10),
+        dashboardService.getUpcomingInterviews(10),
       ]);
       setStats(statsRes);
       setRecent(recentRes);
@@ -71,9 +71,7 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    let cancelled = false;
     loadData().then(() => {});
-    return () => { cancelled = true; };
   }, []);
 
   const handleMarkRelance = async (id: number) => {

@@ -29,8 +29,8 @@ function App() {
             toastOptions={{
               duration: 4000,
               className: '!rounded-xl !shadow-card-hover !border !border-gray-200',
-              success: { iconTheme: { primary: '#0284c7' } },
-              error: { iconTheme: { primary: '#dc2626' } },
+              success: { iconTheme: { primary: '#0284c7', secondary: '#ffffff' } },
+              error: { iconTheme: { primary: '#dc2626', secondary: '#ffffff' } },
             }}
           />
           <Routes>

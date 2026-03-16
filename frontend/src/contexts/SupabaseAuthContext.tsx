@@ -188,6 +188,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     linkedinUrl?: string;
     weeklySummaryEnabled?: boolean;
     reminderEmailsEnabled?: boolean;
+    applicationsGoal?: number | null;
   }) => {
     if (!session?.user) return { error: new Error('No user session') };
 
