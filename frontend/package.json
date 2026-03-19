@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--max_old_space_size=4096 vite",
     "build": "tsc && vite build",
+    "postbuild": "node scripts/prepare-ghpages-routes.mjs",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },

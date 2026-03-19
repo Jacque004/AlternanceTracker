@@ -260,7 +260,10 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
       ''
     );
 
-    const redirectTo = base ? `${base}/reset-password` : undefined;
+    // Important sur GitHub Pages : l’hébergement statique ne gère pas le fallback SPA.
+    // On force donc un trailing slash, afin que l’URL cible corresponde à un dossier (dist/reset-password/index.html)
+    // généré dans le postbuild.
+    const redirectTo = base ? `${base}/reset-password/` : undefined;
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo,
