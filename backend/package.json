@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "migrate": "ts-node src/database/run-migration.ts",
-    "test": "node --max-old-space-size=4096 ./node_modules/jest/bin/jest.js"
+    "test": "cross-env NODE_OPTIONS=--max-old-space-size=4096 npx jest"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -36,6 +36,6 @@
     "nodemon": "^3.0.2",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "5.3.3"
   }
 }

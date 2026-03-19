@@ -16,6 +16,12 @@ export interface User {
   reminderEmailsEnabled?: boolean;
   /** Objectif de candidatures par semaine (affiché sur le dashboard) */
   applicationsGoal?: number | null;
+  /** RGPD : date d'acceptation de la politique de confidentialité */
+  privacyPolicyAcceptedAt?: string | null;
+  /** RGPD : date d'acceptation des CGU */
+  termsAcceptedAt?: string | null;
+  /** RGPD : consentement aux emails marketing */
+  marketingEmailsConsent?: boolean;
 }
 
 export interface Application {
@@ -93,6 +99,14 @@ export type CVSectionKey =
 
 export interface CVContent {
   coordonnees?: string;
+  /** Champs structurés pour afficher/mettre en forme les coordonnées */
+  coord_prenom?: string;
+  coord_nom?: string;
+  coord_email?: string;
+  coord_telephone?: string;
+  coord_adresse?: string;
+  coord_ville?: string;
+  coord_linkedin?: string;
   titre_profil?: string;
   experience?: string;
   formation?: string;

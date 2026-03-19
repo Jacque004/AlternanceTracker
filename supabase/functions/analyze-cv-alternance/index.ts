@@ -51,7 +51,7 @@ async function callGemini(cvText: string): Promise<string> {
         body: JSON.stringify({
           contents: [{ parts: [{ text: fullPrompt }] }],
           generationConfig: {
-            maxOutputTokens: 1500,
+            maxOutputTokens: 2200,
             temperature: 0.5,
           },
         }),
@@ -83,7 +83,7 @@ async function callOpenAI(cvText: string): Promise<string> {
         { role: 'user', content: prompt },
       ],
       temperature: 0.5,
-      max_tokens: 1500,
+      max_tokens: 2200,
     }),
   });
   if (!res.ok) {

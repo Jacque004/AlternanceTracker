@@ -7,16 +7,21 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ConfirmSuccess from './pages/ConfirmSuccess';
 import APropos from './pages/APropos';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import ConseilsCV from './pages/ConseilsCV';
 import Coaching from './pages/Coaching';
 import ModelesLettres from './pages/ModelesLettres';
 import AnalyserOffre from './pages/AnalyserOffre';
-import Dashboard from './pages/Dashboard';
 import Applications from './pages/Applications';
 import ApplicationForm from './pages/ApplicationForm';
+import CalendarPage from './pages/Calendar';
 import Profile from './pages/Profile';
 import Layout from './components/Layout';
 import PreparerLayout from './pages/PreparerLayout';
+import PolitiqueConfidentialite from './pages/PolitiqueConfidentialite';
+import CGU from './pages/CGU';
+import HomeRoute from './pages/HomeRoute';
 
 function App() {
   return (
@@ -36,6 +41,10 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/politique-confidentialite" element={<PolitiqueConfidentialite />} />
+            <Route path="/cgu" element={<CGU />} />
             <Route path="/auth/confirm-success" element={<ConfirmSuccess />} />
             <Route
               path="/"
@@ -45,7 +54,7 @@ function App() {
                 </PrivateRoute>
               }
             >
-              <Route index element={<Dashboard />} />
+              <Route index element={<HomeRoute />} />
               <Route path="preparer" element={<PreparerLayout />}>
                 <Route index element={<Navigate to="/preparer/cv" replace />} />
                 <Route path="cv" element={<ConseilsCV />} />
@@ -61,6 +70,7 @@ function App() {
               <Route path="applications" element={<Applications />} />
               <Route path="applications/new" element={<ApplicationForm />} />
               <Route path="applications/:id/edit" element={<ApplicationForm />} />
+              <Route path="calendar" element={<CalendarPage />} />
               <Route path="profile" element={<Profile />} />
               <Route path="a-propos" element={<APropos />} />
             </Route>

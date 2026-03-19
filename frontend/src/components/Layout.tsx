@@ -3,15 +3,15 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import PageTransition from './PageTransition';
 import Footer from './Footer';
+import OnboardingTour, { shouldShowOnboarding, markOnboardingDone } from './OnboardingTour';
 
 const navItems = [
   { to: '/', label: 'Accueil', match: (path: string) => path === '/' },
   { to: '/applications', label: 'Candidatures', match: (path: string) => path.startsWith('/applications') },
+  { to: '/calendar', label: 'Calendrier', match: (path: string) => path.startsWith('/calendar') },
   { to: '/preparer', label: 'Préparer', match: (path: string) => path.startsWith('/preparer') },
   { to: '/profile', label: 'Profil', match: (path: string) => path === '/profile' },
 ];
-
-const ONBOARDING_KEY = 'alternancetracker_onboarding_done';
 
 const Layout = () => {
   const { user, signOut } = useSupabaseAuth();
@@ -25,18 +25,11 @@ const Layout = () => {
 
   useEffect(() => {
     try {
-      setShowOnboarding(!localStorage.getItem(ONBOARDING_KEY));
+      setShowOnboarding(!!user && shouldShowOnboarding());
     } catch {
       setShowOnboarding(false);
     }
-  }, []);
-
-  const dismissOnboarding = () => {
-    try {
-      localStorage.setItem(ONBOARDING_KEY, '1');
-    } catch {}
-    setShowOnboarding(false);
-  };
+  }, [user]);
 
   useEffect(() => {
     if (mobileOpen) {
@@ -75,35 +68,57 @@ const Layout = () => {
               >
                 AlternanceTracker
               </Link>
-              <nav className="hidden lg:flex lg:gap-0.5" aria-label="Navigation principale">
-                {navItems.map(({ to, label, match }) => (
-                  <Link
-                    key={to}
-                    to={to}
-                    className={`px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-                      match(location.pathname)
-                        ? 'bg-primary-100 text-primary-700'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    {label}
-                  </Link>
-                ))}
-              </nav>
+              {user ? (
+                <nav className="hidden lg:flex lg:gap-0.5" aria-label="Navigation principale">
+                  {navItems.map(({ to, label, match }) => (
+                    <Link
+                      key={to}
+                      to={to}
+                      className={`px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                        match(location.pathname)
+                          ? 'bg-primary-100 text-primary-700'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                    >
+                      {label}
+                    </Link>
+                  ))}
+                </nav>
+              ) : null}
             </div>
 
-            <div className="hidden lg:flex lg:items-center lg:gap-4">
-              <span className="text-sm text-gray-600 truncate max-w-[140px]" title={`${user?.firstName} ${user?.lastName}`}>
-                {user?.firstName} {user?.lastName}
-              </span>
-              <button
-                type="button"
-                onClick={() => signOut()}
-                className="shrink-0 text-sm font-medium text-red-600 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded px-3 py-1.5"
-              >
-                Déconnexion
-              </button>
-            </div>
+            {user ? (
+              <div className="hidden lg:flex lg:items-center lg:gap-4">
+                <span
+                  className="text-sm text-gray-600 truncate max-w-[140px]"
+                  title={`${user?.firstName} ${user?.lastName}`}
+                >
+                  {user?.firstName} {user?.lastName}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => signOut()}
+                  className="shrink-0 text-sm font-medium text-red-600 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded px-3 py-1.5"
+                >
+                  Déconnexion
+                </button>
+              </div>
+            ) : (
+              <div className="hidden lg:flex lg:items-center lg:gap-3">
+                <Link
+                  to="/login"
+                  className="px-3 py-1.5 text-sm font-medium text-primary-700 hover:text-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
+                >
+                  Connexion
+                </Link>
+                <Link
+                  to="/register"
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
+                >
+                  Créer un compte
+                </Link>
+              </div>
+            )}
 
             <div className="flex items-center gap-2 lg:hidden">
               <span className="text-xs sm:text-sm text-gray-600 truncate max-w-[100px] sm:max-w-[120px]">
@@ -133,31 +148,55 @@ const Layout = () => {
         {mobileOpen && (
           <div className="lg:hidden border-t border-gray-200 bg-white menu-enter" role="dialog" aria-label="Menu de navigation">
             <div className="pt-2 pb-4 px-4 space-y-1 max-h-[calc(100vh-4rem)] overflow-y-auto">
-              {navItems.map(({ to, label, match }) => (
-                <Link
-                  key={to}
-                  to={to}
-                  className={linkClass(match(location.pathname))}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {label}
-                </Link>
-              ))}
+              {user
+                ? navItems.map(({ to, label, match }) => (
+                    <Link
+                      key={to}
+                      to={to}
+                      className={linkClass(match(location.pathname))}
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      {label}
+                    </Link>
+                  ))
+                : null}
+
               <div className="pt-3 mt-3 border-t border-gray-200">
-                <p className="px-3 py-1 text-xs font-medium text-gray-500 uppercase">Compte</p>
-                <p className="px-3 py-2 text-sm text-gray-700">
-                  {user?.firstName} {user?.lastName}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileOpen(false);
-                    signOut();
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md"
-                >
-                  Déconnexion
-                </button>
+                {user ? (
+                  <>
+                    <p className="px-3 py-1 text-xs font-medium text-gray-500 uppercase">Compte</p>
+                    <p className="px-3 py-2 text-sm text-gray-700">
+                      {user?.firstName} {user?.lastName}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        signOut();
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md"
+                    >
+                      Déconnexion
+                    </button>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <Link
+                      to="/login"
+                      onClick={() => setMobileOpen(false)}
+                      className="block w-full text-left px-3 py-2 text-sm font-medium text-primary-700 hover:bg-primary-50 rounded-md"
+                    >
+                      Connexion
+                    </Link>
+                    <Link
+                      to="/register"
+                      onClick={() => setMobileOpen(false)}
+                      className="block w-full text-left px-3 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md"
+                    >
+                      Créer un compte
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -165,21 +204,13 @@ const Layout = () => {
       </header>
 
       {showOnboarding && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-          <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-card animate-in">
-            <div>
-              <p className="font-medium text-primary-900">Bienvenue sur AlternanceTracker</p>
-              <p className="text-sm text-primary-800 mt-0.5">
-                Commencez par <Link to="/applications/new" className="underline font-medium">ajouter une candidature</Link>, 
-                complétez votre <Link to="/profile" className="underline font-medium">profil</Link> et 
-                utilisez <Link to="/preparer/lettres" className="underline font-medium">Préparer → Lettres</Link> pour générer vos lettres avec l'IA.
-              </p>
-            </div>
-            <button type="button" onClick={dismissOnboarding} className="shrink-0 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded">
-              Compris
-            </button>
-          </div>
-        </div>
+        <OnboardingTour
+          enabled={showOnboarding}
+          onFinish={() => {
+            markOnboardingDone();
+            setShowOnboarding(false);
+          }}
+        />
       )}
 
       <main id="main" className="flex-1 max-w-7xl w-full mx-auto py-8 px-4 sm:px-6 lg:px-8" role="main">

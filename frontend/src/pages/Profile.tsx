@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import toast from 'react-hot-toast';
+import { rgpdService } from '../services/supabaseService';
 
 function toInputDate(s: string | undefined) {
   if (!s) return '';
@@ -8,8 +10,12 @@ function toInputDate(s: string | undefined) {
 }
 
 const Profile = () => {
-  const { user, updateProfile } = useSupabaseAuth();
+  const navigate = useNavigate();
+  const { user, updateProfile, signOut } = useSupabaseAuth();
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -22,6 +28,7 @@ const Profile = () => {
     linkedinUrl: '',
     weeklySummaryEnabled: false,
     reminderEmailsEnabled: true,
+    marketingEmailsConsent: false,
     applicationsGoal: '' as string | number,
   });
 
@@ -39,6 +46,7 @@ const Profile = () => {
         linkedinUrl: user.linkedinUrl || '',
         weeklySummaryEnabled: user.weeklySummaryEnabled ?? false,
         reminderEmailsEnabled: user.reminderEmailsEnabled ?? true,
+        marketingEmailsConsent: user.marketingEmailsConsent ?? false,
         applicationsGoal: user.applicationsGoal != null ? user.applicationsGoal : '',
       });
     }
@@ -67,6 +75,7 @@ const Profile = () => {
         linkedinUrl: formData.linkedinUrl || undefined,
         weeklySummaryEnabled: formData.weeklySummaryEnabled,
         reminderEmailsEnabled: formData.reminderEmailsEnabled,
+        marketingEmailsConsent: formData.marketingEmailsConsent,
         applicationsGoal: formData.applicationsGoal === '' ? null : (typeof formData.applicationsGoal === 'number' ? formData.applicationsGoal : parseInt(String(formData.applicationsGoal), 10) || null),
       });
       if (error) {
@@ -260,9 +269,108 @@ const Profile = () => {
                   />
                   <span className="text-sm text-gray-700">Résumé hebdomadaire par email (bientôt disponible)</span>
                 </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="marketingEmailsConsent"
+                    checked={formData.marketingEmailsConsent}
+                    onChange={handleChange}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-sm text-gray-700">J'accepte de recevoir des communications marketing (offres, actualités)</span>
+                </label>
               </div>
             </div>
+
+            <div className="md:col-span-2 border-t border-gray-200 pt-6 mt-2">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Données personnelles (RGPD)</h2>
+              <p className="text-sm text-gray-500 mb-4">
+                Vous pouvez exporter toutes vos données ou supprimer définitivement votre compte.
+              </p>
+              <div className="flex flex-wrap gap-3 mb-4">
+                <button
+                  type="button"
+                  disabled={exporting}
+                  onClick={async () => {
+                    setExporting(true);
+                    try {
+                      const data = await rgpdService.exportMyData();
+                      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `alternance-tracker-export-${new Date().toISOString().slice(0, 10)}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      toast.success('Export téléchargé');
+                    } catch (e: any) {
+                      toast.error(e?.message || 'Erreur lors de l\'export');
+                    } finally {
+                      setExporting(false);
+                    }
+                  }}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                >
+                  {exporting ? 'Export en cours...' : 'Télécharger mes données'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="bg-red-50 hover:bg-red-100 text-red-700 px-4 py-2 rounded-md text-sm font-medium border border-red-200"
+                >
+                  Supprimer mon compte
+                </button>
+              </div>
+              {user?.privacyPolicyAcceptedAt && (
+                <p className="text-xs text-gray-500">
+                  Politique de confidentialité acceptée le {new Date(user.privacyPolicyAcceptedAt).toLocaleDateString('fr-FR')}.
+                  {user?.termsAcceptedAt && ` CGU acceptées le ${new Date(user.termsAcceptedAt).toLocaleDateString('fr-FR')}.`}
+                </p>
+              )}
+            </div>
           </div>
+
+          {deleteConfirmOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+              <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                <h3 id="delete-title" className="text-lg font-semibold text-gray-900 mb-2">Supprimer mon compte</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Cette action est irréversible. Toutes vos données (profil, candidatures, CV, lettres) seront définitivement supprimées.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirmOpen(false)}
+                    disabled={deleting}
+                    className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setDeleting(true);
+                      try {
+                        await rgpdService.deleteMyAccount();
+                        await signOut();
+                        toast.success('Compte supprimé');
+                        navigate('/');
+                      } catch (e: any) {
+                        toast.error(e?.message || 'Impossible de supprimer le compte');
+                      } finally {
+                        setDeleting(false);
+                        setDeleteConfirmOpen(false);
+                      }
+                    }}
+                    disabled={deleting}
+                    className="px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {deleting ? 'Suppression...' : 'Confirmer la suppression'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end pt-2">
             <button

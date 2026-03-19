@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { cvService, aiService, cvAnalysisService } from '../services/supabaseService';
-import type { CVContent, CVSectionKey, CVAnalysis } from '../types';
+import type { CVContent, CVSectionKey, CVAnalysis, ATSAnalysisResult } from '../types';
 import toast from 'react-hot-toast';
+import { pdf } from '@react-pdf/renderer';
+import { CvPdfDocument, CV_PDF_TEMPLATES, type CvPdfTemplateId } from '../components/CvPdfDocument';
 
 const SECTION_LABELS: Record<CVSectionKey, string> = {
   coordonnees: 'Coordonnées',
@@ -25,6 +27,13 @@ const SECTION_ORDER: CVSectionKey[] = [
 
 const emptyContent = (): CVContent => ({
   coordonnees: '',
+  coord_prenom: '',
+  coord_nom: '',
+  coord_email: '',
+  coord_telephone: '',
+  coord_adresse: '',
+  coord_ville: '',
+  coord_linkedin: '',
   titre_profil: '',
   experience: '',
   formation: '',
@@ -33,11 +42,113 @@ const emptyContent = (): CVContent => ({
   centres_interet: '',
 });
 
+function parseCoordonneesToFields(coordonnees: string): Partial<CVContent> {
+  const text = coordonnees.trim();
+  if (!text) return {};
+
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const firstLine = lines[0] ?? '';
+  const firstSegment = firstLine.split(',')[0]?.trim() ?? '';
+  const words = firstSegment.split(/\s+/).map((w) => w.trim()).filter(Boolean);
+  const coord_prenom = words.length >= 1 ? words[0] : '';
+  const coord_nom = words.length >= 2 ? words[words.length - 1] : '';
+
+  const emailMatch = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  const coord_email = emailMatch?.[0] ?? '';
+
+  const linkedinMatch = text.match(/https?:\/\/(?:www\.)?linkedin\.com\/[^\s,]+|(?:www\.)?linkedin\.com\/[^\s,]+/i);
+  const coord_linkedin = linkedinMatch?.[0] ?? '';
+
+  // Heuristique pour numéros (FR/EU) : suite de chiffres avec espaces/points/parentheses.
+  const phoneMatch = text.match(/(\+?\d[\d\s().-]{7,}\d)/);
+  const coord_telephone = phoneMatch?.[0]?.trim() ?? '';
+
+  const linesToKeep = lines.filter((l) => {
+    const lLower = l.toLowerCase();
+    if (coord_email && lLower.includes(coord_email.toLowerCase())) return false;
+    if (coord_linkedin && lLower.includes(coord_linkedin.toLowerCase())) return false;
+    if (coord_telephone && l.replace(/\s/g, '').includes(coord_telephone.replace(/\s/g, '').trim())) return false;
+    return true;
+  });
+
+  const nonNameLines = linesToKeep.slice(1);
+  const coord_ville = nonNameLines.length > 0 ? nonNameLines[nonNameLines.length - 1] : '';
+  const coord_adresse = nonNameLines.length > 1 ? nonNameLines.slice(0, -1).join('\n') : '';
+
+  return {
+    coord_prenom,
+    coord_nom,
+    coord_email,
+    coord_telephone,
+    coord_adresse,
+    coord_ville,
+    coord_linkedin,
+  };
+}
+
+function hasStructuredCoord(content: CVContent) {
+  return Boolean(
+      content.coord_email?.trim() ||
+      content.coord_telephone?.trim() ||
+      content.coord_adresse?.trim() ||
+      content.coord_ville?.trim() ||
+      content.coord_linkedin?.trim()
+  );
+}
+
+function buildCoordonneesText(content: CVContent): string {
+  const email = content.coord_email?.trim() ?? '';
+  const telephone = content.coord_telephone?.trim() ?? '';
+  const adresse = content.coord_adresse?.trim() ?? '';
+  const ville = content.coord_ville?.trim() ?? '';
+  const linkedin = content.coord_linkedin?.trim() ?? '';
+
+  const lines: string[] = [];
+  if (email) lines.push(`Email: ${email}`);
+  if (telephone) lines.push(`Téléphone: ${telephone}`);
+  if (adresse) lines.push(`Adresse: ${adresse}`);
+  if (ville) lines.push(`Ville: ${ville}`);
+  if (linkedin) lines.push(`LinkedIn: ${linkedin}`);
+
+  return lines.join('\n').trim();
+}
+
 function cvContentToPlainText(content: CVContent): string {
   const lines: string[] = [];
+
+  const candidateName =
+    `${content.coord_prenom?.trim() ?? ''} ${content.coord_nom?.trim() ?? ''}`.trim() ||
+    (() => {
+      const legacy = content.coordonnees?.trim() ?? '';
+      if (!legacy) return '';
+      const firstLine = legacy.split(/\r?\n/)[0]?.trim() ?? '';
+      const firstSegment = firstLine.split(',')[0]?.trim() ?? '';
+      const words = firstSegment.split(/\s+/).map((w) => w.trim()).filter(Boolean);
+      if (words.length === 0) return '';
+      if (words.length === 1) return words[0];
+      return `${words[0]} ${words[words.length - 1]}`.trim();
+    })();
+
+  // Ajoute le nom en "accroche" ATS, sans polluer la section COORDONNEES.
+  if (candidateName) {
+    lines.push(candidateName);
+    lines.push('');
+  }
+
   for (const key of SECTION_ORDER) {
     const label = SECTION_LABELS[key];
-    const value = content[key as keyof CVContent];
+
+    const value =
+      key === 'coordonnees'
+        ? hasStructuredCoord(content)
+          ? buildCoordonneesText(content)
+          : content.coordonnees
+        : (content[key as keyof CVContent] as unknown as string | undefined);
+
     if (value && String(value).trim()) {
       lines.push(label.toUpperCase());
       lines.push(String(value).trim());
@@ -107,10 +218,29 @@ function plainTextToContent(plain: string): CVContent {
       }
       const block = plain.slice(startIdx, sectionEnd).replace(/^[\s\S]*?\n/m, '').trim();
       (content as Record<string, string>)[key] = block;
+
+      if (key === 'coordonnees') {
+        const parsed = parseCoordonneesToFields(block);
+        content.coord_prenom = parsed.coord_prenom ?? '';
+        content.coord_nom = parsed.coord_nom ?? '';
+        content.coord_email = parsed.coord_email ?? '';
+        content.coord_telephone = parsed.coord_telephone ?? '';
+        content.coord_adresse = parsed.coord_adresse ?? '';
+        content.coord_ville = parsed.coord_ville ?? '';
+        content.coord_linkedin = parsed.coord_linkedin ?? '';
+      }
     }
   }
   if (!content.coordonnees && plain.trim()) {
     content.coordonnees = plain.split('\n').slice(0, 5).join('\n').trim();
+    const parsed = parseCoordonneesToFields(content.coordonnees || '');
+    content.coord_prenom = parsed.coord_prenom ?? content.coord_prenom ?? '';
+    content.coord_nom = parsed.coord_nom ?? content.coord_nom ?? '';
+    content.coord_email = parsed.coord_email ?? content.coord_email ?? '';
+    content.coord_telephone = parsed.coord_telephone ?? content.coord_telephone ?? '';
+    content.coord_adresse = parsed.coord_adresse ?? content.coord_adresse ?? '';
+    content.coord_ville = parsed.coord_ville ?? content.coord_ville ?? '';
+    content.coord_linkedin = parsed.coord_linkedin ?? content.coord_linkedin ?? '';
   }
   return content;
 }
@@ -125,7 +255,7 @@ const SimpleMarkdown = ({ text }: { text: string }) => {
       blocks.push(
         <ul key={blocks.length} className="list-disc list-inside space-y-1 my-2 text-gray-700">
           {listItems.map((item, i) => (
-            <li key={i}>{item.replace(/^-\s*/, '').trim()}</li>
+            <li key={i}>{item.replace(/^[-*•]\s*/, '').trim()}</li>
           ))}
         </ul>
       );
@@ -141,7 +271,7 @@ const SimpleMarkdown = ({ text }: { text: string }) => {
           {trimmed.replace(/^##\s*/, '')}
         </h2>
       );
-    } else if (trimmed.startsWith('- ')) {
+    } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('• ')) {
       listItems.push(trimmed);
     } else if (trimmed) {
       flushList();
@@ -163,17 +293,14 @@ const ConseilsCV = () => {
   const [content, setContent] = useState<CVContent>(emptyContent());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pdfTemplateId, setPdfTemplateId] = useState<CvPdfTemplateId>('minimal');
 
   const [adviceAlternance, setAdviceAlternance] = useState<string | null>(null);
   const [loadingAlternance, setLoadingAlternance] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
-  const [atsResult, setAtsResult] = useState<{
-    score: number;
-    tips: string[];
-    suggestedKeywords: string[];
-  } | null>(null);
-  const [atsLoading, setAtsLoading] = useState(false);
   const [analysisHistory, setAnalysisHistory] = useState<CVAnalysis[]>([]);
+  const [atsResult, setAtsResult] = useState<ATSAnalysisResult | null>(null);
 
   const loadCV = async () => {
     setLoading(true);
@@ -181,7 +308,19 @@ const ConseilsCV = () => {
       const cv = await cvService.getOrCreateDefault();
       setCvId(cv.id);
       setTitle(cv.title);
-      setContent({ ...emptyContent(), ...cv.content });
+      const merged: CVContent = { ...emptyContent(), ...cv.content };
+      const parsed = parseCoordonneesToFields(merged.coordonnees || '');
+      // Ne remplit pas si l'utilisateur a déjà des champs structurés.
+      setContent({
+        ...merged,
+        coord_prenom: merged.coord_prenom?.trim() ? merged.coord_prenom : parsed.coord_prenom ?? '',
+        coord_nom: merged.coord_nom?.trim() ? merged.coord_nom : parsed.coord_nom ?? '',
+        coord_email: merged.coord_email?.trim() ? merged.coord_email : parsed.coord_email ?? '',
+        coord_telephone: merged.coord_telephone?.trim() ? merged.coord_telephone : parsed.coord_telephone ?? '',
+        coord_adresse: merged.coord_adresse?.trim() ? merged.coord_adresse : parsed.coord_adresse ?? '',
+        coord_ville: merged.coord_ville?.trim() ? merged.coord_ville : parsed.coord_ville ?? '',
+        coord_linkedin: merged.coord_linkedin?.trim() ? merged.coord_linkedin : parsed.coord_linkedin ?? '',
+      });
       if (cv.atsScore != null) {
         setAtsResult((prev) => (prev ? { ...prev, score: cv.atsScore! } : { score: cv.atsScore!, tips: [], suggestedKeywords: [] }));
       }
@@ -202,6 +341,23 @@ const ConseilsCV = () => {
 
   const handleSectionChange = (key: CVSectionKey, value: string) => {
     setContent((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const updateCoordField = (field: keyof Pick<CVContent,
+    'coord_prenom' | 'coord_nom' | 'coord_email' | 'coord_telephone' | 'coord_adresse' | 'coord_ville' | 'coord_linkedin'>, value: string) => {
+    setContent((prev) => {
+      const next = { ...prev, [field]: value } as CVContent;
+      // Met à jour le champ legacy `coordonnees` uniquement si on a des données de contact
+      // (ou si l'ancien champ était vide), pour éviter de perdre des infos importées.
+      const shouldOverwriteLegacy =
+        hasStructuredCoord(next) || !(prev.coordonnees && prev.coordonnees.trim());
+      if (shouldOverwriteLegacy) {
+        next.coordonnees = buildCoordonneesText(next);
+      } else {
+        next.coordonnees = prev.coordonnees;
+      }
+      return next;
+    });
   };
 
   const handleSave = async () => {
@@ -264,31 +420,6 @@ const ConseilsCV = () => {
     }
   };
 
-  const handleAnalyzeATS = async () => {
-    const plain = cvContentToPlainText(content);
-    if (plain.length < 30) {
-      toast.error('Remplissez au moins une section pour l\'analyse ATS.');
-      return;
-    }
-    setAtsLoading(true);
-    setAtsResult(null);
-    try {
-      const result = await aiService.analyzeCVForATS(plain);
-      setAtsResult(result);
-      if (cvId) await cvService.update(cvId, { atsScore: result.score });
-      setActiveTab('conseils');
-      try {
-        await cvAnalysisService.create({ type: 'ats', resultJson: { score: result.score, tips: result.tips, suggestedKeywords: result.suggestedKeywords }, userCvId: cvId ?? undefined });
-        cvAnalysisService.getAll(10).then(setAnalysisHistory).catch(() => {});
-      } catch (_) {}
-      toast.success('Analyse ATS terminée');
-    } catch (e: any) {
-      toast.error(e?.message || 'Erreur analyse ATS');
-    } finally {
-      setAtsLoading(false);
-    }
-  };
-
   const handleExportTxt = () => {
     const plain = cvContentToPlainText(content);
     if (!plain) {
@@ -303,6 +434,39 @@ const ConseilsCV = () => {
     a.click();
     URL.revokeObjectURL(url);
     toast.success('CV exporté en .txt (compatible ATS)');
+  };
+
+  const handleExportPdf = async () => {
+    const plain = cvContentToPlainText(content);
+    if (!plain || plain.length < 30) {
+      toast.error('Aucun contenu à exporter');
+      return;
+    }
+
+    try {
+      setExportingPdf(true);
+      const safeTitle = (title || 'CV')
+        .replace(/[^\w\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '_');
+
+      const blob = await pdf(
+        <CvPdfDocument title={title || 'Mon CV'} content={content} templateId={pdfTemplateId} />
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `CV_${safeTitle}_${pdfTemplateId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast.success('CV exporté en PDF (ATS)');
+    } catch (e: any) {
+      toast.error(e?.message || 'Erreur lors de l’export PDF');
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const plainText = cvContentToPlainText(content);
@@ -328,7 +492,7 @@ const ConseilsCV = () => {
           Conseils CV & éditeur
         </h1>
         <p className="mt-2 text-gray-600">
-          Éditez votre CV par sections (compatible ATS), importez un PDF, puis lancez les analyses pour recevoir des conseils personnalisés alternance et un score ATS.
+          Éditez votre CV par sections, importez un PDF, puis lancez les analyses pour recevoir des conseils personnalisés pour votre recherche d&apos;alternance.
         </p>
       </div>
 
@@ -375,6 +539,20 @@ const ConseilsCV = () => {
             >
               {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>
+
+            <select
+              value={pdfTemplateId}
+              onChange={(e) => setPdfTemplateId(e.target.value as CvPdfTemplateId)}
+              className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 bg-white border border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              aria-label="Template PDF ATS"
+            >
+              {CV_PDF_TEMPLATES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+
             <button
               type="button"
               onClick={handleExportTxt}
@@ -382,6 +560,15 @@ const ConseilsCV = () => {
               className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
             >
               Exporter en .txt
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              disabled={!hasContent || exportingPdf}
+              className="inline-flex items-center px-3 py-2 border border-primary-600 rounded-md text-sm font-medium text-primary-600 bg-white hover:bg-primary-50 disabled:opacity-50"
+            >
+              {exportingPdf ? 'Export PDF...' : 'Télécharger PDF (ATS)'}
             </button>
             <span className="hidden sm:inline text-gray-400">|</span>
             <button
@@ -392,18 +579,10 @@ const ConseilsCV = () => {
             >
               {loadingAlternance ? 'Analyse...' : 'Conseils alternance'}
             </button>
-            <button
-              type="button"
-              onClick={handleAnalyzeATS}
-              disabled={atsLoading || !hasContent}
-              className="inline-flex items-center px-3 py-2 border border-primary-600 rounded-md text-sm font-medium text-primary-600 bg-white hover:bg-primary-50 disabled:opacity-50"
-            >
-              {atsLoading ? 'Analyse...' : 'Score ATS'}
-            </button>
           </div>
 
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
-            <strong>Conseil ATS :</strong> utilisez des titres de section clairs, des mots-clés métier et évitez tableaux et caractères spéciaux. Un CV en texte simple passe mieux les filtres automatiques.
+            <strong>Conseil CV :</strong> utilisez des titres de section clairs, des mots-clés métier et évitez tableaux et caractères spéciaux. Un CV en texte simple passe mieux les filtres automatiques.
           </div>
 
           <div className="bg-white shadow-card rounded-xl border border-gray-200 p-6 space-y-6">
@@ -422,15 +601,73 @@ const ConseilsCV = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {SECTION_LABELS[key]}
                 </label>
-                <textarea
-                  value={content[key as keyof CVContent] ?? ''}
-                  onChange={(e) => handleSectionChange(key, e.target.value)}
-                  rows={key === 'coordonnees' ? 3 : key === 'experience' || key === 'formation' ? 6 : 4}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                  placeholder={
-                    key === 'coordonnees'
-                      ? 'Prénom Nom, email, téléphone, ville, LinkedIn...'
-                      : key === 'titre_profil'
+                {key === 'coordonnees' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input
+                      type="text"
+                      value={content.coord_prenom ?? ''}
+                      onChange={(e) => updateCoordField('coord_prenom', e.target.value)}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                      placeholder="Prénom"
+                      aria-label="Prénom"
+                    />
+                    <input
+                      type="text"
+                      value={content.coord_nom ?? ''}
+                      onChange={(e) => updateCoordField('coord_nom', e.target.value)}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                      placeholder="Nom"
+                      aria-label="Nom"
+                    />
+                    <input
+                      type="email"
+                      value={content.coord_email ?? ''}
+                      onChange={(e) => updateCoordField('coord_email', e.target.value)}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                      placeholder="Email"
+                      aria-label="Email"
+                    />
+                    <input
+                      type="tel"
+                      value={content.coord_telephone ?? ''}
+                      onChange={(e) => updateCoordField('coord_telephone', e.target.value)}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                      placeholder="Téléphone"
+                      aria-label="Téléphone"
+                    />
+                    <input
+                      type="text"
+                      value={content.coord_ville ?? ''}
+                      onChange={(e) => updateCoordField('coord_ville', e.target.value)}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:col-span-1"
+                      placeholder="Ville"
+                      aria-label="Ville"
+                    />
+                    <input
+                      type="url"
+                      value={content.coord_linkedin ?? ''}
+                      onChange={(e) => updateCoordField('coord_linkedin', e.target.value)}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:col-span-1"
+                      placeholder="LinkedIn (URL)"
+                      aria-label="LinkedIn"
+                    />
+                    <input
+                      type="text"
+                      value={content.coord_adresse ?? ''}
+                      onChange={(e) => updateCoordField('coord_adresse', e.target.value)}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:col-span-2"
+                      placeholder="Adresse"
+                      aria-label="Adresse"
+                    />
+                  </div>
+                ) : (
+                  <textarea
+                    value={content[key as keyof CVContent] ?? ''}
+                    onChange={(e) => handleSectionChange(key, e.target.value)}
+                    rows={key === 'experience' || key === 'formation' ? 6 : 4}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    placeholder={
+                      key === 'titre_profil'
                         ? 'Accroche ou objectif professionnel en 2-3 lignes'
                         : key === 'experience'
                           ? 'Poste – Entreprise – Dates\n• Mission 1\n• Mission 2'
@@ -441,8 +678,9 @@ const ConseilsCV = () => {
                               : key === 'langues'
                                 ? 'Français : langue maternelle, Anglais : B2...'
                                 : 'Sports, associations, loisirs...'
-                  }
-                />
+                    }
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -451,6 +689,14 @@ const ConseilsCV = () => {
 
       {activeTab === 'conseils' && (
         <div className="space-y-6">
+          {atsResult !== null && (
+            <div className="bg-white shadow-card rounded-xl p-6 border border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Analyse ATS</h2>
+              <p className="text-sm text-gray-600">
+                Score ATS : <span className="font-medium text-gray-900">{atsResult.score}/100</span>
+              </p>
+            </div>
+          )}
           {adviceAlternance !== null && (
             <div className="bg-white shadow-card rounded-xl p-6 border border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Conseils pour l'alternance</h2>
@@ -460,70 +706,30 @@ const ConseilsCV = () => {
             </div>
           )}
 
-          {atsResult !== null && (
-            <div className="bg-white shadow-card rounded-xl p-6 border border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Compatibilité ATS</h2>
-              <div className="flex items-center gap-4 mb-4">
-                <div
-                  className={`text-3xl font-bold ${
-                    atsResult.score >= 70 ? 'text-green-600' : atsResult.score >= 50 ? 'text-amber-600' : 'text-red-600'
-                  }`}
-                >
-                  {atsResult.score}/100
-                </div>
-                <p className="text-gray-600 text-sm">
-                  {atsResult.score >= 70
-                    ? 'Votre CV est bien structuré pour les ATS.'
-                    : atsResult.score >= 50
-                      ? 'Quelques améliorations recommandées ci-dessous.'
-                      : 'Améliorez la structure et les mots-clés pour mieux passer les filtres ATS.'}
-                </p>
-              </div>
-              {atsResult.tips.length > 0 && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Conseils</h3>
-                  <ul className="list-disc list-inside space-y-1 text-gray-700 text-sm">
-                    {atsResult.tips.map((tip, i) => (
-                      <li key={i}>{tip}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {atsResult.suggestedKeywords.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Mots-clés à intégrer</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {atsResult.suggestedKeywords.map((kw, i) => (
-                      <span key={i} className="px-2 py-1 rounded bg-primary-50 text-primary-700 text-sm">
-                        {kw}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
           {analysisHistory.length > 0 && (
             <div className="bg-white shadow-card rounded-xl p-6 border border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">Historique des analyses</h2>
-              <p className="text-sm text-gray-500 mb-3">Vos dernières analyses (alternance et ATS) sont enregistrées.</p>
+              <p className="text-sm text-gray-500 mb-3">Vos dernières analyses d&apos;alternance sont enregistrées.</p>
               <ul className="space-y-1 text-sm">
                 {analysisHistory.map((a) => (
                   <li key={a.id} className="flex items-center gap-2 text-gray-700">
-                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${a.type === 'ats' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
-                      {a.type === 'alternance' ? 'Alternance' : 'ATS'}
+                    <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                      Alternance
                     </span>
-                    {a.createdAt && <span className="text-gray-500">{new Date(a.createdAt).toLocaleDateString('fr-FR')}</span>}
+                    {a.createdAt && (
+                      <span className="text-gray-500">
+                        {new Date(a.createdAt).toLocaleDateString('fr-FR')}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
             </div>
           )}
-          {adviceAlternance === null && atsResult === null && (
+          {adviceAlternance === null && (
             <div className="bg-white shadow-card rounded-xl p-8 text-center text-gray-500 border border-gray-200">
               <p>Aucune analyse pour l’instant.</p>
-              <p className="mt-2 text-sm">Passez par l’onglet « Éditer mon CV », remplissez votre CV puis lancez « Conseils alternance » ou « Score ATS ».</p>
+              <p className="mt-2 text-sm">Passez par l’onglet « Éditer mon CV », remplissez votre CV puis lancez « Conseils alternance ».</p>
               <button
                 type="button"
                 onClick={() => setActiveTab('editer')}

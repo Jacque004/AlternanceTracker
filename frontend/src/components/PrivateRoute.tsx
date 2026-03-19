@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 
 interface PrivateRouteProps {
@@ -8,6 +8,7 @@ interface PrivateRouteProps {
 
 const PrivateRoute = ({ children }: PrivateRouteProps) => {
   const { session, loading } = useSupabaseAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -18,6 +19,10 @@ const PrivateRoute = ({ children }: PrivateRouteProps) => {
   }
 
   if (!session) {
+    // La page d'accueil (landing) est accessible sans compte.
+    if (location.pathname === '/' || location.pathname === '/a-propos') {
+      return <>{children}</>;
+    }
     return <Navigate to="/login" replace />;
   }
 

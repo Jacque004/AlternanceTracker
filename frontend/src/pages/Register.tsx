@@ -10,6 +10,8 @@ const Register = () => {
     password: '',
     firstName: '',
     lastName: '',
+    acceptPrivacyPolicy: false,
+    acceptTerms: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -17,17 +19,14 @@ const Register = () => {
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: type === 'checkbox' ? checked : value,
     });
-    // Effacer l'erreur du champ modifié
     if (errors[name]) {
-      setErrors({
-        ...errors,
-        [name]: '',
-      });
+      setErrors({ ...errors, [name]: '' });
     }
   };
 
@@ -44,16 +43,28 @@ const Register = () => {
       setErrors(errorsMap);
       return;
     }
+    if (!formData.acceptPrivacyPolicy || !formData.acceptTerms) {
+      setErrors({
+        acceptTerms: !formData.acceptTerms ? 'Vous devez accepter les conditions d\'utilisation' : '',
+        acceptPrivacyPolicy: !formData.acceptPrivacyPolicy ? 'Vous devez accepter la politique de confidentialité' : '',
+      });
+      return;
+    }
 
     setLoading(true);
     setErrors({});
 
+    const consentDate = new Date().toISOString();
     try {
       const { error } = await signUp(
         formData.email,
         formData.password,
         formData.firstName,
-        formData.lastName
+        formData.lastName,
+        {
+          privacyPolicyAcceptedAt: consentDate,
+          termsAcceptedAt: consentDate,
+        }
       );
       
       if (error) {
@@ -169,6 +180,47 @@ const Register = () => {
               />
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+              )}
+            </div>
+
+            <div className="space-y-3 pt-2 border-t border-gray-200">
+              <p className="text-sm font-medium text-gray-700">Consentements (RGPD)</p>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="acceptPrivacyPolicy"
+                  checked={formData.acceptPrivacyPolicy}
+                  onChange={handleChange}
+                  className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm text-gray-600">
+                  J'accepte la{' '}
+                  <Link to="/politique-confidentialite" className="text-primary-600 hover:underline">
+                    politique de confidentialité
+                  </Link>{' '}
+                  et le traitement de mes données personnelles.
+                </span>
+              </label>
+              {errors.acceptPrivacyPolicy && (
+                <p className="text-sm text-red-600">{errors.acceptPrivacyPolicy}</p>
+              )}
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="acceptTerms"
+                  checked={formData.acceptTerms}
+                  onChange={handleChange}
+                  className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm text-gray-600">
+                  J'accepte les{' '}
+                  <Link to="/cgu" className="text-primary-600 hover:underline">
+                    conditions générales d'utilisation
+                  </Link>.
+                </span>
+              </label>
+              {errors.acceptTerms && (
+                <p className="text-sm text-red-600">{errors.acceptTerms}</p>
               )}
             </div>
           </div>

@@ -1,11 +1,13 @@
-# Emails de confirmation d'inscription — AlternanceTracker
+# Emails d'auth Supabase — AlternanceTracker
 
-Ce dossier contient le **template HTML** et l’**objet du mail** pour la confirmation d’inscription, avec le logo de la plateforme.
+Ce dossier contient les **templates HTML** et les **objets des mails** d'auth Supabase, avec le logo de la plateforme.
 
 ## Fichiers
 
 - **`confirm-signup.html`** — Corps de l’email (HTML) à utiliser dans Supabase pour le template « Confirm signup ».
 - **`confirm-signup-subject.txt`** — Objet du mail à renseigner dans Supabase.
+- **`reset-password.html`** — Corps de l’email (HTML) à utiliser dans Supabase pour le template de réinitialisation (« Reset password » / « Recovery »).
+- **`reset-password-subject.txt`** — Objet du mail à renseigner dans Supabase.
 
 ## 1. Activer la confirmation par email dans Supabase
 
@@ -28,6 +30,17 @@ Ce dossier contient le **template HTML** et l’**objet du mail** pour la confir
    Confirmez votre inscription — AlternanceTracker
    ```
 4. **Body (Message)** : copiez tout le contenu de `confirm-signup.html` et collez-le dans l’éditeur du corps du mail.
+5. Enregistrez.
+
+## 2bis. Réinitialisation de mot de passe
+
+1. Dans le tableau de bord : **Authentication** → **Email Templates**.
+2. Sélectionnez le template **« Reset password »** (parfois affiché **« Recovery »**).
+3. **Subject** : copiez le contenu de `reset-password-subject.txt` :
+   ```
+   Réinitialisez votre mot de passe — AlternanceTracker
+   ```
+4. **Body (Message)** : copiez tout le contenu de `reset-password.html` et collez-le dans l’éditeur du corps du mail.
 5. Enregistrez.
 
 ## 3. Logo dans l’email

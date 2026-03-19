@@ -672,3 +672,62 @@ export const cvAnalysisService = {
   },
 };
 
+/** RGPD : export et suppression du compte */
+export const rgpdService = {
+  /** Droit à la portabilité — export de toutes les données personnelles */
+  exportMyData: async (): Promise<Record<string, unknown>> => {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Non authentifié');
+
+    const [profileRes, applicationsRes, cvsRes, lettersRes, analysesRes] = await Promise.all([
+      supabase.from('users').select('*').eq('id', authUser.id).single(),
+      supabase.from('applications').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }),
+      supabase.from('user_cvs').select('*').eq('user_id', authUser.id),
+      supabase.from('generated_letters').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }),
+      supabase.from('cv_analyses').select('id, type, result_text, result_json, created_at').eq('user_id', authUser.id).order('created_at', { ascending: false }),
+    ]);
+
+    if (profileRes.error) throw profileRes.error;
+    if (applicationsRes.error) throw applicationsRes.error;
+    if (cvsRes.error) throw cvsRes.error;
+    if (lettersRes.error) throw lettersRes.error;
+    if (analysesRes.error) throw analysesRes.error;
+
+    return {
+      exportDate: new Date().toISOString(),
+      purpose: 'Export des données personnelles (RGPD - droit à la portabilité)',
+      profile: profileRes.data ?? null,
+      applications: applicationsRes.data ?? [],
+      cvs: cvsRes.data ?? [],
+      generatedLetters: lettersRes.data ?? [],
+      cvAnalyses: analysesRes.data ?? [],
+    };
+  },
+
+  /** Droit à l'effacement — suppression du compte et de toutes les données (Edge Function) */
+  deleteMyAccount: async (): Promise<void> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error('Non authentifié');
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '') || '';
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Configuration Supabase manquante');
+    }
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/delete-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({}),
+    });
+
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((body as { error?: string }).error || 'Impossible de supprimer le compte');
+    }
+  },
+};
+

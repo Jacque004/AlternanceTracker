@@ -60,6 +60,14 @@ const Login = () => {
             <p className="mt-2 text-sm text-gray-600">
               Accédez à votre espace AlternanceTracker
             </p>
+            <p className="mt-3 text-sm text-gray-600">
+              <Link
+                to="/forgot-password"
+                className="font-medium text-primary-600 hover:underline"
+              >
+                Mot de passe oublié ?
+              </Link>
+            </p>
             <p className="mt-4 text-sm text-gray-600">
               Pas encore de compte ?{' '}
               <Link
