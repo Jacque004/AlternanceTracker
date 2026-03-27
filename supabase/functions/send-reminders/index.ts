@@ -6,6 +6,8 @@ const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'AlternanceTracker <onboarding@resend.dev>';
 
 const DAYS_BEFORE_REMINDER = 7;
+const INTERVIEW_REMINDER_30_MIN = 30;
+const INTERVIEW_REMINDER_5_MIN = 5;
 
 function getDaysAgo(dateStr: string): number {
   const d = new Date(dateStr);
@@ -24,6 +26,14 @@ function isTodayOrTomorrow(dateStr: string): boolean {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const diff = (d.getTime() - now.getTime()) / (24 * 60 * 60 * 1000);
   return diff >= 0 && diff <= 1;
+}
+
+function parseInterviewDateTime(interviewDate: string, interviewTime: string): Date | null {
+  if (!interviewDate || !interviewTime) return null;
+  // interviewTime can be "HH:MM" or "HH:MM:SS"
+  const hhmm = String(interviewTime).slice(0, 5);
+  const dt = new Date(`${interviewDate}T${hhmm}:00`);
+  return Number.isNaN(dt.getTime()) ? null : dt;
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
@@ -65,9 +75,6 @@ serve(async (req) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-
   const { data: users } = await supabase
     .from('users')
     .select('id, email, first_name')
@@ -88,11 +95,14 @@ serve(async (req) => {
 
     const { data: applications } = await supabase
       .from('applications')
-      .select('id, company_name, position, application_date, created_at, last_relance_at, status, interview_date, interview_time, interview_place')
+      .select('id, company_name, position, application_date, created_at, last_relance_at, status, interview_date, interview_time, interview_place, interview_reminder_30_sent_at, interview_reminder_5_sent_at')
       .eq('user_id', userId);
 
     const toRelance: typeof applications = [];
     const interviews: typeof applications = [];
+    const interviewAlerts30: typeof applications = [];
+    const interviewAlerts5: typeof applications = [];
+    const now = new Date();
 
     for (const app of applications || []) {
       if (app.status === 'pending') {
@@ -110,15 +120,46 @@ serve(async (req) => {
       if (app.status === 'interview' && app.interview_date && isTodayOrTomorrow(app.interview_date)) {
         interviews.push(app);
       }
+      if (app.status === 'interview' && app.interview_date && app.interview_time) {
+        const interviewAt = parseInterviewDateTime(app.interview_date, app.interview_time);
+        if (interviewAt) {
+          const minutesUntil = Math.floor((interviewAt.getTime() - now.getTime()) / 60000);
+          if (
+            minutesUntil > INTERVIEW_REMINDER_30_MIN - 5 &&
+            minutesUntil <= INTERVIEW_REMINDER_30_MIN &&
+            !app.interview_reminder_30_sent_at
+          ) {
+            interviewAlerts30.push(app);
+          }
+          if (minutesUntil > 0 && minutesUntil <= INTERVIEW_REMINDER_5_MIN && !app.interview_reminder_5_sent_at) {
+            interviewAlerts5.push(app);
+          }
+        }
+      }
     }
 
-    if (toRelance.length === 0 && interviews.length === 0) continue;
+    if (toRelance.length === 0 && interviews.length === 0 && interviewAlerts30.length === 0 && interviewAlerts5.length === 0) continue;
 
     const parts: string[] = [];
+    if (interviewAlerts30.length > 0 || interviewAlerts5.length > 0) {
+      parts.push('<h3>🚨 Rappels d’entretien imminents</h3><ul>');
+      for (const a of interviewAlerts30) {
+        const time = a.interview_time ? ` à ${String(a.interview_time).slice(0, 5)}` : '';
+        const place = a.interview_place ? ` – ${a.interview_place}` : '';
+        parts.push(`<li><strong>Dans ~30 min</strong> : ${a.company_name} – ${a.position}${time}${place}</li>`);
+      }
+      for (const a of interviewAlerts5) {
+        const time = a.interview_time ? ` à ${String(a.interview_time).slice(0, 5)}` : '';
+        const place = a.interview_place ? ` – ${a.interview_place}` : '';
+        parts.push(`<li><strong>Dans ~5 min</strong> : ${a.company_name} – ${a.position}${time}${place}</li>`);
+      }
+      parts.push('</ul>');
+    }
     if (toRelance.length > 0) {
       parts.push('<h3>⏰ Candidatures à relancer</h3><ul>');
       for (const a of toRelance) {
-        const days = getDaysAgo(a.application_date || '');
+        const refDate = a.application_date ?? (a as { created_at?: string }).created_at;
+        const days = refDate ? getDaysAgo(refDate) : '?';
         parts.push(`<li><strong>${a.company_name}</strong> – ${a.position} (il y a ${days} jours)</li>`);
       }
       parts.push('</ul>');
@@ -147,7 +188,24 @@ serve(async (req) => {
 </html>`;
 
     const ok = await sendEmail(email, 'Rappels AlternanceTracker – relances et entretiens', html);
-    if (ok) sent++;
+    if (ok) {
+      sent++;
+
+      for (const a of interviewAlerts30) {
+        await supabase
+          .from('applications')
+          .update({ interview_reminder_30_sent_at: new Date().toISOString() })
+          .eq('id', a.id)
+          .eq('user_id', userId);
+      }
+      for (const a of interviewAlerts5) {
+        await supabase
+          .from('applications')
+          .update({ interview_reminder_5_sent_at: new Date().toISOString() })
+          .eq('id', a.id)
+          .eq('user_id', userId);
+      }
+    }
   }
 
   return new Response(JSON.stringify({ ok: true, sent }), {
