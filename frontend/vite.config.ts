@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
+  // Domaine custom GitHub Pages => site servi à la racine.
   base: '/',
   plugins: [react()],
   resolve: {
