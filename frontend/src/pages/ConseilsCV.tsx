@@ -293,7 +293,7 @@ const ConseilsCV = () => {
   const [content, setContent] = useState<CVContent>(emptyContent());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [pdfTemplateId, setPdfTemplateId] = useState<CvPdfTemplateId>('minimal');
+  const [pdfTemplateId, setPdfTemplateId] = useState<CvPdfTemplateId>('fr');
 
   const [adviceAlternance, setAdviceAlternance] = useState<string | null>(null);
   const [loadingAlternance, setLoadingAlternance] = useState(false);

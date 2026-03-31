@@ -347,8 +347,22 @@ export const aiService = {
       body: data,
     });
 
-    if (error) throw error;
-    return result.coverLetter;
+    if (error) {
+      const res = (error as { context?: Response }).context;
+      if (res instanceof Response) {
+        const body = await res.json().catch(() => null);
+        if (body && typeof (body as { error?: string }).error === 'string') {
+          throw new Error((body as { error: string }).error);
+        }
+      }
+      throw error;
+    }
+    const letter = (result as { coverLetter?: string; error?: string } | null)?.coverLetter;
+    if (typeof letter !== 'string' || !letter.trim()) {
+      const msg = (result as { error?: string })?.error || 'Réponse vide de la fonction lettre de motivation';
+      throw new Error(msg);
+    }
+    return letter;
   },
 
   /** Analyse le CV et retourne des conseils ciblés pour une recherche d'alternance (backend si VITE_API_URL, sinon Supabase) */

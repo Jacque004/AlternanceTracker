@@ -1,0 +1,6 @@
+# La passerelle Supabase vérifie le JWT avant d’exécuter la fonction.
+# Le navigateur n’envoie pas d’Authorization sur la requête preflight OPTIONS,
+# ce qui provoquait un 401 et l’erreur CORS « does not have HTTP ok status ».
+# https://supabase.com/docs/guides/functions/cors
+[functions.generate-cover-letter]
+verify_jwt = false
