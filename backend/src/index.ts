@@ -13,6 +13,10 @@ import aiRoutes from './routes/ai.routes';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET est requis pour demarrer le backend');
+}
+
 // Middleware de sécurité
 app.use(helmet());
 app.use(cors({
@@ -51,17 +55,21 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
-// Initialisation de la base de données et démarrage du serveur
-pool.connect()
+function startHttpServer(): void {
+  app.listen(PORT, () => {
+    console.log(`🚀 Serveur démarré sur le port ${PORT}`);
+  });
+}
+
+pool
+  .query('SELECT 1')
   .then(() => {
     console.log('✅ Connexion à PostgreSQL établie');
-    app.listen(PORT, () => {
-      console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-    });
+    startHttpServer();
   })
   .catch((err) => {
-    console.error('❌ Erreur de connexion à PostgreSQL:', err);
-    process.exit(1);
+    console.error('⚠️ PostgreSQL inaccessible — le serveur démarre quand même (auth / candidatures nécessitent la BDD) :', err);
+    startHttpServer();
   });
 
 export default app;

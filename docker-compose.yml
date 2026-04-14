@@ -5,9 +5,9 @@ services:
     image: postgres:15-alpine
     container_name: alternancetracker_db
     environment:
-      POSTGRES_USER: alternancetracker
-      POSTGRES_PASSWORD: alternancetracker123
-      POSTGRES_DB: alternancetracker
+      POSTGRES_USER: ${POSTGRES_USER:-alternancetracker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-alternancetracker}
     ports:
       - "5432:5432"
     volumes:
@@ -28,8 +28,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5000
-      DATABASE_URL: postgresql://alternancetracker:alternancetracker123@postgres:5432/alternancetracker
-      JWT_SECRET: ${JWT_SECRET:-change-this-secret-key-in-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-alternancetracker}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-alternancetracker}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_EXPIRES_IN: 7d
       OPENAI_API_KEY: ${OPENAI_API_KEY}
     ports:
@@ -39,9 +39,7 @@ services:
         condition: service_healthy
     networks:
       - alternancetracker_network
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
+    # Evite le montage de code en prod pour reduire la surface d'attaque.
 
   frontend:
     build:
@@ -56,9 +54,7 @@ services:
       - backend
     networks:
       - alternancetracker_network
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    # Evite le montage de code en prod pour reduire la surface d'attaque.
 
 networks:
   alternancetracker_network:

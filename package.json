@@ -16,13 +16,13 @@
     "build:frontend": "cd frontend && npm run build",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
+    "security:audit": "node scripts/security-audit.mjs",
     "supabase:deploy": "supabase functions deploy analyze-cv-alternance",
     "supabase:login": "supabase login",
     "supabase:link": "supabase link"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "supabase": "^2.0.0"
+    "supabase": "^2.91.0"
   }
 }
-

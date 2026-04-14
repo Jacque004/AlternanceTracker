@@ -26,6 +26,8 @@ describe('Auth Controller - Login', () => {
       json: jest.fn().mockReturnThis(),
     };
     jest.clearAllMocks();
+    process.env.JWT_SECRET = 'test-secret';
+    process.env.NODE_ENV = 'development';
   });
 
   describe('POST /login - Test connexion valide', () => {
@@ -64,7 +66,7 @@ describe('Auth Controller - Login', () => {
       expect(mockBcrypt.compare).toHaveBeenCalledWith('password123', 'hashedPassword123');
       expect(mockJwt.sign).toHaveBeenCalledWith(
         { userId: 1, email: 'test@example.com' },
-        process.env.JWT_SECRET || 'secret',
+        'test-secret',
         { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
       );
       expect(mockResponse.status).not.toHaveBeenCalled();
