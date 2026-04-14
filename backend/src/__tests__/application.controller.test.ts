@@ -22,6 +22,7 @@ describe('Application Controller - Create', () => {
       json: jest.fn().mockReturnThis(),
     };
     jest.clearAllMocks();
+    process.env.NODE_ENV = 'development';
   });
 
   describe('POST /applications - Test création valide', () => {
@@ -157,6 +158,7 @@ describe('Application Controller - Get All', () => {
       status: jest.fn().mockReturnThis(),
     };
     jest.clearAllMocks();
+    process.env.NODE_ENV = 'development';
   });
 
   describe('GET /applications - Sécurisation ownership', () => {
@@ -203,6 +205,7 @@ describe('Application Controller - Update', () => {
       json: jest.fn().mockReturnThis(),
     };
     jest.clearAllMocks();
+    process.env.NODE_ENV = 'development';
   });
 
   describe('PATCH /applications/:id - Test modification réussie', () => {

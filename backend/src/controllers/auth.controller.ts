@@ -4,6 +4,14 @@ import jwt from 'jsonwebtoken';
 import { pool } from '../database/connection';
 import { UserCreate, UserPublic } from '../models/User';
 
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET manquant dans les variables d\'environnement');
+  }
+  return secret;
+}
+
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password, firstName, lastName }: UserCreate = req.body;
@@ -34,7 +42,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const user = result.rows[0];
 
     // Générer le token JWT
-    const jwtSecret = process.env.JWT_SECRET || 'secret';
+    const jwtSecret = getJwtSecret();
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       jwtSecret,
@@ -100,7 +108,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Générer le token JWT
-    const jwtSecret = process.env.JWT_SECRET || 'secret';
+    const jwtSecret = getJwtSecret();
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       jwtSecret,
@@ -119,7 +127,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     });
   } catch (error: any) {
     console.error('Erreur lors de la connexion:', error);
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    res.status(500).json({
+      message: 'Erreur serveur',
+      ...(process.env.NODE_ENV === 'development' && { error: error.message }),
+    });
   }
 };
 

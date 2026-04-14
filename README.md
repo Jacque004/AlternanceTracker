@@ -113,6 +113,11 @@ cd frontend && npm test
 - [Guide d'installation détaillé](SETUP.md)
 - [Démarrage rapide](QUICKSTART.md)
 - [Architecture du projet](ARCHITECTURE.md)
+- [Analyse des besoins et maquettage](docs/ANALYSE_BESOINS_MAQUETTAGE.md)
+- [Plan de tests](docs/PLAN_TESTS.md)
+- [Runbook de déploiement](docs/DEPLOIEMENT_RUNBOOK.md)
+- [Guide sécurité](docs/SECURITE.md)
+- [Guide de contribution](CONTRIBUTING.md)
 
 ## 📄 Licence
 

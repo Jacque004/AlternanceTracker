@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { applicationService, dashboardService } from '../services/supabaseService';
 import type { Application, ApplicationListParams } from '../types';
-import * as XLSX from 'xlsx';
 import { SkeletonList } from '../components/Skeleton';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -53,27 +52,6 @@ function exportCSV(apps: Application[]) {
   a.download = `candidatures-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-function exportExcel(apps: Application[]) {
-  const headers = ['Entreprise', 'Poste', 'Statut', 'Date candidature', 'Date réponse', 'Date entretien', 'Heure', 'Lieu entretien', 'Lieu', 'Notes', 'URL'];
-  const rows = apps.map((a) => [
-    a.companyName,
-    a.position,
-    STATUS_LABELS[a.status] || a.status,
-    formatDate(a.applicationDate),
-    formatDate(a.responseDate),
-    formatDate(a.interviewDate),
-    formatTime(a.interviewTime),
-    a.interviewPlace || '',
-    a.location || '',
-    (a.notes || '').replace(/\n/g, ' '),
-    a.jobUrl || '',
-  ]);
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Candidatures');
-  XLSX.writeFile(wb, `candidatures-${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 function exportPDF(apps: Application[]) {
@@ -265,17 +243,6 @@ const Applications = () => {
             className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors duration-200"
           >
             Export CSV
-          </button>
-          <button
-            type="button"
-            onClick={async () => {
-              const res = await applicationService.getAll({ sortBy, sortOrder, status: statusFilter || undefined, search: searchDebounced.trim() || undefined, dateFrom: dateFrom || undefined, dateTo: dateTo || undefined });
-              exportExcel(res.data);
-            }}
-            disabled={total === 0}
-            className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors duration-200"
-          >
-            Export Excel
           </button>
           <button
             type="button"

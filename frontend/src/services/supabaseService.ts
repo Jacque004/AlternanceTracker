@@ -1,5 +1,14 @@
 import { supabase } from '../lib/supabase';
-import { Application, ApplicationListParams, ApplicationsResult, DashboardStatistics, UserCV, CVContent, GeneratedLetter, CVAnalysis } from '../types';
+import {
+  Application,
+  ApplicationListParams,
+  ApplicationsResult,
+  DashboardStatistics,
+  UserCV,
+  CVContent,
+  GeneratedLetter,
+  CVAnalysis,
+} from '../types';
 
 function mapRowToApplication(row: any): Application {
   return {
@@ -369,7 +378,10 @@ export const aiService = {
   analyzeCVForAlternance: async (cvText: string): Promise<string> => {
     const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
     if (apiUrl) {
-      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token ?? null;
       const res = await fetch(`${apiUrl}/ai/analyze-cv`, {
         method: 'POST',
         headers: {
@@ -423,11 +435,10 @@ export const aiService = {
     if (!apiUrl) {
       throw new Error('L\'analyse ATS est disponible avec le backend (VITE_API_URL).');
     }
-    let token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) {
-      const { data: { session } } = await supabase.auth.getSession();
-      token = session?.access_token ?? null;
-    }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token ?? null;
     const res = await fetch(`${apiUrl}/ai/analyze-cv-ats`, {
       method: 'POST',
       headers: {

@@ -5,6 +5,18 @@ import { AuthRequest } from '../middleware/auth.middleware';
 export const getAllApplications = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { status, sortBy = 'created_at', order = 'DESC' } = req.query;
+    const allowedSortColumns = new Set([
+      'created_at',
+      'updated_at',
+      'application_date',
+      'response_date',
+      'company_name',
+      'position',
+      'status',
+    ]);
+    const normalizedSortBy = String(sortBy);
+    const normalizedOrder = String(order).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    const safeSortBy = allowedSortColumns.has(normalizedSortBy) ? normalizedSortBy : 'created_at';
 
     let query = 'SELECT * FROM applications WHERE user_id = $1';
     const params: any[] = [req.userId];
@@ -14,7 +26,7 @@ export const getAllApplications = async (req: AuthRequest, res: Response): Promi
       params.push(status);
     }
 
-    query += ` ORDER BY ${sortBy} ${order}`;
+    query += ` ORDER BY ${safeSortBy} ${normalizedOrder}`;
 
     const result = await pool.query(query, params);
     res.json(result.rows.map(row => ({
@@ -33,7 +45,10 @@ export const getAllApplications = async (req: AuthRequest, res: Response): Promi
     })));
   } catch (error: any) {
     console.error('Erreur lors de la récupération des candidatures:', error);
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    res.status(500).json({
+      message: 'Erreur serveur',
+      ...(process.env.NODE_ENV === 'development' && { error: error.message }),
+    });
   }
 };
 
@@ -68,7 +83,10 @@ export const getApplicationById = async (req: AuthRequest, res: Response): Promi
     });
   } catch (error: any) {
     console.error('Erreur lors de la récupération de la candidature:', error);
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    res.status(500).json({
+      message: 'Erreur serveur',
+      ...(process.env.NODE_ENV === 'development' && { error: error.message }),
+    });
   }
 };
 
@@ -114,7 +132,10 @@ export const createApplication = async (req: AuthRequest, res: Response): Promis
     });
   } catch (error: any) {
     console.error('Erreur lors de la création de la candidature:', error);
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    res.status(500).json({
+      message: 'Erreur serveur',
+      ...(process.env.NODE_ENV === 'development' && { error: error.message }),
+    });
   }
 };
 
@@ -181,7 +202,10 @@ export const updateApplication = async (req: AuthRequest, res: Response): Promis
     });
   } catch (error: any) {
     console.error('Erreur lors de la mise à jour de la candidature:', error);
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    res.status(500).json({
+      message: 'Erreur serveur',
+      ...(process.env.NODE_ENV === 'development' && { error: error.message }),
+    });
   }
 };
 
@@ -202,7 +226,10 @@ export const deleteApplication = async (req: AuthRequest, res: Response): Promis
     res.json({ message: 'Candidature supprimée avec succès' });
   } catch (error: any) {
     console.error('Erreur lors de la suppression de la candidature:', error);
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    res.status(500).json({
+      message: 'Erreur serveur',
+      ...(process.env.NODE_ENV === 'development' && { error: error.message }),
+    });
   }
 };
 

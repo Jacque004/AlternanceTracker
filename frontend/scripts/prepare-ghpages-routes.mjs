@@ -22,6 +22,7 @@ if (!fs.existsSync(indexHtmlPath)) {
 
 // Routes qui peuvent être appelées directement via des liens Supabase/email.
 const routes = [
+  'offres',
   'login',
   'register',
   'forgot-password',
