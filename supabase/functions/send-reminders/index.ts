@@ -8,6 +8,7 @@ const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'AlternanceTracker <onboarding@
 const DAYS_BEFORE_REMINDER = 7;
 const INTERVIEW_REMINDER_30_MIN = 30;
 const INTERVIEW_REMINDER_5_MIN = 5;
+const MIN_HOURS_BETWEEN_DAILY_DIGEST = 20;
 
 function getDaysAgo(dateStr: string): number {
   const d = new Date(dateStr);
@@ -15,6 +16,12 @@ function getDaysAgo(dateStr: string): number {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   return Math.floor((now.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function getHoursAgo(dateStr: string): number {
+  const d = new Date(dateStr);
+  const now = new Date();
+  return (now.getTime() - d.getTime()) / (60 * 60 * 1000);
 }
 
 function isTodayOrTomorrow(dateStr: string): boolean {
@@ -95,7 +102,7 @@ serve(async (req) => {
 
     const { data: applications } = await supabase
       .from('applications')
-      .select('id, company_name, position, application_date, created_at, last_relance_at, status, interview_date, interview_time, interview_place, interview_reminder_30_sent_at, interview_reminder_5_sent_at')
+      .select('id, company_name, position, application_date, created_at, last_relance_at, relance_reminder_sent_at, status, interview_date, interview_time, interview_place, interview_day_reminder_sent_at, interview_reminder_30_sent_at, interview_reminder_5_sent_at')
       .eq('user_id', userId);
 
     const toRelance: typeof applications = [];
@@ -109,16 +116,24 @@ serve(async (req) => {
         const refDate = app.application_date ?? (app as { created_at?: string }).created_at;
         if (refDate) {
           const daysAgo = getDaysAgo(refDate);
+          const lastReminderAt = (app as { relance_reminder_sent_at?: string | null }).relance_reminder_sent_at;
+          const reminderReady = !lastReminderAt || getDaysAgo(lastReminderAt) >= DAYS_BEFORE_REMINDER;
           if (app.last_relance_at) {
             const daysSinceRelance = getDaysAgo(app.last_relance_at);
-            if (daysSinceRelance >= DAYS_BEFORE_REMINDER && daysAgo >= DAYS_BEFORE_REMINDER) toRelance.push(app);
-          } else if (daysAgo >= DAYS_BEFORE_REMINDER) {
+            if (daysSinceRelance >= DAYS_BEFORE_REMINDER && daysAgo >= DAYS_BEFORE_REMINDER && reminderReady) {
+              toRelance.push(app);
+            }
+          } else if (daysAgo >= DAYS_BEFORE_REMINDER && reminderReady) {
             toRelance.push(app);
           }
         }
       }
       if (app.status === 'interview' && app.interview_date && isTodayOrTomorrow(app.interview_date)) {
-        interviews.push(app);
+        const lastInterviewDayReminderAt =
+          (app as { interview_day_reminder_sent_at?: string | null }).interview_day_reminder_sent_at;
+        if (!lastInterviewDayReminderAt || getHoursAgo(lastInterviewDayReminderAt) >= MIN_HOURS_BETWEEN_DAILY_DIGEST) {
+          interviews.push(app);
+        }
       }
       if (app.status === 'interview' && app.interview_date && app.interview_time) {
         const interviewAt = parseInterviewDateTime(app.interview_date, app.interview_time);
@@ -190,18 +205,34 @@ serve(async (req) => {
     const ok = await sendEmail(email, 'Rappels AlternanceTracker – relances et entretiens', html);
     if (ok) {
       sent++;
+      const sentAt = new Date().toISOString();
+
+      for (const a of toRelance) {
+        await supabase
+          .from('applications')
+          .update({ relance_reminder_sent_at: sentAt })
+          .eq('id', a.id)
+          .eq('user_id', userId);
+      }
+      for (const a of interviews) {
+        await supabase
+          .from('applications')
+          .update({ interview_day_reminder_sent_at: sentAt })
+          .eq('id', a.id)
+          .eq('user_id', userId);
+      }
 
       for (const a of interviewAlerts30) {
         await supabase
           .from('applications')
-          .update({ interview_reminder_30_sent_at: new Date().toISOString() })
+          .update({ interview_reminder_30_sent_at: sentAt })
           .eq('id', a.id)
           .eq('user_id', userId);
       }
       for (const a of interviewAlerts5) {
         await supabase
           .from('applications')
-          .update({ interview_reminder_5_sent_at: new Date().toISOString() })
+          .update({ interview_reminder_5_sent_at: sentAt })
           .eq('id', a.id)
           .eq('user_id', userId);
       }

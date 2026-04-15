@@ -5,10 +5,10 @@
 -- CREATE EXTENSION IF NOT EXISTS pg_cron;
 -- CREATE EXTENSION IF NOT EXISTS pg_net;
 
--- Exemple : rappels quotidiens à 8h00 (UTC)
+-- Exemple : rappels hebdomadaires le lundi à 8h00 (UTC)
 -- SELECT cron.schedule(
---   'send-reminders-daily',
---   '0 8 * * *',
+--   'send-reminders-weekly',
+--   '0 8 * * 1',
 --   $$
 --   SELECT net.http_post(
 --     url := 'https://VOTRE_PROJECT_REF.supabase.co/functions/v1/send-reminders',
@@ -38,5 +38,5 @@
 -- );
 
 -- Pour supprimer les jobs plus tard :
--- SELECT cron.unschedule('send-reminders-daily');
+-- SELECT cron.unschedule('send-reminders-weekly');
 -- SELECT cron.unschedule('send-weekly-summary');

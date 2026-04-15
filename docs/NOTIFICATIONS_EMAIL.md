@@ -6,7 +6,7 @@ Ce guide explique comment activer l’envoi d’emails pour les **rappels** (rel
 
 | Fonctionnalité | Edge Function | Déclencheur suggéré | Contenu |
 |----------------|---------------|---------------------|---------|
-| **Rappels** (relances + entretiens) | `send-reminders` | Quotidien (ex. 8h) | Liste des candidatures à relancer et des entretiens à venir (aujourd’hui/demain) |
+| **Rappels** (relances + entretiens) | `send-reminders` | Hebdo (lundi 8h) | Liste des candidatures à relancer et des entretiens à venir (aujourd’hui/demain) |
 | **Résumé hebdo** | `send-weekly-summary` | Hebdo (ex. lundi 8h) | Stats + nouvelles candidatures + relances à faire |
 
 Les utilisateurs activent/désactivent ces emails dans **Mon profil → Notifications**.
@@ -78,13 +78,13 @@ CREATE EXTENSION IF NOT EXISTS pg_net;
    - **Dashboard** → Project Settings → Database → Vault (ou Variables).
    - Ou utiliser directement l’URL de la fonction et `CRON_SECRET` dans le body/header (voir exemples ci-dessous).
 
-3. Planifier les jobs. Exemple : rappels tous les jours à 8h (Paris), résumé le lundi à 8h.
+3. Planifier les jobs. Exemple : rappels le lundi à 8h (Paris), résumé le lundi à 8h.
 
 ```sql
--- Rappels : tous les jours à 8h (heure Paris = UTC+1 ou UTC+2)
+-- Rappels : tous les lundis à 8h (heure Paris = UTC+1 ou UTC+2)
 SELECT cron.schedule(
-  'send-reminders-daily',
-  '0 8 * * *',
+  'send-reminders-weekly',
+  '0 8 * * 1',
   $$
   SELECT net.http_post(
     url := 'https://VOTRE_PROJECT_REF.supabase.co/functions/v1/send-reminders',
@@ -123,7 +123,7 @@ Une alternative simple : le fichier **`supabase/migrations/007_cron_schedule_not
 Appeler les Edge Functions en HTTP depuis un cron (GitHub Actions, Vercel, etc.) :
 
 ```bash
-# Rappels (quotidien)
+# Rappels (hebdomadaire, lundi)
 curl -X POST "https://VOTRE_PROJECT_REF.supabase.co/functions/v1/send-reminders" \
   -H "Authorization: Bearer VOTRE_CRON_SECRET" \
   -H "Content-Type: application/json"
