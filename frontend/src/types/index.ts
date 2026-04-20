@@ -10,7 +10,7 @@ export interface User {
   alternanceRhythm?: string;
   desiredStartDate?: string;
   linkedinUrl?: string;
-  /** Recevoir un résumé hebdo par email (bientôt disponible) */
+  /** Recevoir un résumé hebdo par email (actif si cron + Edge Function configurés) */
   weeklySummaryEnabled?: boolean;
   /** Recevoir les rappels (relances, entretiens) par email */
   reminderEmailsEnabled?: boolean;
@@ -45,6 +45,15 @@ export interface Application {
   lastRelanceAt?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+/** Métadonnées extraites d’une page d’offre (Edge Function fetch-job-metadata) */
+export interface JobMetadataFromUrl {
+  companyName: string | null;
+  position: string | null;
+  descriptionSnippet: string | null;
+  pageTitle: string | null;
+  jobUrl: string;
 }
 
 /** Options de filtre/recherche/tri pour la liste des candidatures */

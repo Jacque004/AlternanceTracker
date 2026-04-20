@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { applicationService } from '../services/supabaseService';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { applicationService, aiService } from '../services/supabaseService';
+import { formatDateForInput, formatTimeForInput } from '../utils/dateDisplay';
 import toast from 'react-hot-toast';
 import type { Application } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -12,26 +13,14 @@ const STATUS_OPTIONS = [
   { value: 'rejected', label: 'Refusée' },
 ];
 
-function toInputDate(s: string | undefined) {
-  if (!s) return '';
-  const d = new Date(s);
-  return d.toISOString().slice(0, 10);
-}
-
-/** Heure au format HH:MM pour input time */
-function toInputTime(s: string | undefined) {
-  if (!s) return '';
-  if (/^\d{2}:\d{2}/.test(s)) return s.slice(0, 5);
-  const d = new Date(s);
-  return d.toTimeString().slice(0, 5);
-}
-
 const ApplicationForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isEdit = Boolean(id);
   const [loading, setLoading] = useState(false);
   const [loadOne, setLoadOne] = useState(true);
+  const [fetchingImport, setFetchingImport] = useState(false);
   const [formData, setFormData] = useState({
     companyName: '',
     position: '',
@@ -59,20 +48,67 @@ const ApplicationForm = () => {
           companyName: app.companyName,
           position: app.position,
           status: app.status,
-          applicationDate: toInputDate(app.applicationDate),
-          responseDate: toInputDate(app.responseDate),
+          applicationDate: formatDateForInput(app.applicationDate),
+          responseDate: formatDateForInput(app.responseDate),
           notes: app.notes || '',
           location: app.location || '',
           salaryRange: app.salaryRange || '',
           jobUrl: app.jobUrl || '',
-          interviewDate: toInputDate(app.interviewDate),
-          interviewTime: toInputTime(app.interviewTime),
+          interviewDate: formatDateForInput(app.interviewDate),
+          interviewTime: formatTimeForInput(app.interviewTime),
           interviewPlace: app.interviewPlace || '',
         });
       })
       .catch(() => toast.error('Candidature introuvable'))
       .finally(() => setLoadOne(false));
   }, [isEdit, id]);
+
+  useEffect(() => {
+    if (isEdit) return;
+    const q = searchParams.get('jobUrl') || searchParams.get('url');
+    if (!q?.trim()) return;
+    try {
+      const decoded = decodeURIComponent(q.trim());
+      if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
+        setFormData((prev) => ({ ...prev, jobUrl: decoded }));
+      }
+    } catch {
+      /* param mal encodé : ignoré */
+    }
+  }, [isEdit, searchParams]);
+
+  const handleImportFromUrl = async () => {
+    const url = formData.jobUrl.trim();
+    if (!url) {
+      toast.error('Collez d’abord l’URL de l’offre.');
+      return;
+    }
+    setFetchingImport(true);
+    try {
+      const meta = await aiService.fetchJobMetadataFromUrl(url);
+      setFormData((prev) => {
+        const snip = meta.descriptionSnippet?.trim();
+        let notes = prev.notes;
+        if (snip) {
+          const marker = snip.slice(0, Math.min(60, snip.length));
+          if (!notes.trim()) notes = snip;
+          else if (!notes.includes(marker)) notes = `${notes}\n\n— Extrait de l’offre —\n${snip}`;
+        }
+        return {
+          ...prev,
+          jobUrl: meta.jobUrl || prev.jobUrl,
+          companyName: (meta.companyName?.trim() || prev.companyName).trim(),
+          position: (meta.position?.trim() || prev.position).trim(),
+          notes,
+        };
+      });
+      toast.success('Champs mis à jour depuis la page. Vérifiez entreprise et poste avant d’enregistrer.');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Import impossible');
+    } finally {
+      setFetchingImport(false);
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -140,6 +176,43 @@ const ApplicationForm = () => {
 
       <form onSubmit={handleSubmit} className="bg-white shadow-card rounded-xl border border-gray-200 p-6 space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="sm:col-span-2 rounded-xl border border-sky-100 bg-sky-50/50 p-4 space-y-3">
+            <h2 className="text-sm font-semibold text-gray-900">Importer depuis l’URL de l’offre</h2>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Collez le lien de la page : l’application tente d’extraire l’intitulé et l’entreprise (balises Open Graph).
+              Certains sites bloquent l’accès automatique : complétez ou corrigez les champs à la main si besoin.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+              <div className="flex-1 min-w-0">
+                <label htmlFor="jobUrl" className="block text-sm font-medium text-gray-700">
+                  URL de l’offre
+                </label>
+                <input
+                  type="url"
+                  id="jobUrl"
+                  name="jobUrl"
+                  value={formData.jobUrl}
+                  onChange={handleChange}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                  placeholder="https://…"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleImportFromUrl()}
+                disabled={!formData.jobUrl.trim() || fetchingImport}
+                className="shrink-0 inline-flex justify-center items-center px-4 py-2 rounded-md text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {fetchingImport ? 'Lecture…' : 'Remplir depuis la page'}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500">
+              Lien direct : <code className="text-[11px] bg-white/80 px-1 rounded">/applications/new?jobUrl=</code>
+              + URL encodée ; favori ou extension Chrome/Edge : voir le README (section import d’offre, dossier{' '}
+              <code className="text-[11px] bg-white/80 px-1 rounded">extensions/quick-add-offer</code>).
+            </p>
+          </div>
+
           <div className="sm:col-span-2">
             <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">
               Entreprise *
@@ -284,20 +357,6 @@ const ApplicationForm = () => {
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
               placeholder="Ex. 1200-1400 €"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label htmlFor="jobUrl" className="block text-sm font-medium text-gray-700">
-              Lien de l'offre
-            </label>
-            <input
-              type="url"
-              id="jobUrl"
-              name="jobUrl"
-              value={formData.jobUrl}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-              placeholder="https://..."
             />
           </div>
           <div className="sm:col-span-2">

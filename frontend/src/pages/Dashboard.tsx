@@ -5,38 +5,19 @@ import type { Application, DashboardStatistics } from '../types';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import toast from 'react-hot-toast';
 import { SkeletonCardGrid, SkeletonStats, SkeletonList } from '../components/Skeleton';
+import { formatDisplayDate, formatDisplayTime, getCalendarDaysAgo } from '../utils/dateDisplay';
 
 const DAYS_BEFORE_REMINDER = 7;
-
-function getDaysAgo(dateStr: string | undefined): number {
-  if (!dateStr) return 0;
-  const d = new Date(dateStr);
-  d.setHours(0, 0, 0, 0);
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  return Math.floor((now.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
-}
 
 function isToRelance(app: Application): boolean {
   if (app.status !== 'pending') return false;
   if (app.lastRelanceAt) {
-    const daysSinceRelance = getDaysAgo(app.lastRelanceAt);
+    const daysSinceRelance = getCalendarDaysAgo(app.lastRelanceAt);
     if (daysSinceRelance < DAYS_BEFORE_REMINDER) return false;
   }
   const refDate = app.applicationDate || app.createdAt;
   if (!refDate) return false;
-  return getDaysAgo(refDate) >= DAYS_BEFORE_REMINDER;
-}
-
-function formatDate(s: string | undefined) {
-  if (!s) return '–';
-  return new Date(s).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function formatTime(s: string | undefined) {
-  if (!s) return '';
-  if (/^\d{2}:\d{2}/.test(s)) return s.slice(0, 5);
-  return new Date(s).toTimeString().slice(0, 5);
+  return getCalendarDaysAgo(refDate) >= DAYS_BEFORE_REMINDER;
 }
 
 const Dashboard = () => {
@@ -257,8 +238,8 @@ const Dashboard = () => {
                     <span className="text-gray-500"> · {app.position}</span>
                   </div>
                   <span className="text-sm text-blue-700">
-                    {formatDate(app.interviewDate)}
-                    {app.interviewTime ? ` à ${formatTime(app.interviewTime)}` : ''}
+                    {formatDisplayDate(app.interviewDate)}
+                    {app.interviewTime ? ` à ${formatDisplayTime(app.interviewTime)}` : ''}
                     {app.interviewPlace ? ` – ${app.interviewPlace}` : ''}
                   </span>
                 </Link>
@@ -286,7 +267,7 @@ const Dashboard = () => {
                 >
                   <span className="font-medium text-gray-900 truncate">{app.companyName}</span>
                   <span className="text-sm text-gray-500 shrink-0 ml-2">
-                    {app.position} · il y a {getDaysAgo(app.applicationDate || app.createdAt)} jours
+                    {app.position} · il y a {getCalendarDaysAgo(app.applicationDate || app.createdAt)} jours
                   </span>
                 </Link>
                 <button

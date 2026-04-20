@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "AlternanceTracker — Ajouter l'offre",
+  "version": "1.0.0",
+  "description": "Ouvre une nouvelle candidature dans AlternanceTracker avec l'URL de la page affichée.",
+  "permissions": ["activeTab", "storage"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Ajouter cette offre dans AlternanceTracker"
+  }
+}
