@@ -14,15 +14,101 @@ const corsHeaders = {
 
 const MAX_HTML = 500_000;
 
+/** Échappement minimal pour fabriquer du pseudo-HTML à partir du texte Jina Reader. */
+function escapeXmlAttr(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/"/g, '&quot;')
+    .replace(/\r?\n/g, ' ')
+    .trim();
+}
+
+/** Choisit une ligne « titre » dans la sortie Jina (souvent préfixée par ---, Title:, URL Source:, etc.). */
+function pickTitleLineFromReader(lines: string[]): { title: string; usedIndex: number } {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line || line === '---') continue;
+    if (/^(title|url source|markdown content)\s*:/i.test(line)) {
+      const after = line.replace(/^[^:]+:\s*/, '').trim();
+      if (after.length >= 3) return { title: after.slice(0, 300), usedIndex: i };
+      continue;
+    }
+    const md = line.replace(/^#+\s*/, '').replace(/\*\*/g, '').trim();
+    if (md.length >= 3) return { title: md.slice(0, 300), usedIndex: i };
+  }
+  const i = lines.findIndex((l) => l.trim().length > 0);
+  const fallback = (i >= 0 ? lines[i] : 'Offre').replace(/^#+\s*/, '').trim().slice(0, 300);
+  return { title: fallback || 'Offre', usedIndex: Math.max(0, i) };
+}
+
+/** Jina Reader renvoie du markdown / texte : on en déduit titre + extrait pour les mêmes heuristiques que le HTML. */
+function plainReaderTextToPseudoHtml(body: string): string {
+  const trimmed = body.trim().slice(0, MAX_HTML);
+  const lines = trimmed.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+  const { title: titleLine, usedIndex } = pickTitleLineFromReader(lines);
+  const desc = lines.slice(usedIndex + 1, 25).join(' ').replace(/\s+/g, ' ').slice(0, 900);
+  const t = escapeXmlAttr(titleLine);
+  const d = escapeXmlAttr(desc || titleLine);
+  return `<!DOCTYPE html><html><head>
+<meta property="og:title" content="${t}" />
+<meta property="og:description" content="${d}" />
+<title>${t}</title>
+</head><body></body></html>`;
+}
+
+/** Repli si la page bloque le fetch direct (403, etc.) : Jina Reader (https://jina.ai/reader), usage best-effort. */
+async function fetchTextViaJinaReader(targetUrl: string): Promise<string> {
+  if (targetUrl.toLowerCase().includes('r.jina.ai')) {
+    throw new Error('Boucle évitée');
+  }
+  const readerUrl = 'https://r.jina.ai/' + targetUrl;
+  const res = await fetch(readerUrl, {
+    method: 'GET',
+    headers: {
+      Accept: 'text/plain',
+      'User-Agent': 'Mozilla/5.0 (compatible; AlternanceTracker/1.0; +https://github.com/Jacque004/AlternanceTracker)',
+    },
+    redirect: 'follow',
+  });
+  if (!res.ok) {
+    throw new Error(`Jina Reader HTTP ${res.status}`);
+  }
+  return await res.text();
+}
+
+async function fetchHtmlWithFallback(targetUrl: string): Promise<string> {
+  try {
+    return await fetchHtml(targetUrl);
+  } catch (directErr) {
+    try {
+      const plain = await fetchTextViaJinaReader(targetUrl);
+      return plainReaderTextToPseudoHtml(plain);
+    } catch {
+      throw directErr;
+    }
+  }
+}
+
 function decodeHtmlEntities(s: string): string {
   return s
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => {
+    .replace(/&#x([0-9a-fA-F]+);/gi, (full, h: string) => {
       const c = parseInt(h, 16);
-      return Number.isFinite(c) ? String.fromCodePoint(c) : _;
+      if (!Number.isFinite(c) || c < 0 || c > 0x10ffff) return full;
+      try {
+        return String.fromCodePoint(c);
+      } catch {
+        return full;
+      }
     })
-    .replace(/&#(\d+);/g, (_, n) => {
+    .replace(/&#(\d+);/g, (full, n: string) => {
       const c = parseInt(n, 10);
-      return Number.isFinite(c) ? String.fromCodePoint(c) : _;
+      if (!Number.isFinite(c) || c < 0 || c > 0x10ffff) return full;
+      try {
+        return String.fromCodePoint(c);
+      } catch {
+        return full;
+      }
     })
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
@@ -207,7 +293,7 @@ serve(async (req) => {
 
   let html: string;
   try {
-    html = await fetchHtml(rawUrl);
+    html = await fetchHtmlWithFallback(rawUrl);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erreur réseau';
     return new Response(

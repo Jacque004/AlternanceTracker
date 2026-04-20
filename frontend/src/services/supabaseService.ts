@@ -547,13 +547,29 @@ export const aiService = {
       },
       body: JSON.stringify({ url: targetUrl.trim() }),
     });
-    const body = await res.json().catch(() => ({}));
+    const rawText = await res.text();
+    let parsed: Record<string, unknown> = {};
+    try {
+      parsed = rawText ? (JSON.parse(rawText) as Record<string, unknown>) : {};
+    } catch {
+      parsed = {};
+    }
     if (!res.ok) {
-      const message = body?.error || body?.message || res.statusText || `Erreur ${res.status}`;
+      const fromJson =
+        typeof parsed.error === 'string'
+          ? parsed.error
+          : typeof parsed.message === 'string'
+            ? parsed.message
+            : undefined;
+      const fallback502 =
+        res.status === 502
+          ? 'Impossible de lire la page de cette URL (site qui bloque les accès automatiques, erreur réseau, etc.). Renseignez entreprise et poste à la main.'
+          : '';
+      const message = fromJson || fallback502 || res.statusText || `Erreur ${res.status}`;
       throw new Error(message);
     }
-    if (body?.error) throw new Error(body.error);
-    return body as JobMetadataFromUrl;
+    if (typeof parsed.error === 'string') throw new Error(parsed.error);
+    return parsed as unknown as JobMetadataFromUrl;
   },
 };
 

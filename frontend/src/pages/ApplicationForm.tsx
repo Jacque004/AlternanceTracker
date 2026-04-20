@@ -86,6 +86,9 @@ const ApplicationForm = () => {
     setFetchingImport(true);
     try {
       const meta = await aiService.fetchJobMetadataFromUrl(url);
+      const hasCompany = Boolean(meta.companyName?.trim());
+      const hasPosition = Boolean(meta.position?.trim());
+      const hasSnippet = Boolean(meta.descriptionSnippet?.trim());
       setFormData((prev) => {
         const snip = meta.descriptionSnippet?.trim();
         let notes = prev.notes;
@@ -102,7 +105,14 @@ const ApplicationForm = () => {
           notes,
         };
       });
-      toast.success('Champs mis à jour depuis la page. Vérifiez entreprise et poste avant d’enregistrer.');
+      if (!hasCompany && !hasPosition && !hasSnippet) {
+        toast(
+          'La page a été lue, mais aucun intitulé, entreprise ni extrait n’ont été reconnus. Complétez les champs à la main.',
+          { duration: 5500 }
+        );
+      } else {
+        toast.success('Champs mis à jour depuis la page. Vérifiez entreprise et poste avant d’enregistrer.');
+      }
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Import impossible');
     } finally {
@@ -178,10 +188,6 @@ const ApplicationForm = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="sm:col-span-2 rounded-xl border border-sky-100 bg-sky-50/50 p-4 space-y-3">
             <h2 className="text-sm font-semibold text-gray-900">Importer depuis l’URL de l’offre</h2>
-            <p className="text-xs text-gray-600 leading-relaxed">
-              Collez le lien de la page : l’application tente d’extraire l’intitulé et l’entreprise (balises Open Graph).
-              Certains sites bloquent l’accès automatique : complétez ou corrigez les champs à la main si besoin.
-            </p>
             <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
               <div className="flex-1 min-w-0">
                 <label htmlFor="jobUrl" className="block text-sm font-medium text-gray-700">
@@ -206,11 +212,6 @@ const ApplicationForm = () => {
                 {fetchingImport ? 'Lecture…' : 'Remplir depuis la page'}
               </button>
             </div>
-            <p className="text-xs text-gray-500">
-              Lien direct : <code className="text-[11px] bg-white/80 px-1 rounded">/applications/new?jobUrl=</code>
-              + URL encodée ; favori ou extension Chrome/Edge : voir le README (section import d’offre, dossier{' '}
-              <code className="text-[11px] bg-white/80 px-1 rounded">extensions/quick-add-offer</code>).
-            </p>
           </div>
 
           <div className="sm:col-span-2">
