@@ -3,11 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import toast from 'react-hot-toast';
 import { rgpdService } from '../services/supabaseService';
-
-function toInputDate(s: string | undefined) {
-  if (!s) return '';
-  return s.slice(0, 10);
-}
+import { formatDateForInput, formatDisplayDate, formatLocalDateIso } from '../utils/dateDisplay';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -42,7 +38,7 @@ const Profile = () => {
         formation: user.formation || '',
         studyYear: user.studyYear || '',
         alternanceRhythm: user.alternanceRhythm || '',
-        desiredStartDate: toInputDate(user.desiredStartDate) || '',
+        desiredStartDate: formatDateForInput(user.desiredStartDate) || '',
         linkedinUrl: user.linkedinUrl || '',
         weeklySummaryEnabled: user.weeklySummaryEnabled ?? false,
         reminderEmailsEnabled: user.reminderEmailsEnabled ?? true,
@@ -247,6 +243,8 @@ const Profile = () => {
               <h2 className="text-lg font-medium text-gray-900 mb-4">Notifications</h2>
               <p className="text-sm text-gray-500 mb-4">
                 Activez ou désactivez ici les emails de rappels (relances, entretiens) et le résumé hebdomadaire.
+                L’envoi effectif dépend de la configuration serveur (Resend, secrets et cron sur Supabase) décrite dans le dépôt sous{' '}
+                <code className="text-xs bg-gray-100 px-1 rounded">docs/NOTIFICATIONS_EMAIL.md</code>.
               </p>
               <div className="space-y-3">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -299,7 +297,7 @@ const Profile = () => {
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = url;
-                      a.download = `alternance-tracker-export-${new Date().toISOString().slice(0, 10)}.json`;
+                      a.download = `alternance-tracker-export-${formatLocalDateIso()}.json`;
                       a.click();
                       URL.revokeObjectURL(url);
                       toast.success('Export téléchargé');
@@ -323,8 +321,8 @@ const Profile = () => {
               </div>
               {user?.privacyPolicyAcceptedAt && (
                 <p className="text-xs text-gray-500">
-                  Politique de confidentialité acceptée le {new Date(user.privacyPolicyAcceptedAt).toLocaleDateString('fr-FR')}.
-                  {user?.termsAcceptedAt && ` CGU acceptées le ${new Date(user.termsAcceptedAt).toLocaleDateString('fr-FR')}.`}
+                  Politique de confidentialité acceptée le {formatDisplayDate(user.privacyPolicyAcceptedAt)}.
+                  {user?.termsAcceptedAt && ` CGU acceptées le ${formatDisplayDate(user.termsAcceptedAt)}.`}
                 </p>
               )}
             </div>

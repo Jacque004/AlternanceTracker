@@ -1,3 +1,4 @@
+import { format, isValid, parseISO } from 'date-fns';
 import { supabase } from '../lib/supabase';
 import {
   Application,
@@ -8,6 +9,7 @@ import {
   CVContent,
   GeneratedLetter,
   CVAnalysis,
+  JobMetadataFromUrl,
 } from '../types';
 
 function mapRowToApplication(row: any): Application {
@@ -92,6 +94,26 @@ export const applicationService = {
     const list = (data || []).map(mapRowToApplication);
     const total = usePagination ? (count ?? list.length) : list.length;
     return { data: list, total };
+  },
+
+  /**
+   * Récupère toutes les candidatures correspondant aux filtres/tri (pagination interne).
+   * Utile pour export CSV/PDF au-delà de la limite d’une seule requête PostgREST.
+   */
+  getAllMatchingUnpaginated: async (
+    params?: Omit<ApplicationListParams, 'page' | 'pageSize'>
+  ): Promise<Application[]> => {
+    const pageSize = 500;
+    let page = 1;
+    const acc: Application[] = [];
+    const maxPages = 400;
+    for (;;) {
+      const { data, total } = await applicationService.getAll({ ...params, page, pageSize });
+      acc.push(...data);
+      if (data.length < pageSize || acc.length >= total || page >= maxPages) break;
+      page += 1;
+    }
+    return acc;
   },
 
   getById: async (id: number): Promise<Application> => {
@@ -261,7 +283,9 @@ export const dashboardService = {
     const monthlyMap: Record<string, number> = {};
     monthlyData?.forEach((row) => {
       if (row.application_date) {
-        const month = new Date(row.application_date).toISOString().substring(0, 7);
+        const parsed = parseISO(row.application_date);
+        if (!isValid(parsed)) return;
+        const month = format(parsed, 'yyyy-MM');
         monthlyMap[month] = (monthlyMap[month] || 0) + 1;
       }
     });
@@ -274,7 +298,7 @@ export const dashboardService = {
     const day = startOfWeek.getDay();
     const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
     startOfWeek.setDate(diff);
-    const weekStart = startOfWeek.toISOString().slice(0, 10);
+    const weekStart = format(startOfWeek, 'yyyy-MM-dd');
     const { count: applicationsThisWeek } = await supabase
       .from('applications')
       .select('*', { count: 'exact', head: true })
@@ -329,7 +353,7 @@ export const dashboardService = {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
-    const today = new Date().toISOString().slice(0, 10);
+    const today = format(new Date(), 'yyyy-MM-dd');
     const { data, error } = await supabase
       .from('applications')
       .select('*')
@@ -497,6 +521,39 @@ export const aiService = {
     }
     if (body?.error) throw new Error(body.error);
     return body?.advice ?? '';
+  },
+
+  /**
+   * Récupère entreprise / intitulé / extrait depuis l’URL d’une offre (Edge Function, JWT utilisateur).
+   */
+  fetchJobMetadataFromUrl: async (targetUrl: string): Promise<JobMetadataFromUrl> => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '') || '';
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Configuration Supabase manquante (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)');
+    }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('Vous devez être connecté pour importer une offre depuis une URL.');
+    }
+    const res = await fetch(`${supabaseUrl}/functions/v1/fetch-job-metadata`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: supabaseAnonKey,
+      },
+      body: JSON.stringify({ url: targetUrl.trim() }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const message = body?.error || body?.message || res.statusText || `Erreur ${res.status}`;
+      throw new Error(message);
+    }
+    if (body?.error) throw new Error(body.error);
+    return body as JobMetadataFromUrl;
   },
 };
 

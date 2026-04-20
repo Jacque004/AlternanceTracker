@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  addDays,
   addMonths,
   eachDayOfInterval,
   endOfMonth,
@@ -8,6 +9,8 @@ import {
   format,
   isSameMonth,
   isToday,
+  isValid,
+  parseISO,
   startOfMonth,
   startOfWeek,
   subMonths,
@@ -15,7 +18,7 @@ import {
 import { fr } from 'date-fns/locale';
 import { applicationService } from '../services/supabaseService';
 import type { Application } from '../types';
-import { SkeletonList } from '../components/Skeleton';
+import { SkeletonCalendarGrid } from '../components/Skeleton';
 
 type CalendarItemType = 'interview' | 'relance';
 
@@ -25,32 +28,29 @@ interface CalendarItem {
   application: Application;
 }
 
+/** Jour civil local (yyyy-MM-dd), sans décalage UTC. */
 function toDateOnly(s?: string): string | null {
   if (!s) return null;
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
+  const d = parseISO(s);
+  if (!isValid(d)) return null;
+  return format(d, 'yyyy-MM-dd');
 }
 
-function addDays(s: string, days: number): string {
-  const d = new Date(s);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+function addDaysToDateString(s: string, days: number): string {
+  const d = parseISO(s);
+  if (!isValid(d)) return s;
+  return format(addDays(d, days), 'yyyy-MM-dd');
 }
 
 function formatDateLabel(s: string): string {
-  const d = new Date(s);
-  return d.toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  const d = parseISO(s);
+  if (!isValid(d)) return s;
+  return format(d, 'EEEE dd/MM/yyyy', { locale: fr });
 }
 
 function parseDateOnly(s: string): Date {
-  const [y, m, d] = s.split('-').map(Number);
-  return new Date(y, m - 1, d);
+  const d = parseISO(s);
+  return isValid(d) ? d : new Date(NaN);
 }
 
 const WEEKDAY_LABELS = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
@@ -61,7 +61,10 @@ export default function CalendarPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(new Date()));
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [showInterviews, setShowInterviews] = useState(true);
+  const [showRelances, setShowRelances] = useState(true);
+  const upcomingScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +93,7 @@ export default function CalendarPage() {
 
   const itemsByDate = useMemo(() => {
     const map = new Map<string, CalendarItem[]>();
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = format(new Date(), 'yyyy-MM-dd');
 
     for (const app of applications) {
       const interview = toDateOnly(app.interviewDate);
@@ -101,7 +104,7 @@ export default function CalendarPage() {
       }
 
       if (app.status === 'pending' && app.applicationDate) {
-        const relanceDate = addDays(app.applicationDate, 7);
+        const relanceDate = addDaysToDateString(app.applicationDate, 7);
         if (relanceDate >= todayIso) {
           const list = map.get(relanceDate) ?? [];
           list.push({ date: relanceDate, type: 'relance', application: app });
@@ -122,6 +125,19 @@ export default function CalendarPage() {
     return map;
   }, [applications]);
 
+  const filteredItemsByDate = useMemo(() => {
+    const map = new Map<string, CalendarItem[]>();
+    for (const [date, list] of itemsByDate) {
+      const next = list.filter((item) => {
+        if (item.type === 'interview' && !showInterviews) return false;
+        if (item.type === 'relance' && !showRelances) return false;
+        return true;
+      });
+      if (next.length > 0) map.set(date, next);
+    }
+    return map;
+  }, [itemsByDate, showInterviews, showRelances]);
+
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(viewMonth);
     const monthEnd = endOfMonth(viewMonth);
@@ -130,12 +146,39 @@ export default function CalendarPage() {
     return eachDayOfInterval({ start: gridStart, end: gridEnd });
   }, [viewMonth]);
 
-  const selectedItems = itemsByDate.get(selectedDate) ?? [];
+  const rawSelectedItems = itemsByDate.get(selectedDate) ?? [];
+  const selectedItems = filteredItemsByDate.get(selectedDate) ?? [];
 
-  const upcomingGrouped = useMemo(() => {
-    const sortedDates = Array.from(itemsByDate.keys()).sort();
-    return sortedDates.map((date) => ({ date, list: itemsByDate.get(date)! }));
-  }, [itemsByDate]);
+  const upcomingByMonth = useMemo(() => {
+    const sortedDates = Array.from(filteredItemsByDate.keys()).sort();
+    type Row = { date: string; list: CalendarItem[] };
+    type Group = { monthKey: string; monthLabel: string; rows: Row[] };
+    const groups: Group[] = [];
+    for (const date of sortedDates) {
+      const d = parseISO(date);
+      const monthKey = format(d, 'yyyy-MM');
+      const monthLabel = format(d, 'MMMM yyyy', { locale: fr });
+      const list = filteredItemsByDate.get(date)!;
+      const last = groups[groups.length - 1];
+      if (!last || last.monthKey !== monthKey) {
+        groups.push({ monthKey, monthLabel, rows: [{ date, list }] });
+      } else {
+        last.rows.push({ date, list });
+      }
+    }
+    return groups;
+  }, [filteredItemsByDate]);
+
+  useEffect(() => {
+    if (loading || error) return;
+    const id = requestAnimationFrame(() => {
+      const root = upcomingScrollRef.current;
+      if (!root) return;
+      const target = root.querySelector(`[data-calendar-date="${CSS.escape(selectedDate)}"]`);
+      target?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [selectedDate, loading, error, upcomingByMonth, showInterviews, showRelances]);
 
   const monthTitle = format(viewMonth, 'MMMM yyyy', { locale: fr });
 
@@ -151,11 +194,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {loading && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4">
-          <SkeletonList lines={6} />
-        </div>
-      )}
+      {loading && <SkeletonCalendarGrid />}
 
       {!loading && error && (
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-4 text-sm">{error}</div>
@@ -180,7 +219,7 @@ export default function CalendarPage() {
                   onClick={() => {
                     const now = new Date();
                     setViewMonth(startOfMonth(now));
-                    setSelectedDate(now.toISOString().slice(0, 10));
+                    setSelectedDate(format(now, 'yyyy-MM-dd'));
                   }}
                   className="px-3 py-1.5 text-sm font-medium rounded-lg border border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100"
                 >
@@ -211,7 +250,7 @@ export default function CalendarPage() {
                 const inMonth = isSameMonth(day, viewMonth);
                 const selected = key === selectedDate;
                 const today = isToday(day);
-                const count = itemsByDate.get(key)?.length ?? 0;
+                const count = filteredItemsByDate.get(key)?.length ?? 0;
 
                 return (
                   <button
@@ -244,7 +283,7 @@ export default function CalendarPage() {
                     </span>
                     {count > 0 && (
                       <span className="mt-1 flex gap-0.5" aria-hidden>
-                        {itemsByDate.get(key)!.slice(0, 3).map((item, i) => (
+                        {filteredItemsByDate.get(key)!.slice(0, 3).map((item, i) => (
                           <span
                             key={`${item.type}-${item.application.id}-${i}`}
                             className={`h-1.5 w-1.5 rounded-full ${
@@ -259,16 +298,41 @@ export default function CalendarPage() {
               })}
             </div>
 
-            <p className="mt-3 text-xs text-gray-500 flex flex-wrap gap-4">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-blue-500" />
-                Entretien
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-amber-500" />
-                Relance
-              </span>
-            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-gray-600">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Afficher</span>
+              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={showInterviews}
+                  onChange={(e) => {
+                    const v = e.target.checked;
+                    if (!v && !showRelances) return;
+                    setShowInterviews(v);
+                  }}
+                  className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                />
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" aria-hidden />
+                  Entretiens
+                </span>
+              </label>
+              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={showRelances}
+                  onChange={(e) => {
+                    const v = e.target.checked;
+                    if (!v && !showInterviews) return;
+                    setShowRelances(v);
+                  }}
+                  className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" aria-hidden />
+                  Relances
+                </span>
+              </label>
+            </div>
           </div>
 
           <aside className="w-full lg:w-[min(100%,380px)] shrink-0 space-y-4">
@@ -279,7 +343,11 @@ export default function CalendarPage() {
               <p className="text-sm text-gray-600 mb-4 capitalize">{formatDateLabel(selectedDate)}</p>
 
               {selectedItems.length === 0 ? (
-                <p className="text-sm text-gray-500">Aucun entretien ni relance prévu ce jour-là.</p>
+                <p className="text-sm text-gray-500">
+                  {rawSelectedItems.length > 0
+                    ? 'Les filtres masquent les événements de ce jour.'
+                    : 'Aucun entretien ni relance prévu ce jour-là.'}
+                </p>
               ) : (
                 <ul className="space-y-3">
                   {selectedItems.map((item) => (
@@ -325,36 +393,50 @@ export default function CalendarPage() {
               )}
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 max-h-[min(420px,50vh)] lg:max-h-[min(520px,55vh)] overflow-y-auto">
+            <div
+              ref={upcomingScrollRef}
+              className="bg-white rounded-xl border border-gray-200 shadow-card p-4 max-h-[min(420px,50vh)] lg:max-h-[min(520px,55vh)] overflow-y-auto scroll-py-2"
+            >
               <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">
                 Toutes les dates à venir
               </h2>
-              {upcomingGrouped.length === 0 ? (
+              {upcomingByMonth.length === 0 ? (
                 <p className="text-sm text-gray-500">
-                  Aucune date d&apos;entretien ou de relance à afficher pour le moment.
+                  {itemsByDate.size > 0
+                    ? 'Aucune date ne correspond aux filtres. Réactivez un type d’événement.'
+                    : 'Aucune date d&apos;entretien ou de relance à afficher pour le moment.'}
                 </p>
               ) : (
-                <ul className="space-y-4">
-                  {upcomingGrouped.map(({ date, list }) => (
-                    <li key={date}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedDate(date);
-                          setViewMonth(startOfMonth(parseDateOnly(date)));
-                        }}
-                        className={`w-full text-left rounded-lg px-2 py-1 -mx-2 text-xs font-semibold uppercase tracking-wide mb-2 transition-colors ${
-                          date === selectedDate ? 'bg-sky-50 text-sky-900' : 'text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        {formatDateLabel(date)}
-                      </button>
-                      <ul className="space-y-2 border-l-2 border-gray-100 pl-3">
-                        {list.map((item) => (
-                          <li key={`${item.type}-${item.application.id}`} className="text-sm text-gray-700">
-                            <span className="font-medium text-gray-900">{item.application.companyName}</span>
-                            <span className="text-gray-500"> — </span>
-                            {item.type === 'interview' ? 'Entretien' : 'Relance'}
+                <ul className="space-y-6">
+                  {upcomingByMonth.map((group) => (
+                    <li key={group.monthKey}>
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 capitalize border-b border-gray-100 pb-2">
+                        {group.monthLabel}
+                      </h3>
+                      <ul className="space-y-4">
+                        {group.rows.map(({ date, list }) => (
+                          <li key={date} data-calendar-date={date}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDate(date);
+                                setViewMonth(startOfMonth(parseDateOnly(date)));
+                              }}
+                              className={`w-full text-left rounded-lg px-2 py-1 -mx-2 text-xs font-semibold uppercase tracking-wide mb-2 transition-colors ${
+                                date === selectedDate ? 'bg-sky-50 text-sky-900' : 'text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              {formatDateLabel(date)}
+                            </button>
+                            <ul className="space-y-2 border-l-2 border-gray-100 pl-3">
+                              {list.map((item) => (
+                                <li key={`${item.type}-${item.application.id}`} className="text-sm text-gray-700">
+                                  <span className="font-medium text-gray-900">{item.application.companyName}</span>
+                                  <span className="text-gray-500"> — </span>
+                                  {item.type === 'interview' ? 'Entretien' : 'Relance'}
+                                </li>
+                              ))}
+                            </ul>
                           </li>
                         ))}
                       </ul>

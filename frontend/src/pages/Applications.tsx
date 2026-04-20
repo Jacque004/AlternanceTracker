@@ -1,8 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { applicationService, dashboardService } from '../services/supabaseService';
 import type { Application, ApplicationListParams } from '../types';
 import { SkeletonList } from '../components/Skeleton';
+import {
+  formatDisplayDate,
+  formatDisplayTime,
+  formatLocalDateIso,
+  formatTodayDisplay,
+} from '../utils/dateDisplay';
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'En attente',
@@ -18,29 +25,36 @@ const SORT_OPTIONS: { value: ApplicationListParams['sortBy']; label: string }[] 
   { value: 'status', label: 'Statut' },
 ];
 
-function formatDate(s: string | undefined) {
-  if (!s) return '–';
-  return new Date(s).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function formatTime(s: string | undefined) {
-  if (!s) return '';
-  if (/^\d{2}:\d{2}/.test(s)) return s.slice(0, 5);
-  return new Date(s).toTimeString().slice(0, 5);
-}
-
 function exportCSV(apps: Application[]) {
-  const headers = ['Entreprise', 'Poste', 'Statut', 'Date candidature', 'Date réponse', 'Date entretien', 'Heure', 'Lieu entretien', 'Lieu', 'Notes', 'URL'];
+  const headers = [
+    'Entreprise',
+    'Poste',
+    'Statut',
+    'Date candidature',
+    'Date réponse',
+    'Date entretien',
+    'Heure',
+    'Lieu entretien',
+    'Lieu',
+    'Salaire',
+    'Dernière relance',
+    'Date création',
+    'Notes',
+    'URL',
+  ];
   const rows = apps.map((a) => [
     a.companyName,
     a.position,
     STATUS_LABELS[a.status] || a.status,
-    formatDate(a.applicationDate),
-    formatDate(a.responseDate),
-    formatDate(a.interviewDate),
-    formatTime(a.interviewTime),
+    formatDisplayDate(a.applicationDate),
+    formatDisplayDate(a.responseDate),
+    formatDisplayDate(a.interviewDate),
+    formatDisplayTime(a.interviewTime),
     a.interviewPlace || '',
     a.location || '',
+    a.salaryRange || '',
+    formatDisplayDate(a.lastRelanceAt),
+    formatDisplayDate(a.createdAt),
     (a.notes || '').replace(/\n/g, ' '),
     a.jobUrl || '',
   ]);
@@ -49,7 +63,7 @@ function exportCSV(apps: Application[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `candidatures-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `candidatures-${formatLocalDateIso()}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -64,9 +78,9 @@ function exportPDF(apps: Application[]) {
           <td>${a.companyName}</td>
           <td>${a.position}</td>
           <td>${STATUS_LABELS[a.status] || a.status}</td>
-          <td>${formatDate(a.applicationDate)}</td>
-          <td>${formatDate(a.responseDate)}</td>
-          <td>${formatDate(a.interviewDate)} ${formatTime(a.interviewTime)}</td>
+          <td>${formatDisplayDate(a.applicationDate)}</td>
+          <td>${formatDisplayDate(a.responseDate)}</td>
+          <td>${formatDisplayDate(a.interviewDate)} ${formatDisplayTime(a.interviewTime)}</td>
         </tr>`
     )
     .join('');
@@ -85,7 +99,7 @@ function exportPDF(apps: Application[]) {
         </style>
       </head>
       <body>
-        <h1>Mes candidatures – ${new Date().toLocaleDateString('fr-FR')}</h1>
+        <h1>Mes candidatures – ${formatTodayDisplay()}</h1>
         <table>
           <thead>
             <tr>
@@ -122,7 +136,7 @@ async function exportPDFDashboard() {
           <td>${a.companyName}</td>
           <td>${a.position}</td>
           <td>${STATUS_LABELS[a.status] || a.status}</td>
-          <td>${formatDate(a.applicationDate)}</td>
+          <td>${formatDisplayDate(a.applicationDate)}</td>
         </tr>`
     )
     .join('');
@@ -151,7 +165,7 @@ async function exportPDFDashboard() {
         </style>
       </head>
       <body>
-        <h1>Tableau de bord – ${new Date().toLocaleDateString('fr-FR')}</h1>
+        <h1>Tableau de bord – ${formatTodayDisplay()}</h1>
         ${statsHtml}
         <h2>Dernières candidatures</h2>
         <table>
@@ -180,6 +194,7 @@ const Applications = () => {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [search, setSearch] = useState('');
   const [searchDebounced, setSearchDebounced] = useState('');
@@ -236,21 +251,53 @@ const Applications = () => {
           <button
             type="button"
             onClick={async () => {
-              const res = await applicationService.getAll({ sortBy, sortOrder, status: statusFilter || undefined, search: searchDebounced.trim() || undefined, dateFrom: dateFrom || undefined, dateTo: dateTo || undefined });
-              exportCSV(res.data);
+              if (total === 0) return;
+              setExporting(true);
+              try {
+                const apps = await applicationService.getAllMatchingUnpaginated({
+                  sortBy,
+                  sortOrder,
+                  status: statusFilter || undefined,
+                  search: searchDebounced.trim() || undefined,
+                  dateFrom: dateFrom || undefined,
+                  dateTo: dateTo || undefined,
+                });
+                exportCSV(apps);
+                toast.success(`Export CSV : ${apps.length} candidature(s)`);
+              } catch {
+                toast.error('Impossible d’exporter le CSV');
+              } finally {
+                setExporting(false);
+              }
             }}
-            disabled={total === 0}
+            disabled={total === 0 || exporting}
             className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors duration-200"
           >
-            Export CSV
+            {exporting ? 'Export…' : 'Export CSV'}
           </button>
           <button
             type="button"
             onClick={async () => {
-              const res = await applicationService.getAll({ sortBy, sortOrder, status: statusFilter || undefined, search: searchDebounced.trim() || undefined, dateFrom: dateFrom || undefined, dateTo: dateTo || undefined });
-              exportPDF(res.data);
+              if (total === 0) return;
+              setExporting(true);
+              try {
+                const apps = await applicationService.getAllMatchingUnpaginated({
+                  sortBy,
+                  sortOrder,
+                  status: statusFilter || undefined,
+                  search: searchDebounced.trim() || undefined,
+                  dateFrom: dateFrom || undefined,
+                  dateTo: dateTo || undefined,
+                });
+                exportPDF(apps);
+                toast.success(`Export PDF : ${apps.length} candidature(s)`);
+              } catch {
+                toast.error('Impossible d’exporter le PDF');
+              } finally {
+                setExporting(false);
+              }
             }}
-            disabled={total === 0}
+            disabled={total === 0 || exporting}
             className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors duration-200"
           >
             Export PDF
@@ -359,9 +406,9 @@ const Applications = () => {
                       <p className="text-sm text-gray-500">{app.position}</p>
                       {(app.applicationDate || app.notes || (app.status === 'interview' && app.interviewDate)) && (
                         <p className="text-xs text-gray-400 mt-1">
-                          {formatDate(app.applicationDate)}
+                          {formatDisplayDate(app.applicationDate)}
                           {app.status === 'interview' && app.interviewDate && (
-                            <> · Entretien {formatDate(app.interviewDate)}{app.interviewTime ? ` ${formatTime(app.interviewTime)}` : ''}{app.interviewPlace ? ` – ${app.interviewPlace}` : ''}</>
+                            <> · Entretien {formatDisplayDate(app.interviewDate)}{app.interviewTime ? ` ${formatDisplayTime(app.interviewTime)}` : ''}{app.interviewPlace ? ` – ${app.interviewPlace}` : ''}</>
                           )}
                           {app.notes && ` · ${app.notes.slice(0, 50)}${app.notes.length > 50 ? '…' : ''}`}
                         </p>

@@ -1,14 +1,17 @@
 -- Planification des rappels et du résumé hebdo par email
 -- Prérequis : extensions pg_cron et pg_net activées (Dashboard Supabase → Database → Extensions)
 -- Remplacez VOTRE_PROJECT_REF et VOTRE_CRON_SECRET avant d'exécuter, ou utilisez un cron externe (voir docs/NOTIFICATIONS_EMAIL.md).
+--
+-- send-reminders : prévoir un déclenchement fréquent (ex. toutes les 5 min) pour les rappels
+-- « dans ~30 min / ~5 min » avant l’entretien ; un passage hebdomadaire seul ne suffit pas.
 
 -- CREATE EXTENSION IF NOT EXISTS pg_cron;
 -- CREATE EXTENSION IF NOT EXISTS pg_net;
 
--- Exemple : rappels quotidiens à 8h00 (UTC)
+-- Exemple : rappels toutes les 5 minutes (UTC) — relances, entretiens jour J/J+1, alertes 30/5 min
 -- SELECT cron.schedule(
---   'send-reminders-daily',
---   '0 8 * * *',
+--   'send-reminders-frequent',
+--   '*/5 * * * *',
 --   $$
 --   SELECT net.http_post(
 --     url := 'https://VOTRE_PROJECT_REF.supabase.co/functions/v1/send-reminders',
@@ -38,5 +41,5 @@
 -- );
 
 -- Pour supprimer les jobs plus tard :
--- SELECT cron.unschedule('send-reminders-daily');
+-- SELECT cron.unschedule('send-reminders-frequent');
 -- SELECT cron.unschedule('send-weekly-summary');

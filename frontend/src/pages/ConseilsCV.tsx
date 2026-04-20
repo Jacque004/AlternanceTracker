@@ -4,6 +4,7 @@ import type { CVContent, CVSectionKey, CVAnalysis, ATSAnalysisResult } from '../
 import toast from 'react-hot-toast';
 import { pdf } from '@react-pdf/renderer';
 import { CvPdfDocument, CV_PDF_TEMPLATES, type CvPdfTemplateId } from '../components/CvPdfDocument';
+import { formatDisplayDate } from '../utils/dateDisplay';
 
 const SECTION_LABELS: Record<CVSectionKey, string> = {
   coordonnees: 'Coordonnées',
@@ -718,7 +719,7 @@ const ConseilsCV = () => {
                     </span>
                     {a.createdAt && (
                       <span className="text-gray-500">
-                        {new Date(a.createdAt).toLocaleDateString('fr-FR')}
+                        {formatDisplayDate(a.createdAt)}
                       </span>
                     )}
                   </li>

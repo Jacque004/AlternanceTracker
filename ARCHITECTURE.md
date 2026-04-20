@@ -6,13 +6,11 @@ AlternanceTracker est une application SaaS full-stack construite avec une archit
 
 ## Stack technique
 
-### Backend
-- **Framework** : Express.js avec TypeScript
-- **Base de données** : PostgreSQL 15
-- **Authentification** : JWT (JSON Web Tokens)
-- **Sécurité** : bcrypt pour le hashage des mots de passe, Helmet pour les en-têtes de sécurité
-- **Validation** : express-validator
-- **IA** : OpenAI API (GPT-3.5-turbo)
+### Backend et données
+- **Données & auth (parcours principal)** : **Supabase** (PostgreSQL managé, **Supabase Auth**, politiques **RLS**). Le frontend parle à la base via le client JS avec le jeton utilisateur.
+- **API Express (optionnelle)** : Node.js + TypeScript, routes REST et `/ai/*` si le frontend est configuré avec `VITE_API_URL` ; peut s’appuyer sur JWT applicatif ou sur la vérification du JWT Supabase selon le déploiement.
+- **Sécurité (Express)** : bcrypt, Helmet, express-validator lorsque le serveur Express est utilisé.
+- **IA** : OpenAI / Gemini côté Edge Functions ou côté Express selon la configuration.
 
 ### Frontend
 - **Framework** : React 18 avec TypeScript

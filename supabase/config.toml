@@ -4,3 +4,15 @@
 # https://supabase.com/docs/guides/functions/cors
 [functions.generate-cover-letter]
 verify_jwt = false
+
+# Appelées par pg_cron / cron externe avec CRON_SECRET (pas de JWT utilisateur).
+[functions.send-reminders]
+verify_jwt = false
+
+[functions.send-weekly-summary]
+verify_jwt = false
+
+# Même problème CORS que generate-cover-letter : le preflight OPTIONS n’envoie pas le JWT ;
+# la passerelle répondait 401 avant la fonction. verify_jwt = false + contrôle du JWT dans le code Deno.
+[functions.fetch-job-metadata]
+verify_jwt = false

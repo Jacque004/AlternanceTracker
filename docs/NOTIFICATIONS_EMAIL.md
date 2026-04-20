@@ -6,7 +6,7 @@ Ce guide explique comment activer l’envoi d’emails pour les **rappels** (rel
 
 | Fonctionnalité | Edge Function | Déclencheur suggéré | Contenu |
 |----------------|---------------|---------------------|---------|
-| **Rappels** (relances + entretiens) | `send-reminders` | Quotidien (ex. 8h) | Liste des candidatures à relancer et des entretiens à venir (aujourd’hui/demain) |
+| **Rappels** (relances + entretiens + alertes ~30 min / ~5 min) | `send-reminders` | **Souvent** (ex. toutes les 5 min) | Relances (≥ 7 jours), entretiens aujourd’hui/demain, rappels juste avant l’heure d’entretien |
 | **Résumé hebdo** | `send-weekly-summary` | Hebdo (ex. lundi 8h) | Stats + nouvelles candidatures + relances à faire |
 
 Les utilisateurs activent/désactivent ces emails dans **Mon profil → Notifications**.
@@ -35,8 +35,8 @@ Deux fonctions sont fournies :
 
 - **`send-reminders`**  
   - Lit les utilisateurs avec `reminder_emails_enabled = true`.  
-  - Pour chacun : candidatures « à relancer » (en attente depuis ≥ 7 jours, sans relance récente) et entretiens à venir (date aujourd’hui ou demain).  
-  - Envoie un email par utilisateur concerné (Resend).
+  - Pour chacun : relances (en attente depuis ≥ 7 jours, avec contrôle `relance_reminder_sent_at`), entretiens aujourd’hui/demain, et si l’heure d’entretien est renseignée des alertes **~30 min** et **~5 min** avant (d’où la nécessité d’un cron **fréquent**, pas seulement hebdomadaire).  
+  - Envoie un email par utilisateur et par passage du job lorsqu’il y a au moins un élément à signaler (Resend).
 
 - **`send-weekly-summary`**  
   - Lit les utilisateurs avec `weekly_summary_enabled = true`.  
@@ -50,11 +50,11 @@ Les deux fonctions :
 Déploiement :
 
 ```bash
-supabase functions deploy send-reminders --no-verify-jwt
-supabase functions deploy send-weekly-summary --no-verify-jwt
+supabase functions deploy send-reminders
+supabase functions deploy send-weekly-summary
 ```
 
-`--no-verify-jwt` permet au cron (sans JWT utilisateur) d’appeler la fonction ; la sécurité repose sur `CRON_SECRET`.
+Le dépôt définit `verify_jwt = false` pour ces fonctions dans `supabase/config.toml` (appel réservé au cron avec `CRON_SECRET`). Sinon, déployez avec `--no-verify-jwt` à la place.
 
 ---
 
@@ -78,13 +78,13 @@ CREATE EXTENSION IF NOT EXISTS pg_net;
    - **Dashboard** → Project Settings → Database → Vault (ou Variables).
    - Ou utiliser directement l’URL de la fonction et `CRON_SECRET` dans le body/header (voir exemples ci-dessous).
 
-3. Planifier les jobs. Exemple : rappels tous les jours à 8h (Paris), résumé le lundi à 8h.
+3. Planifier les jobs. Exemple : **rappels toutes les 5 minutes (UTC)** pour couvrir les alertes avant entretien ; résumé hebdo une fois par semaine (ex. lundi 8h UTC — à adapter à votre fuseau).
 
 ```sql
--- Rappels : tous les jours à 8h (heure Paris = UTC+1 ou UTC+2)
+-- Rappels : toutes les 5 minutes (UTC)
 SELECT cron.schedule(
-  'send-reminders-daily',
-  '0 8 * * *',
+  'send-reminders-frequent',
+  '*/5 * * * *',
   $$
   SELECT net.http_post(
     url := 'https://VOTRE_PROJECT_REF.supabase.co/functions/v1/send-reminders',
@@ -97,7 +97,7 @@ SELECT cron.schedule(
   $$
 );
 
--- Résumé hebdo : lundi à 8h
+-- Résumé hebdo : lundi à 8h UTC
 SELECT cron.schedule(
   'send-weekly-summary',
   '0 8 * * 1',
@@ -123,7 +123,7 @@ Une alternative simple : le fichier **`supabase/migrations/007_cron_schedule_not
 Appeler les Edge Functions en HTTP depuis un cron (GitHub Actions, Vercel, etc.) :
 
 ```bash
-# Rappels (quotidien)
+# Rappels (à appeler souvent, ex. toutes les 5 min, via cron externe)
 curl -X POST "https://VOTRE_PROJECT_REF.supabase.co/functions/v1/send-reminders" \
   -H "Authorization: Bearer VOTRE_CRON_SECRET" \
   -H "Content-Type: application/json"
