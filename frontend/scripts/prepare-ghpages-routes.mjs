@@ -9,8 +9,9 @@ const distDir = path.resolve('dist');
 const indexHtmlPath = path.join(distDir, 'index.html');
 
 function ensureRoute(routePath) {
-  // routePath est une route côté URL, ex: "auth/confirm-success"
-  const targetDir = path.join(distDir, routePath);
+  // routePath type URL avec des / (évite les \ sous Windows dans le chemin publié)
+  const segments = String(routePath).replace(/\\/g, '/').split('/').filter(Boolean);
+  const targetDir = path.join(distDir, ...segments);
   fs.mkdirSync(targetDir, { recursive: true });
   fs.copyFileSync(indexHtmlPath, path.join(targetDir, 'index.html'));
 }
@@ -20,21 +21,42 @@ if (!fs.existsSync(indexHtmlPath)) {
   process.exit(1);
 }
 
-// Routes qui peuvent être appelées directement via des liens Supabase/email.
+// Routes appelées en rechargement direct / favori (GitHub Pages ne renvoie pas index.html automatiquement).
 const routes = [
-  'offres',
   'login',
   'register',
   'forgot-password',
   'reset-password',
   'politique-confidentialite',
   'cgu',
-  path.join('auth', 'confirm-success'),
+  'auth/confirm-success',
+  // App connectée (rechargement F5)
+  'applications',
+  'applications/new',
+  'calendar',
+  'profile',
+  'a-propos',
+  'preparer',
+  'preparer/cv',
+  'preparer/lettres',
+  'preparer/analyser-offre',
+  'preparer/conseils',
+  // Redirections historiques
+  'conseils-cv',
+  'mon-cv',
+  'coaching',
+  'modeles-lettres',
+  'analyser-offre',
 ];
 
 for (const route of routes) {
   ensureRoute(route);
 }
 
-console.log('[prepare-ghpages-routes] Routes SPA préparées pour GitHub Pages.');
+// Fallback universel : URLs dynamiques (/applications/42/edit, etc.) et toute route non listée.
+// GitHub Pages sert 404.html ; l’app React lit l’URL et le routeur affiche la bonne page.
+const notFoundPath = path.join(distDir, '404.html');
+fs.copyFileSync(indexHtmlPath, notFoundPath);
+
+console.log('[prepare-ghpages-routes] Routes SPA + 404.html pour GitHub Pages.');
 
