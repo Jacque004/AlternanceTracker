@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { applicationService, aiService } from '../services/supabaseService';
 import { formatDateForInput, formatTimeForInput } from '../utils/dateDisplay';
+import { normalizeJobOfferUrl } from '../utils/jobOfferUrl';
 import toast from 'react-hot-toast';
 import type { Application } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { userFacingErrorMessage } from '../utils/errorMessage';
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'En attente' },
@@ -12,6 +14,19 @@ const STATUS_OPTIONS = [
   { value: 'accepted', label: 'Acceptée' },
   { value: 'rejected', label: 'Refusée' },
 ];
+
+/** Texte type réponse Jina / page d’erreur — ne pas remplir le formulaire avec ça. */
+function looksLikeReaderOrErrorDump(text: string | null | undefined): boolean {
+  if (!text?.trim()) return false;
+  const t = text.slice(0, 2500);
+  return (
+    /url source:\s*https?:/i.test(t) ||
+    /warning:\s*target url returned error/i.test(t) ||
+    /markdown content:/i.test(t) ||
+    /erreur\s+de\s+tâche\s+personnalis/i.test(t) ||
+    /target url returned error/i.test(t)
+  );
+}
 
 const ApplicationForm = () => {
   const { id } = useParams();
@@ -59,7 +74,9 @@ const ApplicationForm = () => {
           interviewPlace: app.interviewPlace || '',
         });
       })
-      .catch(() => toast.error('Candidature introuvable'))
+      .catch((err: unknown) =>
+        toast.error(userFacingErrorMessage(err, 'Candidature introuvable ou impossible à charger.'))
+      )
       .finally(() => setLoadOne(false));
   }, [isEdit, id]);
 
@@ -69,8 +86,9 @@ const ApplicationForm = () => {
     if (!q?.trim()) return;
     try {
       const decoded = decodeURIComponent(q.trim());
-      if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
-        setFormData((prev) => ({ ...prev, jobUrl: decoded }));
+      const normalized = normalizeJobOfferUrl(decoded);
+      if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+        setFormData((prev) => ({ ...prev, jobUrl: normalized }));
       }
     } catch {
       /* param mal encodé : ignoré */
@@ -78,43 +96,69 @@ const ApplicationForm = () => {
   }, [isEdit, searchParams]);
 
   const handleImportFromUrl = async () => {
-    const url = formData.jobUrl.trim();
-    if (!url) {
+    const raw = formData.jobUrl.trim();
+    if (!raw) {
       toast.error('Collez d’abord l’URL de l’offre.');
       return;
     }
+    const url = normalizeJobOfferUrl(raw);
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      toast.error('URL invalide : utilisez une adresse commençant par https:// (ou www.…).');
+      return;
+    }
+    setFormData((prev) => ({ ...prev, jobUrl: url }));
     setFetchingImport(true);
     try {
       const meta = await aiService.fetchJobMetadataFromUrl(url);
-      const hasCompany = Boolean(meta.companyName?.trim());
-      const hasPosition = Boolean(meta.position?.trim());
-      const hasSnippet = Boolean(meta.descriptionSnippet?.trim());
+      const safeCompany =
+        meta.companyName?.trim() && !looksLikeReaderOrErrorDump(meta.companyName)
+          ? meta.companyName.trim()
+          : '';
+      const safePosition =
+        meta.position?.trim() && !looksLikeReaderOrErrorDump(meta.position) ? meta.position.trim() : '';
+      const safeSnippet =
+        meta.descriptionSnippet?.trim() && !looksLikeReaderOrErrorDump(meta.descriptionSnippet)
+          ? meta.descriptionSnippet.trim()
+          : '';
+      const safeLocation =
+        meta.location?.trim() && !looksLikeReaderOrErrorDump(meta.location) ? meta.location.trim() : '';
+      const safeSalary =
+        meta.salaryRange?.trim() && !looksLikeReaderOrErrorDump(meta.salaryRange)
+          ? meta.salaryRange.trim()
+          : '';
+
+      const hasCompany = Boolean(safeCompany);
+      const hasPosition = Boolean(safePosition);
+      const hasSnippet = Boolean(safeSnippet);
+      const hasLocation = Boolean(safeLocation);
+      const hasSalary = Boolean(safeSalary);
       setFormData((prev) => {
-        const snip = meta.descriptionSnippet?.trim();
         let notes = prev.notes;
-        if (snip) {
-          const marker = snip.slice(0, Math.min(60, snip.length));
-          if (!notes.trim()) notes = snip;
-          else if (!notes.includes(marker)) notes = `${notes}\n\n— Extrait de l’offre —\n${snip}`;
+        if (safeSnippet) {
+          const marker = safeSnippet.slice(0, Math.min(60, safeSnippet.length));
+          if (!notes.trim()) notes = safeSnippet;
+          else if (!notes.includes(marker)) notes = `${notes}\n\n— Extrait de l’offre —\n${safeSnippet}`;
         }
         return {
           ...prev,
-          jobUrl: meta.jobUrl || prev.jobUrl,
-          companyName: (meta.companyName?.trim() || prev.companyName).trim(),
-          position: (meta.position?.trim() || prev.position).trim(),
+          jobUrl: meta.jobUrl || url,
+          companyName: (safeCompany || prev.companyName).trim(),
+          position: (safePosition || prev.position).trim(),
+          location: safeLocation || prev.location,
+          salaryRange: safeSalary || prev.salaryRange,
           notes,
         };
       });
-      if (!hasCompany && !hasPosition && !hasSnippet) {
+      if (!hasCompany && !hasPosition && !hasSnippet && !hasLocation && !hasSalary) {
         toast(
-          'La page a été lue, mais aucun intitulé, entreprise ni extrait n’ont été reconnus. Complétez les champs à la main.',
+          'La page a été lue, mais aucun détail exploitable n’a été reconnu (titre, entreprise, lieu, salaire…). Complétez à la main.',
           { duration: 5500 }
         );
       } else {
-        toast.success('Champs mis à jour depuis la page. Vérifiez entreprise et poste avant d’enregistrer.');
+        toast.success('Champs mis à jour depuis la page. Vérifiez les informations avant d’enregistrer.');
       }
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Import impossible');
+      toast.error(userFacingErrorMessage(e, 'Import depuis l’URL impossible.'));
     } finally {
       setFetchingImport(false);
     }
@@ -157,8 +201,8 @@ const ApplicationForm = () => {
         toast.success('Candidature créée');
       }
       navigate('/applications');
-    } catch (err: any) {
-      toast.error(err?.message || 'Erreur lors de l\'enregistrement');
+    } catch (err: unknown) {
+      toast.error(userFacingErrorMessage(err, 'Erreur lors de l’enregistrement.'));
     } finally {
       setLoading(false);
     }
@@ -174,27 +218,29 @@ const ApplicationForm = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto stack-page">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
           {isEdit ? 'Modifier la candidature' : 'Nouvelle candidature'}
         </h1>
-        <p className="mt-1 text-gray-600">
+        <p className="mt-1.5 text-sm sm:text-base text-gray-600">
           {isEdit ? 'Modifiez les informations ci-dessous.' : 'Enregistrez une nouvelle candidature pour la suivre.'}
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white shadow-card rounded-xl border border-gray-200 p-6 space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div className="sm:col-span-2 rounded-xl border border-sky-100 bg-sky-50/50 p-4 space-y-3">
+      <form onSubmit={handleSubmit} className="bg-white shadow-card rounded-xl border border-gray-200 p-4 sm:p-6 md:p-8 space-y-5 sm:space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div className="sm:col-span-2 rounded-xl border border-sky-100 bg-sky-50/50 p-3 sm:p-4 space-y-3">
             <h2 className="text-sm font-semibold text-gray-900">Importer depuis l’URL de l’offre</h2>
-            <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 sm:items-end">
               <div className="flex-1 min-w-0">
                 <label htmlFor="jobUrl" className="block text-sm font-medium text-gray-700">
                   URL de l’offre
                 </label>
                 <input
-                  type="url"
+                  type="text"
+                  inputMode="url"
+                  autoComplete="url"
                   id="jobUrl"
                   name="jobUrl"
                   value={formData.jobUrl}
@@ -207,7 +253,7 @@ const ApplicationForm = () => {
                 type="button"
                 onClick={() => void handleImportFromUrl()}
                 disabled={!formData.jobUrl.trim() || fetchingImport}
-                className="shrink-0 inline-flex justify-center items-center px-4 py-2 rounded-md text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="shrink-0 inline-flex justify-center items-center min-h-[44px] px-4 py-2.5 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
               >
                 {fetchingImport ? 'Lecture…' : 'Remplir depuis la page'}
               </button>
@@ -376,25 +422,25 @@ const ApplicationForm = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3 pt-2">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-3 pt-1">
           <button
             type="submit"
             disabled={loading}
-            className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+            className="inline-flex justify-center items-center min-h-[44px] w-full sm:w-auto bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
           >
             {loading ? 'Enregistrement...' : isEdit ? 'Enregistrer' : 'Créer la candidature'}
           </button>
           <button
             type="button"
             onClick={() => navigate('/applications')}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm font-medium"
+            className="inline-flex justify-center items-center min-h-[44px] w-full sm:w-auto bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium"
           >
             Annuler
           </button>
           {formData.companyName.trim() && formData.position.trim() && (
             <Link
               to={`/preparer/lettres?company=${encodeURIComponent(formData.companyName)}&position=${encodeURIComponent(formData.position)}`}
-              className="inline-flex items-center gap-1 bg-primary-50 hover:bg-primary-100 text-primary-700 px-4 py-2 rounded-md text-sm font-medium"
+              className="inline-flex justify-center items-center gap-1 min-h-[44px] w-full sm:w-auto text-center bg-primary-50 hover:bg-primary-100 text-primary-700 px-4 py-2.5 rounded-lg text-sm font-medium"
             >
               ✉️ Générer une lettre pour cette candidature
             </Link>

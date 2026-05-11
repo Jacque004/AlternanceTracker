@@ -48,8 +48,8 @@ const SupabaseConfigCheck = () => {
                 <li>Ajoutez les lignes suivantes :</li>
               </ol>
               <pre className="mt-3 bg-gray-800 text-green-400 p-4 rounded overflow-x-auto text-sm">
-{`VITE_SUPABASE_URL=https://xvshjwddgchkbcoocenj.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_NRxzcHi0SUATNwK3aE-H1g_4DCcpyAO`}
+{`VITE_SUPABASE_URL=https://votre-projet.supabase.co
+VITE_SUPABASE_ANON_KEY=votre_cle_anon_publique`}
               </pre>
               <p className="mt-4 text-sm text-gray-600">
                 <strong>Important :</strong> Redémarrez le serveur de développement après avoir créé le fichier .env

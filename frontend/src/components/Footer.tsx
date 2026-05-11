@@ -2,8 +2,11 @@ import { Link } from 'react-router-dom';
 
 export default function Footer() {
   return (
-    <footer className="mt-auto border-t border-gray-200 bg-white/80 backdrop-blur-sm" role="contentinfo">
-      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <footer
+      className="mt-auto w-full min-w-0 border-t border-gray-200 bg-white/80 backdrop-blur-sm pb-[max(1.5rem,env(safe-area-inset-bottom,0px))]"
+      role="contentinfo"
+    >
+      <div className="max-w-7xl mx-auto py-5 sm:py-6 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-500">
             © {new Date().getFullYear()} AlternanceTracker

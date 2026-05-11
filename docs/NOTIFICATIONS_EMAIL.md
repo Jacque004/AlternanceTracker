@@ -9,7 +9,7 @@ Ce guide explique comment activer l’envoi d’emails pour les **rappels** (rel
 | **Rappels** (relances + entretiens + alertes ~30 min / ~5 min) | `send-reminders` | **Souvent** (ex. toutes les 5 min) | Relances (≥ 7 jours), entretiens aujourd’hui/demain, rappels juste avant l’heure d’entretien |
 | **Résumé hebdo** | `send-weekly-summary` | Hebdo (ex. lundi 8h) | Stats + nouvelles candidatures + relances à faire |
 
-Les utilisateurs activent/désactivent ces emails dans **Mon profil → Notifications**.
+Les utilisateurs activent/désactivent ces emails dans **Mon espace → Notifications**.
 
 ---
 
@@ -147,4 +147,4 @@ Remplacer `VOTRE_PROJECT_REF` et `VOTRE_CRON_SECRET` par les valeurs réelles (s
    - soit avec pg_cron + pg_net (migration ou SQL manuel),
    - soit avec un cron externe qui envoie `Authorization: Bearer <CRON_SECRET>`.
 
-Après cela, les utilisateurs qui ont coché les options dans **Mon profil → Notifications** recevront les rappels et/ou le résumé hebdo par email.
+Après cela, les utilisateurs qui ont coché les options dans **Mon espace → Notifications** recevront les rappels et/ou le résumé hebdo par email.

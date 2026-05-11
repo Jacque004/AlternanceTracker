@@ -1,4 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { requireSupabaseUser } from '../_shared/requireUser.ts';
+import { validatePublicJobUrl } from '../_shared/publicUrl.ts';
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
@@ -177,6 +179,16 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Méthode non autorisée' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const authResult = await requireSupabaseUser(req, corsHeaders);
+  if (authResult instanceof Response) return authResult;
+
   try {
     let body: { jobOfferUrl?: string; offerText?: string; focusResume?: boolean; focusCV?: boolean; focusLettre?: boolean; focusEntretien?: boolean };
     try {
@@ -192,13 +204,14 @@ serve(async (req) => {
     let textToAnalyze = (typeof offerText === 'string' && offerText.trim()) ? offerText.trim() : '';
 
     if (typeof jobOfferUrl === 'string' && jobOfferUrl.trim()) {
-      const url = jobOfferUrl.trim();
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      const checked = validatePublicJobUrl(jobOfferUrl.trim());
+      if (!checked.ok) {
         return new Response(
-          JSON.stringify({ error: 'L\'URL doit commencer par http:// ou https://' }),
+          JSON.stringify({ error: checked.message }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      const url = checked.url.href;
       try {
         const fetched = await fetchOfferFromUrl(url);
         if (fetched.length >= 100) {

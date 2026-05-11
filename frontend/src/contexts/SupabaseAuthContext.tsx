@@ -31,6 +31,7 @@ interface SupabaseAuthContextType {
     reminderEmailsEnabled?: boolean;
     applicationsGoal?: number | null;
     marketingEmailsConsent?: boolean;
+    avatarUrl?: string | null;
   }) => Promise<{ error: any }>;
 }
 
@@ -131,7 +132,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
 
       const { data, error } = await supabase
         .from('users')
-        .select('id, email, first_name, last_name, created_at, school, formation, study_year, alternance_rhythm, desired_start_date, linkedin_url, weekly_summary_enabled, reminder_emails_enabled, applications_goal, privacy_policy_accepted_at, terms_accepted_at, marketing_emails_consent')
+        .select('id, email, first_name, last_name, created_at, school, formation, study_year, alternance_rhythm, desired_start_date, linkedin_url, avatar_url, weekly_summary_enabled, reminder_emails_enabled, applications_goal, privacy_policy_accepted_at, terms_accepted_at, marketing_emails_consent')
         .eq('id', authUser.id)
         .single();
 
@@ -157,6 +158,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
           privacyPolicyAcceptedAt: undefined,
           termsAcceptedAt: undefined,
           marketingEmailsConsent: false,
+          avatarUrl: null,
         });
         return;
       }
@@ -173,6 +175,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         alternanceRhythm: data.alternance_rhythm,
         desiredStartDate: data.desired_start_date,
         linkedinUrl: data.linkedin_url,
+        avatarUrl: data.avatar_url ?? null,
         weeklySummaryEnabled: data.weekly_summary_enabled ?? false,
         reminderEmailsEnabled: data.reminder_emails_enabled ?? true,
         applicationsGoal: data.applications_goal ?? null,
@@ -203,6 +206,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         privacyPolicyAcceptedAt: undefined,
         termsAcceptedAt: undefined,
         marketingEmailsConsent: false,
+        avatarUrl: null,
       });
     } finally {
       setLoading(false);
@@ -290,6 +294,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     reminderEmailsEnabled?: boolean;
     marketingEmailsConsent?: boolean;
     applicationsGoal?: number | null;
+    avatarUrl?: string | null;
   }) => {
     if (!session?.user) return { error: new Error('No user session') };
 
@@ -306,6 +311,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     if (data.reminderEmailsEnabled !== undefined) updates.reminder_emails_enabled = data.reminderEmailsEnabled;
     if (data.applicationsGoal !== undefined) updates.applications_goal = data.applicationsGoal === null || data.applicationsGoal === 0 ? null : data.applicationsGoal;
     if (data.marketingEmailsConsent !== undefined) updates.marketing_emails_consent = data.marketingEmailsConsent;
+    if (data.avatarUrl !== undefined) updates.avatar_url = data.avatarUrl;
 
     const { error } = await supabase
       .from('users')

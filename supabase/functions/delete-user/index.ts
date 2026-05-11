@@ -27,6 +27,13 @@ serve(async (req) => {
   }
 
   const token = authHeader.slice(7);
+  if (token === supabaseAnonKey) {
+    return new Response(JSON.stringify({ error: 'Utilisez le jeton de session utilisateur' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: authHeader } },
   });
@@ -40,6 +47,10 @@ serve(async (req) => {
   }
 
   const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+  const { error: rmAvatarErr } = await supabaseAdmin.storage.from('avatars').remove([`${user.id}/avatar`]);
+  if (rmAvatarErr) console.warn('Avatar storage cleanup:', rmAvatarErr);
+
   const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
 
   if (deleteError) {

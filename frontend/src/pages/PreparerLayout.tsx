@@ -9,18 +9,18 @@ const tabs = [
 
 export default function PreparerLayout() {
   return (
-    <div className="max-w-5xl mx-auto">
-      <div className="mb-8">
+    <div className="max-w-5xl mx-auto stack-page">
+      <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
           Préparer ma candidature
         </h1>
-        <p className="mt-1 text-gray-600">
+        <p className="mt-1.5 text-sm sm:text-base text-gray-600">
           CV, lettres de motivation, analyse d’offre et conseils pour mettre toutes les chances de votre côté.
         </p>
       </div>
 
       <nav
-        className="flex rounded-xl bg-white/80 p-1 shadow-card border border-gray-200/80 mb-8 overflow-x-auto"
+        className="flex rounded-xl bg-white/80 p-1 sm:p-1.5 shadow-card border border-gray-200/80 overflow-x-auto overscroll-x-contain touch-pan-x"
         aria-label="Sections Préparer"
       >
         <ul className="flex gap-1 min-w-0 w-full">
@@ -30,7 +30,7 @@ export default function PreparerLayout() {
                 to={to}
                 end={false}
                 className={({ isActive }) =>
-                  `block text-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap ${
+                  `flex items-center justify-center text-center px-2.5 sm:px-4 py-2.5 sm:py-3 min-h-[44px] sm:min-h-0 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap ${
                     isActive
                       ? 'bg-primary-600 text-white shadow-sm'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'

@@ -4,6 +4,8 @@ import toast from 'react-hot-toast';
 import { applicationService, dashboardService } from '../services/supabaseService';
 import type { Application, ApplicationListParams } from '../types';
 import { SkeletonList } from '../components/Skeleton';
+import EmptyState from '../components/EmptyState';
+import { userFacingErrorMessage } from '../utils/errorMessage';
 import {
   formatDisplayDate,
   formatDisplayTime,
@@ -230,21 +232,25 @@ const Applications = () => {
         setList(res.data);
         setTotal(res.total);
       })
-      .catch(() => { setList([]); setTotal(0); })
+      .catch((err) => {
+        setList([]);
+        setTotal(0);
+        toast.error(userFacingErrorMessage(err, 'Impossible de charger les candidatures.'));
+      })
       .finally(() => setLoading(false));
   }, [statusFilter, searchDebounced, dateFrom, dateTo, sortBy, sortOrder, page]);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="max-w-5xl mx-auto stack-page">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Mes candidatures</h1>
-          <p className="mt-1 text-gray-600">Suivez et gérez toutes vos candidatures en un seul endroit.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Mes candidatures</h1>
+          <p className="mt-1 text-sm sm:text-base text-gray-600">Suivez et gérez toutes vos candidatures en un seul endroit.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2.5 sm:gap-3 w-full sm:w-auto sm:justify-end">
           <Link
             to="/applications/new"
-            className="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors duration-200"
+            className="col-span-2 sm:col-span-1 inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors duration-200"
           >
             ➕ Ajouter une candidature
           </Link>
@@ -264,14 +270,14 @@ const Applications = () => {
                 });
                 exportCSV(apps);
                 toast.success(`Export CSV : ${apps.length} candidature(s)`);
-              } catch {
-                toast.error('Impossible d’exporter le CSV');
+              } catch (err) {
+                toast.error(userFacingErrorMessage(err, 'Impossible d’exporter le CSV'));
               } finally {
                 setExporting(false);
               }
             }}
             disabled={total === 0 || exporting}
-            className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors duration-200"
+            className="inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors duration-200"
           >
             {exporting ? 'Export…' : 'Export CSV'}
           </button>
@@ -291,21 +297,21 @@ const Applications = () => {
                 });
                 exportPDF(apps);
                 toast.success(`Export PDF : ${apps.length} candidature(s)`);
-              } catch {
-                toast.error('Impossible d’exporter le PDF');
+              } catch (err) {
+                toast.error(userFacingErrorMessage(err, 'Impossible d’exporter le PDF'));
               } finally {
                 setExporting(false);
               }
             }}
             disabled={total === 0 || exporting}
-            className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors duration-200"
+            className="inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors duration-200"
           >
             Export PDF
           </button>
           <button
             type="button"
             onClick={() => exportPDFDashboard()}
-            className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium"
+            className="col-span-2 sm:col-span-1 inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium"
           >
             PDF Tableau de bord
           </button>
@@ -313,64 +319,75 @@ const Applications = () => {
       </div>
 
       <div className="bg-white rounded-xl shadow-card border border-gray-200 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="search"
-              placeholder="Rechercher (entreprise, poste, notes…)"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="rounded-md border-gray-300 text-sm w-64 max-w-full focus:border-primary-500 focus:ring-primary-500"
-            />
-            <span className="text-sm font-medium text-gray-700">Statut :</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-md border-gray-300 text-sm focus:border-primary-500 focus:ring-primary-500"
-            >
-              <option value="">Tous</option>
-              <option value="pending">En attente</option>
-              <option value="interview">Entretien</option>
-              <option value="accepted">Acceptée</option>
-              <option value="rejected">Refusée</option>
-            </select>
-            <span className="text-sm font-medium text-gray-700">Du :</span>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="rounded-md border-gray-300 text-sm focus:border-primary-500 focus:ring-primary-500"
-            />
-            <span className="text-sm font-medium text-gray-700">Au :</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="rounded-md border-gray-300 text-sm focus:border-primary-500 focus:ring-primary-500"
-            />
-            <span className="text-sm font-medium text-gray-700">Tri :</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy((e.target.value as ApplicationListParams['sortBy']))}
-              className="rounded-md border-gray-300 text-sm focus:border-primary-500 focus:ring-primary-500"
-            >
-              {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-              className="rounded-md border-gray-300 text-sm focus:border-primary-500 focus:ring-primary-500"
-            >
-              <option value="desc">Récent / Z→A</option>
-              <option value="asc">Ancien / A→Z</option>
-            </select>
+        <div className="px-4 sm:px-5 py-4 border-b border-gray-200 space-y-4">
+          <input
+            type="search"
+            placeholder="Rechercher (entreprise, poste, notes…)"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full min-w-0 rounded-lg border-gray-300 text-sm py-2.5 min-h-[44px] sm:min-h-0 focus:border-primary-500 focus:ring-primary-500"
+          />
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-x-4 sm:gap-y-3 sm:items-end">
+            <label className="flex flex-col gap-1 min-w-0 col-span-2 sm:col-span-1 sm:w-auto">
+              <span className="text-xs font-medium text-gray-600">Statut</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full min-w-0 rounded-lg border-gray-300 text-sm py-2.5 focus:border-primary-500 focus:ring-primary-500"
+              >
+                <option value="">Tous</option>
+                <option value="pending">En attente</option>
+                <option value="interview">Entretien</option>
+                <option value="accepted">Acceptée</option>
+                <option value="rejected">Refusée</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 min-w-0">
+              <span className="text-xs font-medium text-gray-600">Du</span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full min-w-0 rounded-lg border-gray-300 text-sm py-2.5 focus:border-primary-500 focus:ring-primary-500"
+              />
+            </label>
+            <label className="flex flex-col gap-1 min-w-0">
+              <span className="text-xs font-medium text-gray-600">Au</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full min-w-0 rounded-lg border-gray-300 text-sm py-2.5 focus:border-primary-500 focus:ring-primary-500"
+              />
+            </label>
+            <label className="flex flex-col gap-1 min-w-0 col-span-2 sm:col-span-1 sm:min-w-[12rem]">
+              <span className="text-xs font-medium text-gray-600">Tri</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy((e.target.value as ApplicationListParams['sortBy']))}
+                className="w-full min-w-0 rounded-lg border-gray-300 text-sm py-2.5 focus:border-primary-500 focus:ring-primary-500"
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 min-w-0 col-span-2 sm:col-span-1 sm:w-44">
+              <span className="text-xs font-medium text-gray-600">Ordre</span>
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                className="w-full min-w-0 rounded-lg border-gray-300 text-sm py-2.5 focus:border-primary-500 focus:ring-primary-500"
+              >
+                <option value="desc">Récent / Z→A</option>
+                <option value="asc">Ancien / A→Z</option>
+              </select>
+            </label>
           </div>
         </div>
         <div className="overflow-x-auto">
           {loading ? (
-            <div className="p-8">
+            <div className="p-6 sm:p-8">
               <div className="h-7 w-48 skeleton rounded-lg mb-6" />
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="p-4 border-b border-gray-200 space-y-2">
@@ -386,20 +403,27 @@ const Applications = () => {
               </div>
             </div>
           ) : list.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              Aucune candidature.{' '}
-              <Link to="/applications/new" className="text-primary-600 font-medium hover:underline">
+            <EmptyState
+              className="mx-4 my-6 sm:mx-6"
+              title="Aucune candidature pour l’instant"
+              description="Enregistrez une candidature pour suivre le statut, les relances et les entretiens au même endroit."
+              icon="📋"
+            >
+              <Link
+                to="/applications/new"
+                className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors min-h-[44px]"
+              >
                 Ajouter une candidature
               </Link>
-            </div>
+            </EmptyState>
           ) : (
             <>
             <ul className="divide-y divide-gray-200">
               {list.map((app) => (
-                <li key={app.id} className="flex items-center gap-2 transition-colors duration-150">
+                <li key={app.id} className="flex items-stretch gap-0 sm:gap-2 transition-colors duration-150">
                   <Link
                     to={`/applications/${app.id}/edit`}
-                    className="flex flex-wrap items-center justify-between gap-2 p-4 hover:bg-gray-50 transition-colors duration-150 flex-1 min-w-0"
+                    className="flex flex-wrap items-center justify-between gap-2 p-3 sm:p-4 hover:bg-gray-50 transition-colors duration-150 flex-1 min-w-0 min-h-[44px]"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-gray-900 truncate">{app.companyName}</p>
@@ -430,7 +454,7 @@ const Applications = () => {
                   </Link>
                   <Link
                     to={`/preparer/lettres?company=${encodeURIComponent(app.companyName)}&position=${encodeURIComponent(app.position)}`}
-                    className="shrink-0 px-2 py-1 text-sm text-primary-600 hover:bg-primary-50 rounded"
+                    className="shrink-0 inline-flex items-center justify-center min-w-[44px] min-h-[44px] sm:min-h-0 sm:min-w-0 px-2 py-1 text-sm text-primary-600 hover:bg-primary-50 rounded-lg self-center sm:self-auto"
                     title="Générer une lettre"
                   >
                     ✉️
@@ -439,16 +463,16 @@ const Applications = () => {
               ))}
             </ul>
             {total > PAGE_SIZE && (
-              <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-                <p className="text-sm text-gray-600">
+              <div className="px-4 sm:px-5 py-4 border-t border-gray-200 flex flex-col-reverse sm:flex-row sm:items-center gap-3 sm:justify-between">
+                <p className="text-sm text-gray-600 text-center sm:text-left">
                   {((page - 1) * PAGE_SIZE) + 1} – {Math.min(page * PAGE_SIZE, total)} sur {total}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex gap-2 justify-center sm:justify-end">
                   <button
                     type="button"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
-                    className="px-3 py-1 rounded border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    className="min-h-[44px] px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                   >
                     Précédent
                   </button>
@@ -456,7 +480,7 @@ const Applications = () => {
                     type="button"
                     onClick={() => setPage((p) => p + 1)}
                     disabled={page * PAGE_SIZE >= total}
-                    className="px-3 py-1 rounded border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    className="min-h-[44px] px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                   >
                     Suivant
                   </button>

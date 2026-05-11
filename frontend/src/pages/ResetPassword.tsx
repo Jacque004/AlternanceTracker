@@ -55,11 +55,11 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-6 sm:py-10 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Nouveau mot de passe</h1>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 sm:p-8">
+          <div className="text-center mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Nouveau mot de passe</h1>
             <p className="mt-2 text-sm text-gray-600">
               {session ? 'Définissez votre nouveau mot de passe.' : 'Lien invalide ou session expirée. '}
               {!session && (

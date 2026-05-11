@@ -1,5 +1,6 @@
 import { format, isValid, parseISO } from 'date-fns';
 import { supabase } from '../lib/supabase';
+import { normalizeJobOfferUrl } from '../utils/jobOfferUrl';
 import {
   Application,
   ApplicationListParams,
@@ -11,6 +12,19 @@ import {
   CVAnalysis,
   JobMetadataFromUrl,
 } from '../types';
+
+/** JWT session pour appeler les Edge Functions protégées (pas la clé anon en Bearer). */
+async function getUserAccessTokenForEdgeFunctions(): Promise<string> {
+  let session = (await supabase.auth.getSession()).data.session;
+  if (!session?.access_token) {
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    session = refreshed.session ?? null;
+  }
+  if (!session?.access_token) {
+    throw new Error('Vous devez être connecté pour utiliser cette fonctionnalité.');
+  }
+  return session.access_token;
+}
 
 function mapRowToApplication(row: any): Application {
   return {
@@ -427,17 +441,16 @@ export const aiService = {
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new Error('Configuration manquante : définissez VITE_API_URL (backend) ou VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY (Supabase).');
     }
-    if (!supabaseAnonKey.startsWith('eyJ')) {
-      throw new Error('Clé Supabase invalide. Dans le Dashboard Supabase → Project Settings → API, copiez la clé "anon" "public" (elle commence par eyJ).');
-    }
+
+    const accessToken = await getUserAccessTokenForEdgeFunctions();
 
     const url = `${supabaseUrl}/functions/v1/analyze-cv-alternance`;
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-        'apikey': supabaseAnonKey,
+        Authorization: `Bearer ${accessToken}`,
+        apikey: supabaseAnonKey,
       },
       body: JSON.stringify({ cvText: cvText.trim() }),
     });
@@ -497,13 +510,16 @@ export const aiService = {
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new Error('Configuration Supabase manquante (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)');
     }
+
+    const accessToken = await getUserAccessTokenForEdgeFunctions();
+
     const url = `${supabaseUrl}/functions/v1/analyze-job-offer`;
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-        'apikey': supabaseAnonKey,
+        Authorization: `Bearer ${accessToken}`,
+        apikey: supabaseAnonKey,
       },
       body: JSON.stringify({
         jobOfferUrl: params.jobOfferUrl?.trim() || undefined,
@@ -532,21 +548,35 @@ export const aiService = {
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new Error('Configuration Supabase manquante (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)');
     }
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const canonicalUrl = normalizeJobOfferUrl(targetUrl);
+    if (!canonicalUrl.startsWith('http://') && !canonicalUrl.startsWith('https://')) {
+      throw new Error('URL invalide : une adresse https://… est attendue.');
+    }
+    let session = (await supabase.auth.getSession()).data.session;
+    if (!session?.access_token) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      session = refreshed.session ?? null;
+    }
     if (!session?.access_token) {
       throw new Error('Vous devez être connecté pour importer une offre depuis une URL.');
     }
-    const res = await fetch(`${supabaseUrl}/functions/v1/fetch-job-metadata`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-        apikey: supabaseAnonKey,
-      },
-      body: JSON.stringify({ url: targetUrl.trim() }),
-    });
+    const call = (accessToken: string) =>
+      fetch(`${supabaseUrl}/functions/v1/fetch-job-metadata`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+          apikey: supabaseAnonKey,
+        },
+        body: JSON.stringify({ url: canonicalUrl }),
+      });
+
+    let res = await call(session.access_token);
+    if (res.status === 401) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const next = refreshed.session?.access_token;
+      if (next) res = await call(next);
+    }
     const rawText = await res.text();
     let parsed: Record<string, unknown> = {};
     try {
@@ -569,7 +599,8 @@ export const aiService = {
       throw new Error(message);
     }
     if (typeof parsed.error === 'string') throw new Error(parsed.error);
-    return parsed as unknown as JobMetadataFromUrl;
+    const out = parsed as unknown as JobMetadataFromUrl;
+    return { ...out, jobUrl: typeof out.jobUrl === 'string' && out.jobUrl.trim() ? out.jobUrl.trim() : canonicalUrl };
   },
 };
 
@@ -817,7 +848,8 @@ export const rgpdService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: supabaseAnonKey,
       },
       body: JSON.stringify({}),
     });

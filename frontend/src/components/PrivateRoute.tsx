@@ -12,8 +12,17 @@ const PrivateRoute = ({ children }: PrivateRouteProps) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div
+        className="flex flex-col items-center justify-center gap-3 min-h-screen"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <span className="sr-only">Chargement de la session…</span>
+        <div
+          className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"
+          aria-hidden
+        />
       </div>
     );
   }

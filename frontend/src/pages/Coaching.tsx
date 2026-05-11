@@ -16,7 +16,7 @@ const Coaching = () => {
   const [openSection, setOpenSection] = useState<SectionId | null>('cv');
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto stack-page">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900">
           Coaching alternance

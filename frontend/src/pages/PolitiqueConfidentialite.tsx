@@ -110,13 +110,13 @@ const PolitiqueConfidentialite = () => (
       <p>Vous disposez des droits suivants :</p>
       <ul className="list-disc pl-6 space-y-1">
         <li><strong>Droit d'accès</strong> : obtenir une copie de vos données</li>
-        <li><strong>Droit de rectification</strong> : faire corriger des données inexactes (depuis Mon profil)</li>
-        <li><strong>Droit à l'effacement</strong> : demander la suppression de vos données (suppression du compte depuis Mon profil)</li>
-        <li><strong>Droit à la portabilité</strong> : recevoir vos données dans un format structuré (bouton « Télécharger mes données » dans Mon profil)</li>
+        <li><strong>Droit de rectification</strong> : faire corriger des données inexactes (depuis Mon espace)</li>
+        <li><strong>Droit à l'effacement</strong> : demander la suppression de vos données (suppression du compte depuis Mon espace)</li>
+        <li><strong>Droit à la portabilité</strong> : recevoir vos données dans un format structuré (bouton « Télécharger mes données » dans Mon espace)</li>
         <li><strong>Droit d'opposition</strong> et <strong>limitation du traitement</strong> dans les cas prévus par le RGPD</li>
       </ul>
       <p className="mt-2">
-        Pour exercer ces droits, contactez-nous à {legalConfig.dpoEmail} ou via Mon profil. Vous disposez également
+        Pour exercer ces droits, contactez-nous à {legalConfig.dpoEmail} ou via Mon espace. Vous disposez également
         du droit d'introduire une réclamation auprès de la CNIL :{' '}
         <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">www.cnil.fr</a>.
       </p>

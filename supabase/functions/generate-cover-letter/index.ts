@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from 'https://esm.sh/@supabase/supabase-js@2.97.0/cors';
+import { requireSupabaseUser } from '../_shared/requireUser.ts';
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')?.trim() || undefined;
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')?.trim() || undefined;
@@ -104,6 +105,16 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Méthode non autorisée' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const authResult = await requireSupabaseUser(req, corsHeaders as Record<string, string>);
+  if (authResult instanceof Response) return authResult;
 
   try {
     let body: {

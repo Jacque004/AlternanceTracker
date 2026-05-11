@@ -19,6 +19,7 @@ import { fr } from 'date-fns/locale';
 import { applicationService } from '../services/supabaseService';
 import type { Application } from '../types';
 import { SkeletonCalendarGrid } from '../components/Skeleton';
+import { userFacingErrorMessage } from '../utils/errorMessage';
 
 type CalendarItemType = 'interview' | 'relance';
 
@@ -77,8 +78,7 @@ export default function CalendarPage() {
         }
       } catch (e: unknown) {
         if (!cancelled) {
-          const msg = e instanceof Error ? e.message : 'Erreur lors du chargement des candidatures';
-          setError(msg);
+          setError(userFacingErrorMessage(e, 'Impossible de charger les candidatures.'));
         }
       } finally {
         if (!cancelled) {
@@ -183,11 +183,11 @@ export default function CalendarPage() {
   const monthTitle = format(viewMonth, 'MMMM yyyy', { locale: fr });
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex items-baseline justify-between gap-4 mb-6">
+    <div className="max-w-6xl mx-auto space-y-5 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Calendrier</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Calendrier</h1>
+          <p className="text-sm text-gray-600 mt-1 max-w-prose">
             Grille mensuelle et agenda des <span className="font-medium">entretiens</span> et des{' '}
             <span className="font-medium">relances à venir</span>.
           </p>
@@ -201,7 +201,7 @@ export default function CalendarPage() {
       )}
 
       {!loading && !error && (
-        <div className="flex flex-col lg:flex-row gap-6 lg:items-start">
+        <div className="flex flex-col lg:flex-row gap-5 sm:gap-6 lg:gap-8 lg:items-start">
           <div className="flex-1 min-w-0 bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h2 className="text-lg font-semibold text-gray-900 capitalize">{monthTitle}</h2>
@@ -240,7 +240,7 @@ export default function CalendarPage() {
               {WEEKDAY_LABELS.map((label) => (
                 <div
                   key={label}
-                  className="bg-gray-50 text-center text-xs font-semibold text-gray-500 py-2 uppercase tracking-wide"
+                  className="bg-gray-50 text-center text-[10px] sm:text-xs font-semibold text-gray-500 py-1.5 sm:py-2 uppercase tracking-wide"
                 >
                   {label}
                 </div>
@@ -263,7 +263,7 @@ export default function CalendarPage() {
                       }
                     }}
                     className={[
-                      'relative min-h-[3.25rem] sm:min-h-[3.75rem] flex flex-col items-center justify-start pt-1.5 text-sm transition-colors',
+                      'relative min-h-[2.85rem] sm:min-h-[3.25rem] md:min-h-[3.75rem] flex flex-col items-center justify-start pt-1 sm:pt-1.5 text-xs sm:text-sm transition-colors',
                       inMonth ? 'bg-white text-gray-900' : 'bg-gray-50/80 text-gray-400',
                       selected ? 'ring-2 ring-inset ring-sky-500 z-[1]' : '',
                       today && !selected ? 'font-semibold' : '',
@@ -273,7 +273,7 @@ export default function CalendarPage() {
                   >
                     <span
                       className={[
-                        'inline-flex h-7 w-7 items-center justify-center rounded-full text-sm',
+                        'inline-flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full text-xs sm:text-sm',
                         today ? 'bg-sky-100 text-sky-900' : '',
                       ]
                         .filter(Boolean)
@@ -404,7 +404,7 @@ export default function CalendarPage() {
                 <p className="text-sm text-gray-500">
                   {itemsByDate.size > 0
                     ? 'Aucune date ne correspond aux filtres. Réactivez un type d’événement.'
-                    : 'Aucune date d&apos;entretien ou de relance à afficher pour le moment.'}
+                    : 'Aucune date d’entretien ou de relance à afficher pour le moment.'}
                 </p>
               ) : (
                 <ul className="space-y-6">

@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { SupabaseAuthProvider } from './contexts/SupabaseAuthContext';
 import SupabaseConfigCheck from './components/SupabaseConfigCheck';
@@ -22,6 +23,17 @@ import PreparerLayout from './pages/PreparerLayout';
 import PolitiqueConfidentialite from './pages/PolitiqueConfidentialite';
 import CGU from './pages/CGU';
 import HomeRoute from './pages/HomeRoute';
+import { pageTitleFromPath } from './utils/documentTitle';
+
+function RouteTitle() {
+  const location = useLocation();
+  useEffect(() => {
+    const raw = pageTitleFromPath(location.pathname);
+    document.title =
+      raw === 'AlternanceTracker' ? 'AlternanceTracker' : `${raw} · AlternanceTracker`;
+  }, [location.pathname]);
+  return null;
+}
 
 function App() {
   return (
@@ -29,13 +41,20 @@ function App() {
       <SupabaseConfigCheck />
       <SupabaseAuthProvider>
         <Router basename={import.meta.env.BASE_URL}>
+          <RouteTitle />
           <Toaster
-            position="top-right"
+            position="top-center"
+            containerStyle={{
+              top: 'max(0.75rem, env(safe-area-inset-top, 0px))',
+            }}
             toastOptions={{
-              duration: 4000,
-              className: '!rounded-xl !shadow-card-hover !border !border-gray-200',
+              duration: 4200,
+              className: '!rounded-xl !shadow-card-hover !border !border-gray-200 !text-sm',
+              style: {
+                maxWidth: 'min(calc(100vw - 1.5rem), 22rem)',
+              },
               success: { iconTheme: { primary: '#0284c7', secondary: '#ffffff' } },
-              error: { iconTheme: { primary: '#dc2626', secondary: '#ffffff' } },
+              error: { iconTheme: { primary: '#dc2626', secondary: '#ffffff' }, duration: 5500 },
             }}
           />
           <Routes>

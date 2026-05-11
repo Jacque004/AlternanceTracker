@@ -4,6 +4,8 @@ import toast from 'react-hot-toast';
 import { aiService, letterService } from '../services/supabaseService';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import type { GeneratedLetter } from '../types';
+import EmptyState from '../components/EmptyState';
+import { userFacingErrorMessage } from '../utils/errorMessage';
 
 type TemplateId = 'pme' | 'grande_entreprise' | 'startup' | 'association' | 'public' | 'cabinet';
 
@@ -161,8 +163,8 @@ const ModelesLettres = () => {
       });
       setGeneratedLetter(letter);
       toast.success('Lettre générée');
-    } catch (e: any) {
-      toast.error(e?.message || 'Erreur lors de la génération');
+    } catch (e: unknown) {
+      toast.error(userFacingErrorMessage(e, 'Impossible de générer la lettre.'));
     } finally {
       setGenerating(false);
     }
@@ -180,8 +182,8 @@ const ModelesLettres = () => {
       });
       refreshLetters();
       toast.success('Lettre enregistrée');
-    } catch (e: any) {
-      toast.error(e?.message || 'Erreur');
+    } catch (e: unknown) {
+      toast.error(userFacingErrorMessage(e, 'Impossible d’enregistrer la lettre.'));
     } finally {
       setSavingLetterId(null);
     }
@@ -192,7 +194,7 @@ const ModelesLettres = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto stack-page">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900">
           Modèles de lettres de motivation
@@ -273,7 +275,13 @@ const ModelesLettres = () => {
         {lettersLoading ? (
           <p className="text-sm text-gray-500">Chargement...</p>
         ) : savedLetters.length === 0 ? (
-          <p className="text-sm text-gray-500">Aucune lettre enregistrée. Générez une lettre ci-dessus puis cliquez sur « Enregistrer ».</p>
+          <EmptyState
+            compact
+            title="Aucune lettre enregistrée"
+            description="Générez une lettre avec l’outil ci-dessus, puis utilisez « Enregistrer cette lettre » pour la retrouver ici."
+            icon="✉️"
+            className="border-gray-100 bg-gray-50/50"
+          />
         ) : (
           <ul className="space-y-2">
             {savedLetters.map((letter) => (
@@ -294,8 +302,8 @@ const ModelesLettres = () => {
                           await letterService.delete(letter.id!);
                           refreshLetters();
                           toast.success('Lettre supprimée');
-                        } catch {
-                          toast.error('Erreur');
+                        } catch (err: unknown) {
+                          toast.error(userFacingErrorMessage(err, 'Impossible de supprimer la lettre.'));
                         }
                       }}
                       className="text-sm text-red-600 hover:underline"

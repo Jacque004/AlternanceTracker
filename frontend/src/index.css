@@ -7,7 +7,7 @@
     --color-bg: 249 250 251;
     --color-surface: 255 255 255;
     --color-primary: 2 132 199;
-    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
     --transition-page: 220ms ease-out;
     --radius-card: 0.75rem;
     --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
@@ -16,15 +16,26 @@
 
   html {
     scroll-behavior: smooth;
+    overflow-x: hidden;
   }
 
   body {
     margin: 0;
     min-height: 100vh;
+    width: 100%;
+    overflow-x: hidden;
     background-color: rgb(var(--color-bg));
     font-family: var(--font-sans);
+    font-feature-settings: 'kern' 1, 'liga' 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    min-height: 100vh;
+    width: 100%;
+    overflow-x: hidden;
+    min-width: 0;
   }
 
   * {
@@ -60,11 +71,29 @@
   .input-base {
     @apply block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 transition-colors duration-150 text-sm;
   }
+
+  /** Espacement vertical cohérent entre blocs de page (mobile → desktop) */
+  .stack-page {
+    @apply space-y-5 sm:space-y-6 md:space-y-8 max-w-full min-w-0;
+  }
 }
 
 @layer utilities {
   .animate-in {
     animation: pageEnter 0.25s ease-out forwards;
+  }
+
+  /* Encoche / barre d’accueil iOS et Android */
+  .pb-safe {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+  }
+  @media (min-width: 640px) {
+    .pb-safe {
+      padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
+    }
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
   }
 }
 
@@ -109,5 +138,18 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .page-enter,
+  .animate-in,
+  .menu-enter,
+  .skeleton {
+    animation: none !important;
   }
 }

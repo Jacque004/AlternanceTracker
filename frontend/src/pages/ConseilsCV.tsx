@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { cvService, aiService, cvAnalysisService } from '../services/supabaseService';
 import type { CVContent, CVSectionKey, CVAnalysis, ATSAnalysisResult } from '../types';
 import toast from 'react-hot-toast';
+import { userFacingErrorMessage } from '../utils/errorMessage';
 import { pdf } from '@react-pdf/renderer';
 import { CvPdfDocument, CV_PDF_TEMPLATES, type CvPdfTemplateId } from '../components/CvPdfDocument';
 import { formatDisplayDate } from '../utils/dateDisplay';
@@ -325,8 +326,8 @@ const ConseilsCV = () => {
       if (cv.atsScore != null) {
         setAtsResult((prev) => (prev ? { ...prev, score: cv.atsScore! } : { score: cv.atsScore!, tips: [], suggestedKeywords: [] }));
       }
-    } catch (e: any) {
-      toast.error(e?.message || 'Erreur chargement du CV');
+    } catch (e: unknown) {
+      toast.error(userFacingErrorMessage(e, 'Impossible de charger le CV.'));
     } finally {
       setLoading(false);
     }
@@ -367,8 +368,8 @@ const ConseilsCV = () => {
     try {
       await cvService.update(cvId, { title, content });
       toast.success('CV enregistré');
-    } catch (e: any) {
-      toast.error(e?.message || 'Erreur enregistrement');
+    } catch (e: unknown) {
+      toast.error(userFacingErrorMessage(e, 'Impossible d’enregistrer le CV.'));
     } finally {
       setSaving(false);
     }
@@ -392,8 +393,8 @@ const ConseilsCV = () => {
       const parsed = plainTextToContent(text);
       setContent({ ...emptyContent(), ...parsed });
       toast.success('CV importé. Vérifiez les sections et enregistrez.', { id: 'import-cv' });
-    } catch (err: any) {
-      toast.error(err?.message || 'Erreur import', { id: 'import-cv' });
+    } catch (err: unknown) {
+      toast.error(userFacingErrorMessage(err, 'Import du fichier impossible.'), { id: 'import-cv' });
     }
   };
 
@@ -414,8 +415,8 @@ const ConseilsCV = () => {
         cvAnalysisService.getAll(10).then(setAnalysisHistory).catch(() => {});
       } catch (_) {}
       toast.success('Analyse terminée');
-    } catch (e: any) {
-      toast.error(e?.message || 'Erreur lors de l\'analyse du CV');
+    } catch (e: unknown) {
+      toast.error(userFacingErrorMessage(e, 'Impossible d’analyser le CV.'));
     } finally {
       setLoadingAlternance(false);
     }
@@ -463,8 +464,8 @@ const ConseilsCV = () => {
       URL.revokeObjectURL(url);
 
       toast.success('CV exporté en PDF (ATS)');
-    } catch (e: any) {
-      toast.error(e?.message || 'Erreur lors de l’export PDF');
+    } catch (e: unknown) {
+      toast.error(userFacingErrorMessage(e, 'Impossible d’exporter le CV en PDF.'));
     } finally {
       setExportingPdf(false);
     }
@@ -487,7 +488,7 @@ const ConseilsCV = () => {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto stack-page">
       <div className="text-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">
           Conseils CV & éditeur

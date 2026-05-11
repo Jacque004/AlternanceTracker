@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { aiService } from '../services/supabaseService';
 import toast from 'react-hot-toast';
+import { userFacingErrorMessage } from '../utils/errorMessage';
 
 /** Affiche un texte type markdown de façon lisible (titres ##, listes -, gras **) */
 const renderInlineMarkdown = (raw: string) => {
@@ -121,15 +122,14 @@ const AnalyserOffre = () => {
       setAdvice(result);
       toast.success('Analyse terminée');
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Erreur lors de l\'analyse';
-      toast.error(message);
+      toast.error(userFacingErrorMessage(error, 'Impossible d’analyser l’offre.'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto stack-page">
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-900">
           Analyser une offre d'emploi

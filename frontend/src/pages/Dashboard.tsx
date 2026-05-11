@@ -5,6 +5,8 @@ import type { Application, DashboardStatistics } from '../types';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import toast from 'react-hot-toast';
 import { SkeletonCardGrid, SkeletonStats, SkeletonList } from '../components/Skeleton';
+import EmptyState from '../components/EmptyState';
+import { userFacingErrorMessage } from '../utils/errorMessage';
 import { formatDisplayDate, formatDisplayTime, getCalendarDaysAgo } from '../utils/dateDisplay';
 
 const DAYS_BEFORE_REMINDER = 7;
@@ -42,6 +44,7 @@ const Dashboard = () => {
       setToRelance((pendingRes?.data ?? []).filter(isToRelance));
       setUpcomingInterviews(upcomingRes || []);
     } catch (e) {
+      toast.error(userFacingErrorMessage(e, 'Impossible de charger le tableau de bord.'));
       setStats(null);
       setRecent([]);
       setToRelance([]);
@@ -61,9 +64,9 @@ const Dashboard = () => {
     setToRelance((prev) => prev.filter((a) => a.id !== id));
     try {
       await applicationService.markRelance(id);
-    } catch {
+    } catch (err) {
       setToRelance(previous);
-      toast.error('Erreur lors du marquage');
+      toast.error(userFacingErrorMessage(err, 'Impossible d’enregistrer la relance.'));
     } finally {
       setMarkingId(null);
     }
@@ -71,7 +74,7 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto stack-page">
         <div>
           <div className="h-9 w-48 skeleton rounded-lg" />
           <div className="h-4 w-72 skeleton rounded mt-2" />
@@ -87,17 +90,17 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto stack-page">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Tableau de bord</h1>
-        <p className="mt-1 text-gray-600">Vue d'ensemble de vos candidatures et accès rapides.</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Tableau de bord</h1>
+        <p className="mt-1 text-sm sm:text-base text-gray-600">Vue d'ensemble de vos candidatures et accès rapides.</p>
       </div>
 
       {/* Liens rapides */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Link
           to="/applications/new"
-          className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
+          className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
         >
           <span className="text-2xl">➕</span>
           <div>
@@ -107,7 +110,7 @@ const Dashboard = () => {
         </Link>
         <Link
           to="/applications"
-          className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
+          className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
         >
           <span className="text-2xl">📋</span>
           <div>
@@ -117,7 +120,7 @@ const Dashboard = () => {
         </Link>
         <Link
           to="/preparer/lettres"
-          className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
+          className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
         >
           <span className="text-2xl">✉️</span>
           <div>
@@ -127,7 +130,7 @@ const Dashboard = () => {
         </Link>
         <Link
           to="/preparer/conseils"
-          className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
+          className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
         >
           <span className="text-2xl">🎯</span>
           <div>
@@ -137,7 +140,7 @@ const Dashboard = () => {
         </Link>
         <Link
           to="/preparer/cv"
-          className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
+          className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
         >
           <span className="text-2xl">📄</span>
           <div>
@@ -147,7 +150,7 @@ const Dashboard = () => {
         </Link>
         <Link
           to="/preparer/analyser-offre"
-          className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
+          className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
         >
           <span className="text-2xl">🔍</span>
           <div>
@@ -176,7 +179,7 @@ const Dashboard = () => {
 
       {/* Stats */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <div className="bg-white rounded-xl shadow-card p-4 border border-gray-200 transition-shadow duration-200 hover:shadow-card-hover">
             <p className="text-sm text-gray-500">Total candidatures</p>
             <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
@@ -251,39 +254,88 @@ const Dashboard = () => {
 
       {/* À relancer */}
       {toRelance.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-amber-900 flex items-center gap-2">
-            <span>⏰</span> Candidatures à relancer
-          </h2>
-          <p className="text-sm text-amber-800 mt-1">
-            Ces candidatures sont en attente depuis au moins {DAYS_BEFORE_REMINDER} jours. Pensez à relancer poliment.
-          </p>
-          <ul className="mt-4 space-y-2">
-            {toRelance.map((app) => (
-              <li key={app.id} className="flex items-center justify-between gap-2 p-3 bg-white rounded border border-amber-200">
-                <Link
-                  to={`/applications/${app.id}/edit`}
-                  className="flex-1 flex items-center justify-between min-w-0 hover:border-amber-400 transition-colors rounded"
-                >
-                  <span className="font-medium text-gray-900 truncate">{app.companyName}</span>
-                  <span className="text-sm text-gray-500 shrink-0 ml-2">
-                    {app.position} · il y a {getCalendarDaysAgo(app.applicationDate || app.createdAt)} jours
+        <div className="rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50 via-amber-50/95 to-orange-50/40 shadow-card overflow-hidden">
+          <div className="px-4 py-4 sm:px-6 sm:py-5 border-b border-amber-200/60 bg-amber-100/30">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-amber-950 flex flex-wrap items-center gap-2">
+                  <span className="text-xl leading-none" aria-hidden>
+                    ⏰
                   </span>
-                </Link>
-                <button
-                  type="button"
-                  onClick={(e) => { e.preventDefault(); handleMarkRelance(app.id); }}
-                  disabled={markingId === app.id}
-                  className="shrink-0 px-3 py-1.5 text-sm font-medium rounded-lg bg-amber-200 text-amber-900 hover:bg-amber-300 disabled:opacity-50 transition-colors duration-200"
+                  <span>Candidatures à relancer</span>
+                  <span className="inline-flex items-center rounded-full border border-amber-300/80 bg-white/90 px-2.5 py-0.5 text-xs font-semibold text-amber-900 tabular-nums shadow-sm">
+                    {toRelance.length}
+                  </span>
+                </h2>
+                <p className="text-sm text-amber-900/85 mt-2 max-w-prose leading-relaxed">
+                  En attente depuis au moins {DAYS_BEFORE_REMINDER} jours sans nouvelle : un petit message court suffit souvent.
+                </p>
+              </div>
+            </div>
+          </div>
+          <ul className="p-3 sm:p-4 space-y-3">
+            {toRelance.map((app) => {
+              const daysAgo = getCalendarDaysAgo(app.applicationDate || app.createdAt);
+              return (
+                <li
+                  key={app.id}
+                  className="relative group rounded-xl border border-amber-200/70 bg-white/95 shadow-sm transition-all duration-200 hover:shadow-md hover:border-amber-300/80"
                 >
-                  {markingId === app.id ? '…' : 'Marquer relancé'}
-                </button>
-              </li>
-            ))}
+                  <Link
+                    to={`/applications/${app.id}/edit`}
+                    className="absolute inset-0 z-0 rounded-xl outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-500"
+                    aria-label={`Ouvrir la candidature : ${app.companyName}, ${app.position}`}
+                  />
+                  <div className="relative z-[1] flex flex-col gap-3 p-3 sm:p-4 sm:flex-row sm:items-stretch sm:gap-4 pointer-events-none">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 gap-y-1">
+                        <span className="font-semibold text-gray-900 group-hover:text-amber-950 transition-colors">
+                          {app.companyName}
+                        </span>
+                        <span
+                          className="inline-flex items-center rounded-md border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-950 tabular-nums"
+                          title={`Sans réponse depuis ${daysAgo} jour${daysAgo > 1 ? 's' : ''}`}
+                        >
+                          J+{daysAgo}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-sm text-gray-600 line-clamp-2 leading-snug">
+                        {app.position}
+                      </p>
+                      <p className="mt-2 text-xs text-gray-500">
+                        Candidature envoyée il y a{' '}
+                        <span className="font-medium text-gray-700 tabular-nums">{daysAgo}</span> jour
+                        {daysAgo > 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <div className="flex sm:items-center sm:shrink-0 relative z-[2] pointer-events-auto">
+                      <button
+                        type="button"
+                        onClick={() => handleMarkRelance(app.id)}
+                        disabled={markingId === app.id}
+                        aria-label={`Marquer comme relancé : ${app.companyName}`}
+                        aria-busy={markingId === app.id}
+                        className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 text-sm font-semibold rounded-xl bg-amber-200 text-amber-950 border border-amber-300/80 hover:bg-amber-300 active:bg-amber-300/90 disabled:opacity-60 disabled:pointer-events-none transition-colors duration-200 shadow-sm"
+                      >
+                        {markingId === app.id ? 'En cours…' : 'Marquer relancé'}
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
-          <p className="mt-3 text-sm text-amber-800">
-            <Link to="/preparer/conseils" className="underline font-medium">Voir les conseils de relance dans le Coaching</Link>
-          </p>
+          <div className="px-4 py-3 sm:px-6 sm:py-4 border-t border-amber-200/60 bg-amber-50/50">
+            <Link
+              to="/preparer/conseils"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-950 hover:text-amber-900 underline decoration-amber-400/80 underline-offset-2 hover:decoration-amber-600 transition-colors"
+            >
+              Conseils pour relancer poliment
+              <span aria-hidden className="text-amber-700">
+                →
+              </span>
+            </Link>
+          </div>
         </div>
       )}
 
@@ -297,12 +349,20 @@ const Dashboard = () => {
         </div>
         <div className="p-6">
           {recent.length === 0 ? (
-            <p className="text-gray-500 text-center py-6">
-              Aucune candidature pour le moment.{' '}
-              <Link to="/applications/new" className="text-primary-600 font-medium hover:underline">
+            <EmptyState
+              compact
+              title="Aucune candidature récente"
+              description="Ajoutez une candidature pour la voir apparaître ici avec son statut."
+              icon="📭"
+              className="border-gray-100 bg-white"
+            >
+              <Link
+                to="/applications/new"
+                className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 min-h-[44px]"
+              >
                 Ajouter une candidature
               </Link>
-            </p>
+            </EmptyState>
           ) : (
             <ul className="divide-y divide-gray-200">
               {recent.map((app) => (

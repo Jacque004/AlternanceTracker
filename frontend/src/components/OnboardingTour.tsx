@@ -42,9 +42,9 @@ const steps: {
   },
   {
     id: 4,
-    title: 'Calendrier & profil',
+    title: 'Calendrier & Mon espace',
     description:
-      'Utilisez le calendrier pour voir les relances et entretiens à venir, et complétez votre profil pour des conseils plus personnalisés.',
+      'Utilisez le calendrier pour voir les relances et entretiens à venir, et renseignez Mon espace pour des conseils plus personnalisés.',
     ctaLabel: 'Aller au calendrier',
     ctaTo: '/calendar',
   },

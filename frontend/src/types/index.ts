@@ -10,6 +10,8 @@ export interface User {
   alternanceRhythm?: string;
   desiredStartDate?: string;
   linkedinUrl?: string;
+  /** URL publique de la photo de profil (Storage) */
+  avatarUrl?: string | null;
   /** Recevoir un résumé hebdo par email (actif si cron + Edge Function configurés) */
   weeklySummaryEnabled?: boolean;
   /** Recevoir les rappels (relances, entretiens) par email */
@@ -54,6 +56,10 @@ export interface JobMetadataFromUrl {
   descriptionSnippet: string | null;
   pageTitle: string | null;
   jobUrl: string;
+  /** Lieu si présent (ex. JSON-LD JobPosting) */
+  location?: string | null;
+  /** Fourchette ou montant si présent (ex. baseSalary) */
+  salaryRange?: string | null;
 }
 
 /** Options de filtre/recherche/tri pour la liste des candidatures */

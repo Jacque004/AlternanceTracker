@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom';
 
 export default function Landing() {
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
-      <section className="space-y-4">
+    <div className="max-w-3xl mx-auto stack-page">
+      <section className="space-y-3 sm:space-y-4">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-50 border border-primary-200 text-primary-700 text-sm">
           <span aria-hidden>✨</span>
           <span>Votre tableau de bord pour décrocher l’alternance</span>
@@ -14,7 +14,7 @@ export default function Landing() {
           <span className="text-primary-600">.</span>
         </h1>
 
-        <p className="text-lg text-gray-600">
+        <p className="text-base sm:text-lg text-gray-600">
           Organisez vos candidatures, préparez votre CV et vos lettres, et gagnez du temps avec des conseils ciblés.
           <br />
           <span className="font-medium text-gray-800">Pour tester les fonctionnalités, créez un compte.</span>
@@ -36,8 +36,8 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 shadow-card p-5 space-y-2">
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-2">
           <div className="text-2xl" aria-hidden>
             📋
           </div>
@@ -45,7 +45,7 @@ export default function Landing() {
           <p className="text-sm text-gray-600">Suivez les statuts, relances et entretiens depuis un seul endroit.</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 shadow-card p-5 space-y-2">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-2">
           <div className="text-2xl" aria-hidden>
             📄
           </div>
@@ -53,7 +53,7 @@ export default function Landing() {
           <p className="text-sm text-gray-600">Améliorez votre dossier grâce à des recommandations structurées.</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 shadow-card p-5 space-y-2">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-2">
           <div className="text-2xl" aria-hidden>
             🔍
           </div>
@@ -61,7 +61,7 @@ export default function Landing() {
           <p className="text-sm text-gray-600">Obtenez des conseils pour mieux cibler votre candidature.</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 shadow-card p-5 space-y-2">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-2">
           <div className="text-2xl" aria-hidden>
             🎯
           </div>
@@ -70,11 +70,11 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="bg-gradient-to-b from-primary-50 to-white rounded-2xl border border-primary-100 p-6">
+      <section className="bg-gradient-to-b from-primary-50 to-white rounded-2xl border border-primary-100 p-5 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900">En 3 étapes</h3>
         <ol className="mt-3 space-y-2 text-sm text-gray-700 list-decimal list-inside">
           <li>Créez votre compte (1 minute).</li>
-          <li>Complétez votre profil.</li>
+          <li>Complétez Mon espace.</li>
           <li>Commencez à tester : candidatures, analyses, lettres.</li>
         </ol>
       </section>
