@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { User as AppUser } from '../types';
+import { normalizeSupabaseAvatarPublicUrl } from '../utils/supabaseStorageUrl';
 
 interface SupabaseAuthContextType {
   user: AppUser | null;
@@ -175,7 +176,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         alternanceRhythm: data.alternance_rhythm,
         desiredStartDate: data.desired_start_date,
         linkedinUrl: data.linkedin_url,
-        avatarUrl: data.avatar_url ?? null,
+        avatarUrl: normalizeSupabaseAvatarPublicUrl(data.avatar_url ?? null),
         weeklySummaryEnabled: data.weekly_summary_enabled ?? false,
         reminderEmailsEnabled: data.reminder_emails_enabled ?? true,
         applicationsGoal: data.applications_goal ?? null,
