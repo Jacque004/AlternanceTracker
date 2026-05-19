@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
@@ -27,16 +27,21 @@ function profileInitials(firstName: string, lastName: string) {
 }
 
 function ProfileSection({
+  id,
   title,
   description,
   children,
 }: {
+  id?: string;
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-gray-200/90 bg-white shadow-card overflow-hidden">
+    <section
+      id={id}
+      className="rounded-2xl border border-gray-200/90 bg-white shadow-card overflow-hidden scroll-mt-24"
+    >
       <div className="border-b border-gray-100 bg-gradient-to-r from-slate-50/90 via-white to-sky-50/20 px-5 py-4 sm:px-6">
         <h2 className="text-base font-semibold tracking-tight text-gray-900">{title}</h2>
         {description ? <p className="mt-1 text-sm text-gray-500 leading-relaxed max-w-2xl">{description}</p> : null}
@@ -48,6 +53,7 @@ function ProfileSection({
 
 const Profile = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, session, updateProfile, signOut } = useSupabaseAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarRev, setAvatarRev] = useState(0);
@@ -68,9 +74,15 @@ const Profile = () => {
     linkedinUrl: '',
     weeklySummaryEnabled: false,
     reminderEmailsEnabled: true,
-    marketingEmailsConsent: false,
+    inAppNotificationsEnabled: true,
     applicationsGoal: '' as string | number,
   });
+
+  useEffect(() => {
+    if (location.hash === '#notifications') {
+      document.getElementById('notifications')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [location.hash]);
 
   useEffect(() => {
     if (user) {
@@ -86,7 +98,7 @@ const Profile = () => {
         linkedinUrl: user.linkedinUrl || '',
         weeklySummaryEnabled: user.weeklySummaryEnabled ?? false,
         reminderEmailsEnabled: user.reminderEmailsEnabled ?? true,
-        marketingEmailsConsent: user.marketingEmailsConsent ?? false,
+        inAppNotificationsEnabled: user.inAppNotificationsEnabled ?? true,
         applicationsGoal: user.applicationsGoal != null ? user.applicationsGoal : '',
       });
     }
@@ -166,7 +178,7 @@ const Profile = () => {
         linkedinUrl: formData.linkedinUrl || undefined,
         weeklySummaryEnabled: formData.weeklySummaryEnabled,
         reminderEmailsEnabled: formData.reminderEmailsEnabled,
-        marketingEmailsConsent: formData.marketingEmailsConsent,
+        inAppNotificationsEnabled: formData.inAppNotificationsEnabled,
         applicationsGoal:
           formData.applicationsGoal === ''
             ? null
@@ -194,6 +206,15 @@ const Profile = () => {
   const displayName =
     `${formData.firstName} ${formData.lastName}`.trim() || 'Mon espace';
 
+  if (!user) {
+    return (
+      <div className="max-w-3xl mx-auto stack-page pb-4" role="status" aria-live="polite">
+        <div className="h-32 rounded-2xl bg-gray-100 animate-pulse" />
+        <div className="mt-6 h-64 rounded-2xl bg-gray-100 animate-pulse" />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto stack-page pb-4">
       <header className="relative overflow-hidden rounded-2xl border border-primary-100 bg-gradient-to-br from-primary-600 via-sky-600 to-sky-700 px-6 py-8 text-white shadow-lg shadow-primary-900/10">
@@ -204,11 +225,21 @@ const Profile = () => {
         <p className="relative mt-2 max-w-lg text-sm text-sky-100/95 leading-relaxed">
           Personnalisez vos informations et préférences. Les modifications sont enregistrées lorsque vous cliquez sur « Enregistrer ».
         </p>
-        {user?.createdAt ? (
-          <p className="relative mt-4 inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
-            Membre depuis le {formatDisplayDate(user.createdAt)}
-          </p>
-        ) : null}
+        <div className="relative mt-4 flex flex-wrap items-center gap-2">
+          {user?.createdAt ? (
+            <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+              Membre depuis le {formatDisplayDate(user.createdAt)}
+            </span>
+          ) : null}
+          {user?.isAdmin ? (
+            <Link
+              to="/admin"
+              className="inline-flex items-center rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm hover:bg-sky-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary-600"
+            >
+              Panel admin
+            </Link>
+          ) : null}
+        </div>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -327,9 +358,6 @@ const Profile = () => {
                 className={`${inputClass} pl-10`}
               />
             </div>
-            <span className="mt-2 inline-flex items-center rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900 ring-1 ring-inset ring-amber-200/80">
-              Lecture seule — contactez le support pour un changement d’email.
-            </span>
           </div>
         </ProfileSection>
 
@@ -440,16 +468,40 @@ const Profile = () => {
           </div>
         </ProfileSection>
 
-        <ProfileSection
-          title="Notifications"
-          description="Choisissez les emails que vous souhaitez recevoir. L’envoi réel dépend de la configuration serveur (Resend, cron Supabase) — voir docs/NOTIFICATIONS_EMAIL.md dans le dépôt."
-        >
+        <ProfileSection id="notifications" title="Notifications">
           <div className="space-y-3">
+            {!formData.inAppNotificationsEnabled ? (
+              <p className="text-sm text-gray-600 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                La cloche est masquée tant que les notifications in-app sont désactivées.
+              </p>
+            ) : null}
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-primary-200/80 bg-primary-50/30 p-4 transition hover:border-primary-300 hover:bg-primary-50/40 focus-within:ring-2 focus-within:ring-primary-500/25">
+              <input
+                type="checkbox"
+                name="inAppNotificationsEnabled"
+                checked={formData.inAppNotificationsEnabled ?? false}
+                onChange={handleChange}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm leading-snug text-gray-800">
+                <span className="font-medium text-gray-900">Notifications dans l’application</span>
+                <span className="mt-0.5 block text-gray-500">
+                  Cloche dans la barre de navigation : bienvenue, candidature enregistrée, rappel de suivi hebdomadaire.
+                </span>
+              </span>
+            </label>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide px-1 pt-2">
+              Par e-mail
+            </p>
+            <p className="text-xs text-gray-500 px-1 -mt-1">
+              Les rappels et le résumé hebdomadaire nécessitent une configuration Resend + cron côté
+              hébergement.
+            </p>
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-gray-50/30 p-4 transition hover:border-primary-200 hover:bg-primary-50/20 focus-within:ring-2 focus-within:ring-primary-500/25">
               <input
                 type="checkbox"
                 name="reminderEmailsEnabled"
-                checked={formData.reminderEmailsEnabled}
+                checked={formData.reminderEmailsEnabled ?? true}
                 onChange={handleChange}
                 className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
               />
@@ -462,26 +514,13 @@ const Profile = () => {
               <input
                 type="checkbox"
                 name="weeklySummaryEnabled"
-                checked={formData.weeklySummaryEnabled}
+                checked={formData.weeklySummaryEnabled ?? false}
                 onChange={handleChange}
                 className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
               />
               <span className="text-sm leading-snug text-gray-800">
                 <span className="font-medium text-gray-900">Résumé hebdomadaire</span>
                 <span className="mt-0.5 block text-gray-500">Vue d’ensemble de votre activité sur la semaine.</span>
-              </span>
-            </label>
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-gray-50/30 p-4 transition hover:border-primary-200 hover:bg-primary-50/20 focus-within:ring-2 focus-within:ring-primary-500/25">
-              <input
-                type="checkbox"
-                name="marketingEmailsConsent"
-                checked={formData.marketingEmailsConsent}
-                onChange={handleChange}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              <span className="text-sm leading-snug text-gray-800">
-                <span className="font-medium text-gray-900">Communications marketing</span>
-                <span className="mt-0.5 block text-gray-500">Offres et actualités liées à AlternanceTracker.</span>
               </span>
             </label>
           </div>
@@ -533,6 +572,19 @@ const Profile = () => {
               {user?.termsAcceptedAt ? ` · CGU acceptées le ${formatDisplayDate(user.termsAcceptedAt)}` : ''}.
             </p>
           ) : null}
+        </ProfileSection>
+
+        <ProfileSection title="Session">
+          <p className="text-sm text-gray-600 mb-4">
+            Fermez votre session sur cet appareil. Vous pourrez vous reconnecter à tout moment.
+          </p>
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl border border-red-200 bg-white px-5 py-3 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 min-h-[48px]"
+          >
+            Déconnexion
+          </button>
         </ProfileSection>
 
         <div className="sticky bottom-3 z-10 flex flex-col-reverse gap-3 rounded-2xl border border-gray-200/90 bg-white/95 p-4 shadow-lg backdrop-blur-md sm:flex-row sm:items-center sm:justify-between">

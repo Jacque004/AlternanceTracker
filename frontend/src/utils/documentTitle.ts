@@ -13,6 +13,7 @@ export function pageTitleFromPath(pathname: string): string {
   if (path.startsWith('/preparer/conseils')) return 'Coaching';
   if (path.startsWith('/preparer')) return 'Préparer';
   if (path === '/profile') return 'Mon espace';
+  if (path.startsWith('/admin')) return 'Administration';
   if (path === '/a-propos') return 'À propos';
   if (path === '/login') return 'Connexion';
   if (path === '/register') return 'Créer un compte';

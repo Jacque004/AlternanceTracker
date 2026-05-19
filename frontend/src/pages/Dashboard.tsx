@@ -6,6 +6,7 @@ import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import toast from 'react-hot-toast';
 import { SkeletonCardGrid, SkeletonStats, SkeletonList } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+import { ApplicationsMonthlyChart } from '../components/ApplicationsMonthlyChart';
 import { userFacingErrorMessage } from '../utils/errorMessage';
 import { formatDisplayDate, formatDisplayTime, getCalendarDaysAgo } from '../utils/dateDisplay';
 
@@ -100,63 +101,45 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Link
           to="/applications/new"
-          className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
+          className="block p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
         >
-          <span className="text-2xl">➕</span>
-          <div>
-            <p className="font-semibold text-gray-900">Ajouter une candidature</p>
-            <p className="text-sm text-gray-500">Enregistrer une nouvelle candidature</p>
-          </div>
+          <p className="font-semibold text-gray-900">Ajouter une candidature</p>
+          <p className="text-sm text-gray-500 mt-0.5">Enregistrer une nouvelle candidature</p>
         </Link>
         <Link
           to="/applications"
-          className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
+          className="block p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
         >
-          <span className="text-2xl">📋</span>
-          <div>
-            <p className="font-semibold text-gray-900">Mes candidatures</p>
-            <p className="text-sm text-gray-500">Voir et gérer la liste</p>
-          </div>
+          <p className="font-semibold text-gray-900">Mes candidatures</p>
+          <p className="text-sm text-gray-500 mt-0.5">Voir et gérer la liste</p>
         </Link>
         <Link
           to="/preparer/lettres"
-          className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
+          className="block p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
         >
-          <span className="text-2xl">✉️</span>
-          <div>
-            <p className="font-semibold text-gray-900">Modèles de lettres</p>
-            <p className="text-sm text-gray-500">Lettres par type d'entreprise</p>
-          </div>
+          <p className="font-semibold text-gray-900">Modèles de lettres</p>
+          <p className="text-sm text-gray-500 mt-0.5">Lettres par type d'entreprise</p>
         </Link>
         <Link
           to="/preparer/conseils"
-          className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
+          className="block p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
         >
-          <span className="text-2xl">🎯</span>
-          <div>
-            <p className="font-semibold text-gray-900">Coaching</p>
-            <p className="text-sm text-gray-500">Techniques pour décrocher l'alternance</p>
-          </div>
+          <p className="font-semibold text-gray-900">Coaching</p>
+          <p className="text-sm text-gray-500 mt-0.5">Techniques pour décrocher l'alternance</p>
         </Link>
         <Link
           to="/preparer/cv"
-          className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
+          className="block p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
         >
-          <span className="text-2xl">📄</span>
-          <div>
-            <p className="font-semibold text-gray-900">Conseils CV</p>
-            <p className="text-sm text-gray-500">Améliorer son CV avec l'IA</p>
-          </div>
+          <p className="font-semibold text-gray-900">Conseils CV</p>
+          <p className="text-sm text-gray-500 mt-0.5">Améliorer son CV avec l'IA</p>
         </Link>
         <Link
           to="/preparer/analyser-offre"
-          className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
+          className="block p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
         >
-          <span className="text-2xl">🔍</span>
-          <div>
-            <p className="font-semibold text-gray-900">Analyser une offre</p>
-            <p className="text-sm text-gray-500">Conseils pour candidater à une offre</p>
-          </div>
+          <p className="font-semibold text-gray-900">Analyser une offre</p>
+          <p className="text-sm text-gray-500 mt-0.5">Conseils pour candidater à une offre</p>
         </Link>
       </div>
 
@@ -199,26 +182,9 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Graphique candidatures par mois */}
-      {stats && stats.monthlyData.length > 0 && (
-        <div className="bg-white rounded-xl shadow-card p-4 border border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Candidatures par mois</h2>
-          <div className="flex items-end gap-1 h-32">
-            {[...stats.monthlyData].sort((a, b) => a.month.localeCompare(b.month)).slice(-12).map(({ month, count }) => {
-              const maxCount = Math.max(...stats.monthlyData.map((m) => m.count), 1);
-              const pct = (count / maxCount) * 100;
-              return (
-                <div key={month} className="flex-1 flex flex-col items-center gap-1" title={`${month}: ${count}`}>
-                  <div className="w-full bg-gray-200 rounded-t flex flex-col justify-end" style={{ height: '100%' }}>
-                    <div className="bg-primary-500 rounded-t transition-all min-h-[4px]" style={{ height: `${pct}%` }} />
-                  </div>
-                  <span className="text-xs text-gray-500 truncate w-full text-center">{month.slice(5)}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {stats && stats.monthlyData.length > 0 ? (
+        <ApplicationsMonthlyChart monthlyData={stats.monthlyData} />
+      ) : null}
 
       {/* Entretiens à venir */}
       {upcomingInterviews.length > 0 && (

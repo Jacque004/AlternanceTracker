@@ -1,42 +1,18 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Session, AuthError } from '@supabase/supabase-js';
+import { useContext, useState, useEffect, ReactNode } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { SupabaseAuthReactContext } from './authContext';
 import { supabase } from '../lib/supabase';
 import { User as AppUser } from '../types';
 import { normalizeSupabaseAvatarPublicUrl } from '../utils/supabaseStorageUrl';
+import { isSupabaseSchemaError } from '../utils/supabaseSchema';
+import {
+  isInAppNotificationsColumnMissing,
+  markInAppNotificationsColumnMissing,
+  markInAppNotificationsColumnPresent,
+} from '../utils/inAppNotificationsSchema';
 
-interface SupabaseAuthContextType {
-  user: AppUser | null;
-  session: Session | null;
-  loading: boolean;
-  signUp: (
-    email: string,
-    password: string,
-    firstName: string,
-    lastName: string,
-    consent?: { privacyPolicyAcceptedAt: string; termsAcceptedAt: string }
-  ) => Promise<{ error: AuthError | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signOut: () => Promise<void>;
-  sendPasswordReset: (email: string) => Promise<{ error: AuthError | null }>;
-  updatePassword: (newPassword: string) => Promise<{ error: AuthError | null }>;
-  updateProfile: (data: {
-    firstName?: string;
-    lastName?: string;
-    school?: string;
-    formation?: string;
-    studyYear?: string;
-    alternanceRhythm?: string;
-    desiredStartDate?: string;
-    linkedinUrl?: string;
-    weeklySummaryEnabled?: boolean;
-    reminderEmailsEnabled?: boolean;
-    applicationsGoal?: number | null;
-    marketingEmailsConsent?: boolean;
-    avatarUrl?: string | null;
-  }) => Promise<{ error: any }>;
-}
-
-const SupabaseAuthContext = createContext<SupabaseAuthContextType | undefined>(undefined);
+const USER_PROFILE_SELECT =
+  'id, email, first_name, last_name, created_at, school, formation, study_year, alternance_rhythm, desired_start_date, linkedin_url, avatar_url, weekly_summary_enabled, reminder_emails_enabled, applications_goal, privacy_policy_accepted_at, terms_accepted_at, marketing_emails_consent';
 
 export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AppUser | null>(null);
@@ -131,13 +107,16 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         console.warn('ensure_user_profile a échoué :', e);
       }
 
-      const { data, error } = await supabase
+      const profileQuery = await supabase
         .from('users')
-        .select('id, email, first_name, last_name, created_at, school, formation, study_year, alternance_rhythm, desired_start_date, linkedin_url, avatar_url, weekly_summary_enabled, reminder_emails_enabled, applications_goal, privacy_policy_accepted_at, terms_accepted_at, marketing_emails_consent')
+        .select(USER_PROFILE_SELECT)
         .eq('id', authUser.id)
         .single();
 
-      if (error || !data) {
+      const profileRow: Record<string, unknown> | null = profileQuery.data;
+      const error = profileQuery.error;
+
+      if (error || !profileRow) {
         // Fallback: au minimum on considère l'utilisateur connecté.
         // Cela évite de bloquer l'affichage onboarding si la ligne `users` n'est pas encore prête.
         const meta: any = authUser.user_metadata ?? {};
@@ -155,35 +134,75 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
           linkedinUrl: undefined,
           weeklySummaryEnabled: false,
           reminderEmailsEnabled: true,
+          inAppNotificationsEnabled: true,
           applicationsGoal: null,
           privacyPolicyAcceptedAt: undefined,
           termsAcceptedAt: undefined,
           marketingEmailsConsent: false,
+          isAdmin: false,
           avatarUrl: null,
         });
         return;
       }
 
-      setUser({
-        id: data.id,
-        email: data.email,
-        firstName: data.first_name,
-        lastName: data.last_name,
-        createdAt: data.created_at,
-        school: data.school,
-        formation: data.formation,
-        studyYear: data.study_year,
-        alternanceRhythm: data.alternance_rhythm,
-        desiredStartDate: data.desired_start_date,
-        linkedinUrl: data.linkedin_url,
-        avatarUrl: normalizeSupabaseAvatarPublicUrl(data.avatar_url ?? null),
-        weeklySummaryEnabled: data.weekly_summary_enabled ?? false,
-        reminderEmailsEnabled: data.reminder_emails_enabled ?? true,
-        applicationsGoal: data.applications_goal ?? null,
-        privacyPolicyAcceptedAt: data.privacy_policy_accepted_at ?? undefined,
-        termsAcceptedAt: data.terms_accepted_at ?? undefined,
-        marketingEmailsConsent: data.marketing_emails_consent ?? false,
-      });
+      const appUser: AppUser = {
+        id: profileRow.id as string,
+        email: profileRow.email as string,
+        firstName: profileRow.first_name as string,
+        lastName: profileRow.last_name as string,
+        createdAt: profileRow.created_at as string | undefined,
+        school: profileRow.school as string | undefined,
+        formation: profileRow.formation as string | undefined,
+        studyYear: profileRow.study_year as string | undefined,
+        alternanceRhythm: profileRow.alternance_rhythm as string | undefined,
+        desiredStartDate: profileRow.desired_start_date as string | undefined,
+        linkedinUrl: profileRow.linkedin_url as string | undefined,
+        avatarUrl: normalizeSupabaseAvatarPublicUrl((profileRow.avatar_url as string | null) ?? null),
+        weeklySummaryEnabled: (profileRow.weekly_summary_enabled as boolean | null) ?? false,
+        reminderEmailsEnabled: (profileRow.reminder_emails_enabled as boolean | null) ?? true,
+        inAppNotificationsEnabled: true,
+        applicationsGoal: (profileRow.applications_goal as number | null) ?? null,
+        privacyPolicyAcceptedAt: (profileRow.privacy_policy_accepted_at as string | null) ?? undefined,
+        termsAcceptedAt: (profileRow.terms_accepted_at as string | null) ?? undefined,
+        marketingEmailsConsent: (profileRow.marketing_emails_consent as boolean | null) ?? false,
+        isAdmin: false,
+      };
+
+      try {
+        const { data: adminFlag, error: adminError } = await supabase.rpc('is_admin');
+        if (!adminError && adminFlag === true) {
+          appUser.isAdmin = true;
+        }
+      } catch {
+        // migration 021 non appliquée ou RPC indisponible
+      }
+
+      setUser(appUser);
+
+      if (!isInAppNotificationsColumnMissing()) {
+        void supabase
+          .from('users')
+          .select('in_app_notifications_enabled')
+          .eq('id', authUser.id)
+          .single()
+          .then(({ data, error: inAppError }) => {
+            if (inAppError) {
+              if (isSupabaseSchemaError(inAppError)) {
+                markInAppNotificationsColumnMissing();
+              }
+              return;
+            }
+            markInAppNotificationsColumnPresent();
+            setUser((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    inAppNotificationsEnabled: (data?.in_app_notifications_enabled as boolean | null) ?? true,
+                  }
+                : prev
+            );
+          });
+      }
     } catch (error) {
       console.error('Error loading user profile:', error);
 
@@ -203,10 +222,12 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         linkedinUrl: undefined,
         weeklySummaryEnabled: false,
         reminderEmailsEnabled: true,
+        inAppNotificationsEnabled: true,
         applicationsGoal: null,
         privacyPolicyAcceptedAt: undefined,
         termsAcceptedAt: undefined,
         marketingEmailsConsent: false,
+        isAdmin: false,
         avatarUrl: null,
       });
     } finally {
@@ -293,6 +314,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     linkedinUrl?: string;
     weeklySummaryEnabled?: boolean;
     reminderEmailsEnabled?: boolean;
+    inAppNotificationsEnabled?: boolean;
     marketingEmailsConsent?: boolean;
     applicationsGoal?: number | null;
     avatarUrl?: string | null;
@@ -310,14 +332,27 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     if (data.linkedinUrl !== undefined) updates.linkedin_url = data.linkedinUrl;
     if (data.weeklySummaryEnabled !== undefined) updates.weekly_summary_enabled = data.weeklySummaryEnabled;
     if (data.reminderEmailsEnabled !== undefined) updates.reminder_emails_enabled = data.reminderEmailsEnabled;
+    if (data.inAppNotificationsEnabled !== undefined) updates.in_app_notifications_enabled = data.inAppNotificationsEnabled;
     if (data.applicationsGoal !== undefined) updates.applications_goal = data.applicationsGoal === null || data.applicationsGoal === 0 ? null : data.applicationsGoal;
     if (data.marketingEmailsConsent !== undefined) updates.marketing_emails_consent = data.marketingEmailsConsent;
     if (data.avatarUrl !== undefined) updates.avatar_url = data.avatarUrl;
 
-    const { error } = await supabase
-      .from('users')
-      .update(updates)
-      .eq('id', session.user.id);
+    let { error } = await supabase.from('users').update(updates).eq('id', session.user.id);
+
+    if (error && isSupabaseSchemaError(error) && updates.in_app_notifications_enabled !== undefined) {
+      markInAppNotificationsColumnMissing();
+      const { in_app_notifications_enabled: _removed, ...updatesWithoutInApp } = updates;
+      if (Object.keys(updatesWithoutInApp).length > 0) {
+        const retry = await supabase.from('users').update(updatesWithoutInApp).eq('id', session.user.id);
+        error = retry.error;
+      } else {
+        error = null;
+      }
+    }
+
+    if (!error && updates.in_app_notifications_enabled !== undefined) {
+      markInAppNotificationsColumnPresent();
+    }
 
     if (!error) {
       await loadUserProfile(session.user);
@@ -326,8 +361,14 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     return { error };
   };
 
+  const refreshProfile = async () => {
+    if (session?.user) {
+      await loadUserProfile(session.user);
+    }
+  };
+
   return (
-    <SupabaseAuthContext.Provider
+    <SupabaseAuthReactContext.Provider
       value={{
         user,
         session,
@@ -338,15 +379,16 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         sendPasswordReset,
         updatePassword,
         updateProfile,
+        refreshProfile,
       }}
     >
       {children}
-    </SupabaseAuthContext.Provider>
+    </SupabaseAuthReactContext.Provider>
   );
 };
 
 export const useSupabaseAuth = () => {
-  const context = useContext(SupabaseAuthContext);
+  const context = useContext(SupabaseAuthReactContext);
   if (context === undefined) {
     throw new Error('useSupabaseAuth must be used within a SupabaseAuthProvider');
   }

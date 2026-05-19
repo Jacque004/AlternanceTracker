@@ -16,6 +16,10 @@ export interface User {
   weeklySummaryEnabled?: boolean;
   /** Recevoir les rappels (relances, entretiens) par email */
   reminderEmailsEnabled?: boolean;
+  /** Recevoir les notifications in-app (icône cloche) */
+  inAppNotificationsEnabled?: boolean;
+  /** Accès au panneau d'administration */
+  isAdmin?: boolean;
   /** Objectif de candidatures par semaine (affiché sur le dashboard) */
   applicationsGoal?: number | null;
   /** RGPD : date d'acceptation de la politique de confidentialité */
@@ -24,6 +28,39 @@ export interface User {
   termsAcceptedAt?: string | null;
   /** RGPD : consentement aux emails marketing */
   marketingEmailsConsent?: boolean;
+}
+
+export type UserNotificationType = 'welcome' | 'application_created' | 'weekly_followup';
+
+export interface AdminRecentUser {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  created_at: string;
+  is_admin: boolean;
+}
+
+export interface AdminStats {
+  usersCount: number;
+  applicationsCount: number;
+  applicationsByStatus: Record<string, number>;
+  usersLast7Days: number;
+  applicationsLast7Days: number;
+  monthlyData: Array<{ month: string; count: number }>;
+  recentUsers: AdminRecentUser[];
+}
+
+export interface UserNotification {
+  id: string;
+  userId: string;
+  type: UserNotificationType;
+  title: string;
+  body: string;
+  link?: string | null;
+  readAt?: string | null;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
 }
 
 export interface Application {

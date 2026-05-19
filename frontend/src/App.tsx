@@ -23,6 +23,8 @@ import PreparerLayout from './pages/PreparerLayout';
 import PolitiqueConfidentialite from './pages/PolitiqueConfidentialite';
 import CGU from './pages/CGU';
 import HomeRoute from './pages/HomeRoute';
+import AdminRoute from './components/AdminRoute';
+import AdminDashboard from './pages/AdminDashboard';
 import { pageTitleFromPath } from './utils/documentTitle';
 
 function RouteTitle() {
@@ -91,7 +93,16 @@ function App() {
               <Route path="applications/:id/edit" element={<ApplicationForm />} />
               <Route path="calendar" element={<CalendarPage />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="aide/notifications" element={<Navigate to="/profile#notifications" replace />} />
               <Route path="a-propos" element={<APropos />} />
+              <Route
+                path="admin"
+                element={
+                  <AdminRoute>
+                    <AdminDashboard />
+                  </AdminRoute>
+                }
+              />
             </Route>
           </Routes>
         </Router>

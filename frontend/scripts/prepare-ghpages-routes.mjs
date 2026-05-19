@@ -36,6 +36,7 @@ const routes = [
   'calendar',
   'profile',
   'a-propos',
+  'admin',
   'preparer',
   'preparer/cv',
   'preparer/lettres',

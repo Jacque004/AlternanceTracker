@@ -4,6 +4,9 @@ import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import PageTransition from './PageTransition';
 import Footer from './Footer';
 import OnboardingTour, { shouldShowOnboarding, markOnboardingDone } from './OnboardingTour';
+import NotificationBell from './NotificationBell';
+import HeaderUserBadge from './HeaderUserBadge';
+import { NotificationsProvider } from '../contexts/NotificationsContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
 const navItems = [
@@ -11,11 +14,11 @@ const navItems = [
   { to: '/applications', label: 'Candidatures', match: (path: string) => path.startsWith('/applications') },
   { to: '/calendar', label: 'Calendrier', match: (path: string) => path.startsWith('/calendar') },
   { to: '/preparer', label: 'Préparer', match: (path: string) => path.startsWith('/preparer') },
-  { to: '/profile', label: 'Mon espace', match: (path: string) => path === '/profile' },
+  { to: '/a-propos', label: 'À propos', match: (path: string) => path === '/a-propos' },
 ];
 
 const Layout = () => {
-  const { user, signOut } = useSupabaseAuth();
+  const { user } = useSupabaseAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -74,6 +77,7 @@ const Layout = () => {
     }`;
 
   return (
+    <NotificationsProvider>
     <div className="min-h-screen w-full min-w-0 flex flex-col bg-gradient-to-b from-gray-50 to-gray-100/80 overflow-x-hidden">
       <a
         href="#main"
@@ -126,20 +130,9 @@ const Layout = () => {
             </div>
 
             {user ? (
-              <div className="hidden lg:flex lg:items-center lg:gap-4">
-                <span
-                  className="text-sm text-gray-600 truncate max-w-[140px]"
-                  title={`${user?.firstName} ${user?.lastName}`}
-                >
-                  {user?.firstName} {user?.lastName}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => signOut()}
-                  className="shrink-0 text-sm font-medium text-red-600 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded px-3 py-1.5"
-                >
-                  Déconnexion
-                </button>
+              <div className="hidden lg:flex lg:items-center lg:gap-3">
+                <NotificationBell />
+                <HeaderUserBadge user={user} />
               </div>
             ) : (
               <div className="hidden lg:flex lg:items-center lg:gap-3">
@@ -159,9 +152,12 @@ const Layout = () => {
             )}
 
             <div className="flex items-center gap-2 lg:hidden">
-              <span className="text-xs sm:text-sm text-gray-600 truncate max-w-[100px] sm:max-w-[120px]">
-                {user?.firstName}
-              </span>
+              {user ? (
+                <>
+                  <NotificationBell />
+                  <HeaderUserBadge user={user} compact />
+                </>
+              ) : null}
               <button
                 ref={mobileNavToggleRef}
                 type="button"
@@ -212,37 +208,24 @@ const Layout = () => {
                   })
                 : null}
 
-              <div className="pt-3 mt-3 border-t border-gray-200">
-                {user ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      closeMobileNavFromAction();
-                      signOut();
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md"
+              {!user ? (
+                <div className="pt-3 mt-3 border-t border-gray-200 space-y-2">
+                  <Link
+                    to="/login"
+                    onClick={closeMobileNavFromAction}
+                    className="block w-full text-left px-3 py-2 text-sm font-medium text-primary-700 hover:bg-primary-50 rounded-md"
                   >
-                    Déconnexion
-                  </button>
-                ) : (
-                  <div className="space-y-2">
-                    <Link
-                      to="/login"
-                      onClick={closeMobileNavFromAction}
-                      className="block w-full text-left px-3 py-2 text-sm font-medium text-primary-700 hover:bg-primary-50 rounded-md"
-                    >
-                      Connexion
-                    </Link>
-                    <Link
-                      to="/register"
-                      onClick={closeMobileNavFromAction}
-                      className="block w-full text-left px-3 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md"
-                    >
-                      Créer un compte
-                    </Link>
-                  </div>
-                )}
-              </div>
+                    Connexion
+                  </Link>
+                  <Link
+                    to="/register"
+                    onClick={closeMobileNavFromAction}
+                    className="block w-full text-left px-3 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md"
+                  >
+                    Créer un compte
+                  </Link>
+                </div>
+              ) : null}
             </div>
           </div>
         )}
@@ -270,6 +253,7 @@ const Layout = () => {
 
       <Footer />
     </div>
+    </NotificationsProvider>
   );
 };
 

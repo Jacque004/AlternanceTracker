@@ -1,5 +1,6 @@
 import { format, isValid, parseISO } from 'date-fns';
 import { supabase } from '../lib/supabase';
+import { notificationService } from './notificationService';
 import { normalizeJobOfferUrl } from '../utils/jobOfferUrl';
 import {
   Application,
@@ -177,7 +178,19 @@ export const applicationService = {
       throw new Error(error.message || 'Erreur lors de la création de la candidature');
     }
 
-    return mapRowToApplication(result);
+    const application = mapRowToApplication(result);
+
+    try {
+      await notificationService.createApplicationCreated(
+        application.companyName,
+        application.position,
+        application.id
+      );
+    } catch (notifErr) {
+      console.warn('Notification candidature non créée:', notifErr);
+    }
+
+    return application;
   },
 
   update: async (id: number, data: Partial<Application>): Promise<Application> => {

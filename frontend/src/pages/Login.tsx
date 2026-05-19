@@ -39,7 +39,6 @@ const Login = () => {
         }
         toast.error(errorMessage);
       } else {
-        toast.success('Connexion réussie !');
         navigate('/');
       }
     } catch {
