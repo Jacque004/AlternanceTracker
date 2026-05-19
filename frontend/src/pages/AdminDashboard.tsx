@@ -18,10 +18,10 @@ const STATUS_LABELS: Record<string, string> = {
 
 function StatCard({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5">
-      <p className="text-sm text-gray-500">{label}</p>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 min-w-0">
+      <p className="text-sm text-gray-500 break-words">{label}</p>
       <p className="mt-1 text-2xl sm:text-3xl font-bold text-gray-900 tabular-nums">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-gray-400">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-xs text-gray-400 break-words">{hint}</p> : null}
     </div>
   );
 }
@@ -111,10 +111,10 @@ const AdminDashboard = () => {
   const adminCount = users.filter((u) => u.is_admin).length;
 
   return (
-    <div className="max-w-6xl mx-auto stack-page page-shell">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Administration</h1>
+    <div className="max-w-6xl mx-auto stack-page page-shell w-full min-w-0 overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 min-w-0">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight break-words">Administration</h1>
           <p className="mt-1 text-sm sm:text-base text-gray-600">
             Statistiques et gestion des rôles utilisateurs.
           </p>
@@ -146,8 +146,8 @@ const AdminDashboard = () => {
         <ApplicationsMonthlyChart monthlyData={stats.monthlyData} />
       ) : null}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <section className="bg-white rounded-xl border border-gray-200 shadow-card p-5 sm:p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
+        <section className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-6 min-w-0 overflow-hidden">
           <h2 className="text-base font-semibold text-gray-900">Candidatures par statut</h2>
           {statusEntries.length === 0 ? (
             <p className="mt-3 text-sm text-gray-500">Aucune candidature enregistrée.</p>
@@ -166,7 +166,7 @@ const AdminDashboard = () => {
           )}
         </section>
 
-        <section className="bg-white rounded-xl border border-gray-200 shadow-card p-5 sm:p-6">
+        <section className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-6 min-w-0 overflow-hidden">
           <h2 className="text-base font-semibold text-gray-900">Activité récente</h2>
           <ul className="mt-4 space-y-3 text-sm text-gray-600">
             <li>
@@ -181,21 +181,67 @@ const AdminDashboard = () => {
         </section>
       </div>
 
-      <section className="bg-white rounded-xl border border-gray-200 shadow-card p-5 sm:p-6 overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-          <div>
-            <h2 className="text-base font-semibold text-gray-900">Gestion des utilisateurs</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Attribuez le rôle administrateur depuis la liste (100 derniers comptes).
-            </p>
-          </div>
+      <section className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-6 min-w-0 overflow-hidden">
+        <div className="mb-4 min-w-0">
+          <h2 className="text-base font-semibold text-gray-900">Gestion des utilisateurs</h2>
+          <p className="mt-1 text-sm text-gray-500 break-words">
+            Attribuez le rôle administrateur depuis la liste (100 derniers comptes).
+          </p>
         </div>
 
         {users.length === 0 ? (
           <p className="text-sm text-gray-500">Aucun utilisateur.</p>
         ) : (
-          <div className="overflow-x-auto max-w-full">
-            <table className="min-w-full text-sm">
+          <>
+            <ul className="md:hidden space-y-3 min-w-0">
+              {users.map((u) => {
+                const isSelf = currentUser?.id === u.id;
+                const isUpdating = roleUpdatingId === u.id;
+                const displayName = [u.first_name, u.last_name].filter(Boolean).join(' ') || '—';
+                return (
+                  <li
+                    key={`mobile-${u.id}`}
+                    className={`rounded-xl border p-4 space-y-3 min-w-0 ${
+                      isSelf ? 'border-primary-200 bg-primary-50/40' : 'border-gray-200 bg-gray-50/30'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 truncate">
+                        {displayName}
+                        {isSelf ? (
+                          <span className="ml-1 text-xs font-normal text-primary-600">(vous)</span>
+                        ) : null}
+                      </p>
+                      <p className="mt-1 text-sm text-gray-600 break-all">{u.email}</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Inscrit le {formatDisplayDate(u.created_at)}
+                      </p>
+                    </div>
+                    <div>
+                      <label
+                        htmlFor={`role-mobile-${u.id}`}
+                        className="block text-xs font-medium text-gray-500 mb-1"
+                      >
+                        Rôle
+                      </label>
+                      <select
+                        id={`role-mobile-${u.id}`}
+                        value={u.is_admin ? 'admin' : 'user'}
+                        disabled={isUpdating || (isSelf && u.is_admin)}
+                        onChange={(e) => void handleRoleChange(u, e.target.value === 'admin')}
+                        className="w-full max-w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-3 pr-10 text-sm text-gray-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <option value="user">Utilisateur</option>
+                        <option value="admin">Administrateur</option>
+                      </select>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            <div className="hidden md:block overflow-x-auto max-w-full">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b border-gray-100">
                   <th className="pb-2 pr-3 font-medium">Nom</th>
@@ -242,7 +288,8 @@ const AdminDashboard = () => {
                 })}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
 
         <p className="mt-4 text-xs text-gray-500">
