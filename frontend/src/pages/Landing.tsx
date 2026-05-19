@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 export default function Landing() {
   return (
-    <div className="max-w-3xl mx-auto stack-page">
+    <div className="max-w-3xl mx-auto stack-page page-shell">
       <section className="space-y-3 sm:space-y-4">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-50 border border-primary-200 text-primary-700 text-sm">
           <span aria-hidden>✨</span>
@@ -38,33 +38,21 @@ export default function Landing() {
 
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-2">
-          <div className="text-2xl" aria-hidden>
-            📋
-          </div>
           <h2 className="font-semibold text-gray-900">Mes candidatures</h2>
           <p className="text-sm text-gray-600">Suivez les statuts, relances et entretiens depuis un seul endroit.</p>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-2">
-          <div className="text-2xl" aria-hidden>
-            📄
-          </div>
           <h2 className="font-semibold text-gray-900">Conseils CV & lettres</h2>
           <p className="text-sm text-gray-600">Améliorez votre dossier grâce à des recommandations structurées.</p>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-2">
-          <div className="text-2xl" aria-hidden>
-            🔍
-          </div>
           <h2 className="font-semibold text-gray-900">Analyse d’offre</h2>
           <p className="text-sm text-gray-600">Obtenez des conseils pour mieux cibler votre candidature.</p>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-2">
-          <div className="text-2xl" aria-hidden>
-            🎯
-          </div>
           <h2 className="font-semibold text-gray-900">Coaching & préparation</h2>
           <p className="text-sm text-gray-600">Des ressources pour vous préparer aux entretiens.</p>
         </div>

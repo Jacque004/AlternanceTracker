@@ -75,7 +75,7 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto stack-page">
+      <div className="max-w-5xl mx-auto stack-page page-shell">
         <div>
           <div className="h-9 w-48 skeleton rounded-lg" />
           <div className="h-4 w-72 skeleton rounded mt-2" />
@@ -91,7 +91,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto stack-page">
+    <div className="max-w-5xl mx-auto stack-page page-shell">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Tableau de bord</h1>
         <p className="mt-1 text-sm sm:text-base text-gray-600">Vue d'ensemble de vos candidatures et accès rapides.</p>

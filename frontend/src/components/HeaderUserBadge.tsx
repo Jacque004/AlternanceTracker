@@ -17,7 +17,7 @@ const HeaderUserBadge = ({ user, compact = false }: HeaderUserBadgeProps) => {
     <Link
       to="/profile"
       className={`group flex items-center gap-2 min-w-0 rounded-lg border border-transparent hover:border-gray-200 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-colors ${
-        compact ? 'py-1 pr-1.5 pl-0.5 max-w-[min(42vw,11rem)]' : 'py-1.5 px-2 max-w-[min(12rem,28vw)] xl:max-w-[14rem]'
+        compact ? 'py-1 pr-1 pl-0.5 max-w-[min(32vw,8.5rem)]' : 'py-1.5 px-2 max-w-[min(12rem,28vw)] xl:max-w-[14rem]'
       }`}
       title={fullName}
       aria-label={`Mon espace — ${fullName}`}

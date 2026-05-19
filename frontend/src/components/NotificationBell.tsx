@@ -167,7 +167,7 @@ const NotificationBell = () => {
       {open && (
         <div
           ref={panelRef}
-          className="absolute right-0 mt-2 w-[min(calc(100vw-2rem),22rem)] rounded-xl border border-gray-200 bg-white shadow-lg z-50 overflow-hidden"
+          className="fixed z-50 left-3 right-3 top-[calc(3.5rem+env(safe-area-inset-top,0px))] max-w-[22rem] ml-auto rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[22rem] sm:max-w-[min(22rem,calc(100dvw-2rem))]"
           role="dialog"
           aria-label="Liste des notifications"
         >

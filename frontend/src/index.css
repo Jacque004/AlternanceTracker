@@ -74,7 +74,17 @@
 
   /** Espacement vertical cohérent entre blocs de page (mobile → desktop) */
   .stack-page {
-    @apply space-y-5 sm:space-y-6 md:space-y-8 max-w-full min-w-0;
+    @apply space-y-5 sm:space-y-6 md:space-y-8 max-w-full min-w-0 w-full;
+  }
+
+  .stack-page > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /** Conteneur de page centré (évite le débordement horizontal sur mobile) */
+  .page-shell {
+    @apply w-full min-w-0 max-w-full mx-auto box-border;
   }
 }
 

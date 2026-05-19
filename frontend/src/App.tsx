@@ -53,7 +53,7 @@ function App() {
               duration: 4200,
               className: '!rounded-xl !shadow-card-hover !border !border-gray-200 !text-sm',
               style: {
-                maxWidth: 'min(calc(100vw - 1.5rem), 22rem)',
+                maxWidth: 'min(calc(100dvw - 1.5rem), 22rem)',
               },
               success: { iconTheme: { primary: '#0284c7', secondary: '#ffffff' } },
               error: { iconTheme: { primary: '#dc2626', secondary: '#ffffff' }, duration: 5500 },

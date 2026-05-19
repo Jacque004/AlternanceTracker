@@ -97,17 +97,16 @@ const Layout = () => {
       )}
 
       <header className="sticky top-0 z-40 w-full min-w-0 bg-white/95 backdrop-blur-md border-b border-gray-200/80 shadow-sm pt-safe">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-14 sm:h-16">
-            <div className="flex items-center gap-8">
-              <Link
-                to="/"
-                className="flex-shrink-0 text-lg sm:text-xl font-bold tracking-tight text-primary-600 hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-lg transition-colors duration-200 min-h-[44px] flex items-center"
-              >
-                AlternanceTracker
-              </Link>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full min-w-0 box-border">
+          <div className="flex items-center justify-between gap-2 min-w-0 w-full h-14 sm:h-16">
+            <Link
+              to="/"
+              className="shrink min-w-0 max-w-[38vw] sm:max-w-[10rem] md:max-w-none truncate text-base sm:text-xl font-bold tracking-tight text-primary-600 hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-lg transition-colors duration-200 min-h-[44px] flex items-center"
+            >
+              AlternanceTracker
+            </Link>
               {user ? (
-                <nav className="hidden lg:flex lg:gap-0.5" aria-label="Navigation principale">
+                <nav className="hidden lg:flex lg:gap-0.5 lg:flex-1 lg:justify-center lg:px-2 min-w-0" aria-label="Navigation principale">
                   {navItems.map(({ to, label, match }) => {
                     const active = match(location.pathname);
                     return (
@@ -127,15 +126,14 @@ const Layout = () => {
                   })}
                 </nav>
               ) : null}
-            </div>
 
             {user ? (
-              <div className="hidden lg:flex lg:items-center lg:gap-3">
+              <div className="hidden lg:flex lg:items-center lg:gap-2 shrink-0">
                 <NotificationBell />
                 <HeaderUserBadge user={user} />
               </div>
             ) : (
-              <div className="hidden lg:flex lg:items-center lg:gap-3">
+              <div className="hidden lg:flex lg:items-center lg:gap-2 shrink-0">
                 <Link
                   to="/login"
                   className="px-3 py-1.5 text-sm font-medium text-primary-700 hover:text-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
@@ -151,7 +149,7 @@ const Layout = () => {
               </div>
             )}
 
-            <div className="flex items-center gap-2 lg:hidden">
+            <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 lg:hidden">
               {user ? (
                 <>
                   <NotificationBell />
@@ -162,7 +160,7 @@ const Layout = () => {
                 ref={mobileNavToggleRef}
                 type="button"
                 onClick={() => setMobileOpen((o) => !o)}
-                className="p-2.5 -mr-0.5 min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="p-2.5 min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 aria-expanded={mobileOpen}
                 aria-controls="mobile-nav-menu"
                 aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
@@ -243,7 +241,7 @@ const Layout = () => {
 
       <main
         id="main"
-        className="flex-1 min-w-0 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-safe box-border"
+        className="flex-1 min-w-0 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-safe box-border overflow-x-hidden"
         role="main"
       >
         <PageTransition className="min-w-0 w-full max-w-full">

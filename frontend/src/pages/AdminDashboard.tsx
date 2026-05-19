@@ -83,7 +83,7 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto stack-page">
+      <div className="max-w-6xl mx-auto stack-page page-shell">
         <div>
           <div className="h-9 w-56 skeleton rounded-lg" />
           <div className="h-4 w-80 skeleton rounded mt-2" />
@@ -95,7 +95,7 @@ const AdminDashboard = () => {
 
   if (!stats) {
     return (
-      <div className="max-w-6xl mx-auto stack-page">
+      <div className="max-w-6xl mx-auto stack-page page-shell">
         <h1 className="text-2xl font-bold text-gray-900">Administration</h1>
         <p className="mt-2 text-gray-600">
           Les données ne sont pas disponibles. Exécutez les migrations 021, 022 et 023 dans Supabase.
@@ -111,7 +111,7 @@ const AdminDashboard = () => {
   const adminCount = users.filter((u) => u.is_admin).length;
 
   return (
-    <div className="max-w-6xl mx-auto stack-page">
+    <div className="max-w-6xl mx-auto stack-page page-shell">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Administration</h1>
@@ -194,7 +194,7 @@ const AdminDashboard = () => {
         {users.length === 0 ? (
           <p className="text-sm text-gray-500">Aucun utilisateur.</p>
         ) : (
-          <div className="overflow-x-auto -mx-1">
+          <div className="overflow-x-auto max-w-full">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b border-gray-100">

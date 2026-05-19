@@ -9,7 +9,7 @@ const tabs = [
 
 export default function PreparerLayout() {
   return (
-    <div className="max-w-5xl mx-auto stack-page">
+    <div className="max-w-5xl mx-auto stack-page page-shell min-w-0">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
           Préparer ma candidature
@@ -20,10 +20,10 @@ export default function PreparerLayout() {
       </div>
 
       <nav
-        className="flex rounded-xl bg-white/80 p-1 sm:p-1.5 shadow-card border border-gray-200/80 overflow-x-auto overscroll-x-contain touch-pan-x"
+        className="w-full min-w-0 max-w-full rounded-xl bg-white/80 p-1 sm:p-1.5 shadow-card border border-gray-200/80 overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]"
         aria-label="Sections Préparer"
       >
-        <ul className="flex gap-1 min-w-0 w-full">
+        <ul className="flex gap-1 min-w-max w-full sm:min-w-0 sm:w-full">
           {tabs.map(({ to, label, shortLabel }) => (
             <li key={to} className="flex-1 min-w-0">
               <NavLink

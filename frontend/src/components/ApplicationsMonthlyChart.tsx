@@ -19,7 +19,7 @@ export function ApplicationsMonthlyChart({ monthlyData, maxBars = 12 }: Applicat
   return (
     <div className="bg-white rounded-xl shadow-card p-4 border border-gray-200">
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Candidatures par mois</h2>
-      <div className="flex items-end gap-1 h-32">
+      <div className="flex items-end gap-1 h-32 min-w-0 max-w-full overflow-hidden">
         {bars.map(({ month, count }) => {
           const pct = (count / maxCount) * 100;
           return (

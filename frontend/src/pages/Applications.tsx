@@ -241,7 +241,7 @@ const Applications = () => {
   }, [statusFilter, searchDebounced, dateFrom, dateTo, sortBy, sortOrder, page]);
 
   return (
-    <div className="max-w-5xl mx-auto stack-page">
+    <div className="max-w-5xl mx-auto stack-page page-shell">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Mes candidatures</h1>

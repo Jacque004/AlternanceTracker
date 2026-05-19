@@ -216,8 +216,8 @@ const Profile = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto stack-page pb-4">
-      <header className="relative overflow-hidden rounded-2xl border border-primary-100 bg-gradient-to-br from-primary-600 via-sky-600 to-sky-700 px-6 py-8 text-white shadow-lg shadow-primary-900/10">
+    <div className="max-w-3xl mx-auto stack-page page-shell pb-4">
+      <header className="relative overflow-hidden rounded-2xl border border-primary-100 bg-gradient-to-br from-primary-600 via-sky-600 to-sky-700 px-4 sm:px-6 py-6 sm:py-8 text-white shadow-lg shadow-primary-900/10">
         <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl" aria-hidden />
         <div className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-sky-400/20 blur-2xl" aria-hidden />
         <p className="relative text-sm font-medium text-sky-100">Paramètres du compte</p>
@@ -587,7 +587,7 @@ const Profile = () => {
           </button>
         </ProfileSection>
 
-        <div className="sticky bottom-3 z-10 flex flex-col-reverse gap-3 rounded-2xl border border-gray-200/90 bg-white/95 p-4 shadow-lg backdrop-blur-md sm:flex-row sm:items-center sm:justify-between">
+        <div className="sticky bottom-3 z-10 flex flex-col-reverse gap-3 rounded-2xl border border-gray-200/90 bg-white/95 p-3 sm:p-4 shadow-lg backdrop-blur-md sm:flex-row sm:items-center sm:justify-between max-w-full box-border">
           <p className="text-center text-xs text-gray-500 sm:text-left">Pensez à enregistrer après vos modifications.</p>
           <button
             type="submit"
