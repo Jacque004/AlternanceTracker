@@ -1,14 +1,27 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 import toast from 'react-hot-toast';
+
+const AuthDivider = () => (
+  <div className="relative my-6">
+    <div className="absolute inset-0 flex items-center" aria-hidden>
+      <div className="w-full border-t border-gray-200" />
+    </div>
+    <div className="relative flex justify-center text-sm">
+      <span className="bg-white px-3 text-gray-500">ou</span>
+    </div>
+  </div>
+);
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const { signIn } = useSupabaseAuth();
+  const { signIn, signInWithGoogle } = useSupabaseAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -45,6 +58,21 @@ const Login = () => {
       toast.error('Une erreur inattendue s\'est produite. Veuillez réessayer.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        toast.error(error.message || 'Impossible de se connecter avec Google');
+      }
+    } catch {
+      toast.error('Une erreur inattendue s\'est produite. Veuillez réessayer.');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -146,6 +174,14 @@ const Login = () => {
               )}
             </button>
           </form>
+
+          <AuthDivider />
+
+          <GoogleSignInButton
+            onClick={handleGoogleSignIn}
+            loading={googleLoading}
+            disabled={loading}
+          />
         </div>
       </div>
     </div>

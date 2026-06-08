@@ -4,11 +4,6 @@ export default function Landing() {
   return (
     <div className="max-w-3xl mx-auto stack-page page-shell">
       <section className="space-y-3 sm:space-y-4">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-50 border border-primary-200 text-primary-700 text-sm">
-          <span aria-hidden>✨</span>
-          <span>Votre tableau de bord pour décrocher l’alternance</span>
-        </div>
-
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">
           AlternanceTracker
           <span className="text-primary-600">.</span>

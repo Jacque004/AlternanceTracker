@@ -10,6 +10,10 @@ import {
   markInAppNotificationsColumnMissing,
   markInAppNotificationsColumnPresent,
 } from '../utils/inAppNotificationsSchema';
+import { getAppBaseUrl } from '../utils/appUrl';
+import { getOAuthAvatarUrl, getOAuthFirstName, getOAuthLastName } from '../utils/oauthUserMetadata';
+
+const OAUTH_CONSENT_STORAGE_KEY = 'alternancetracker_oauth_consent';
 
 const USER_PROFILE_SELECT =
   'id, email, first_name, last_name, created_at, school, formation, study_year, alternance_rhythm, desired_start_date, linkedin_url, avatar_url, weekly_summary_enabled, reminder_emails_enabled, applications_goal, privacy_policy_accepted_at, terms_accepted_at, marketing_emails_consent';
@@ -92,6 +96,36 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const applyPendingOAuthConsent = async (userId: string): Promise<boolean> => {
+    const raw = sessionStorage.getItem(OAUTH_CONSENT_STORAGE_KEY);
+    if (!raw) return false;
+
+    sessionStorage.removeItem(OAUTH_CONSENT_STORAGE_KEY);
+
+    try {
+      const consent = JSON.parse(raw) as {
+        privacyPolicyAcceptedAt?: string;
+        termsAcceptedAt?: string;
+      };
+
+      if (consent.privacyPolicyAcceptedAt && consent.termsAcceptedAt) {
+        const { error } = await supabase
+          .from('users')
+          .update({
+            privacy_policy_accepted_at: consent.privacyPolicyAcceptedAt,
+            terms_accepted_at: consent.termsAcceptedAt,
+          })
+          .eq('id', userId);
+
+        return !error;
+      }
+    } catch {
+      // sessionStorage invalide, on ignore
+    }
+
+    return false;
+  };
+
   const loadUserProfile = async (authUser: User) => {
     try {
       // Garantit que la ligne dans `public.users` existe (fonction SECURITY DEFINER)
@@ -107,6 +141,8 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         console.warn('ensure_user_profile a échoué :', e);
       }
 
+      await applyPendingOAuthConsent(authUser.id);
+
       const profileQuery = await supabase
         .from('users')
         .select(USER_PROFILE_SELECT)
@@ -119,12 +155,12 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
       if (error || !profileRow) {
         // Fallback: au minimum on considère l'utilisateur connecté.
         // Cela évite de bloquer l'affichage onboarding si la ligne `users` n'est pas encore prête.
-        const meta: any = authUser.user_metadata ?? {};
+        const meta = authUser.user_metadata ?? {};
         setUser({
           id: authUser.id,
           email: authUser.email ?? '',
-          firstName: meta.first_name ?? '',
-          lastName: meta.last_name ?? '',
+          firstName: getOAuthFirstName(meta),
+          lastName: getOAuthLastName(meta),
           createdAt: undefined,
           school: undefined,
           formation: undefined,
@@ -140,7 +176,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
           termsAcceptedAt: undefined,
           marketingEmailsConsent: false,
           isAdmin: false,
-          avatarUrl: null,
+          avatarUrl: getOAuthAvatarUrl(meta),
         });
         return;
       }
@@ -207,12 +243,12 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error loading user profile:', error);
 
       // Si tout échoue, au moins on évite un `user=null` définitif.
-      const meta: any = authUser.user_metadata ?? {};
+      const meta = authUser.user_metadata ?? {};
       setUser({
         id: authUser.id,
         email: authUser.email ?? '',
-        firstName: meta.first_name ?? '',
-        lastName: meta.last_name ?? '',
+        firstName: getOAuthFirstName(meta),
+        lastName: getOAuthLastName(meta),
         createdAt: undefined,
         school: undefined,
         formation: undefined,
@@ -228,7 +264,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         termsAcceptedAt: undefined,
         marketingEmailsConsent: false,
         isAdmin: false,
-        avatarUrl: null,
+        avatarUrl: getOAuthAvatarUrl(meta),
       });
     } finally {
       setLoading(false);
@@ -255,7 +291,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
           }),
         },
         emailRedirectTo: (() => {
-          const base = (import.meta.env.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin + (import.meta.env.BASE_URL || '') : '')).replace(/\/$/, '');
+          const base = getAppBaseUrl();
           return base ? `${base}/login?confirmed=1` : undefined;
         })(),
       },
@@ -274,17 +310,38 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     return { error };
   };
 
+  const signInWithGoogle = async (consent?: {
+    privacyPolicyAcceptedAt: string;
+    termsAcceptedAt: string;
+  }) => {
+    if (consent) {
+      sessionStorage.setItem(OAUTH_CONSENT_STORAGE_KEY, JSON.stringify(consent));
+    }
+
+    const base = getAppBaseUrl();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: base ? `${base}/` : undefined,
+      },
+    });
+
+    return { error };
+  };
+
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    // Après suppression de compte ou session déjà révoquée, le logout global renvoie 403 :
+    // on efface quand même la session locale.
+    if (error) {
+      await supabase.auth.signOut({ scope: 'local' });
+    }
     setUser(null);
     setSession(null);
   };
 
   const sendPasswordReset = async (email: string) => {
-    const base = (import.meta.env.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin + (import.meta.env.BASE_URL || '') : '')).replace(
-      /\/$/,
-      ''
-    );
+    const base = getAppBaseUrl();
 
     // Important sur GitHub Pages : l’hébergement statique ne gère pas le fallback SPA.
     // On force donc un trailing slash, afin que l’URL cible corresponde à un dossier (dist/reset-password/index.html)
@@ -375,6 +432,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         loading,
         signUp,
         signIn,
+        signInWithGoogle,
         signOut,
         sendPasswordReset,
         updatePassword,

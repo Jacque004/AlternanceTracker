@@ -1,8 +1,20 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 import toast from 'react-hot-toast';
 import { validateRegisterForm } from '../utils/validation';
+
+const AuthDivider = () => (
+  <div className="relative my-6">
+    <div className="absolute inset-0 flex items-center" aria-hidden>
+      <div className="w-full border-t border-gray-200" />
+    </div>
+    <div className="relative flex justify-center text-sm">
+      <span className="bg-white px-3 text-gray-500">ou</span>
+    </div>
+  </div>
+);
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -15,7 +27,8 @@ const Register = () => {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const { signUp } = useSupabaseAuth();
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const { signUp, signInWithGoogle } = useSupabaseAuth();
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,6 +93,36 @@ const Register = () => {
       toast.error('Erreur lors de l\'inscription');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    if (!formData.acceptPrivacyPolicy || !formData.acceptTerms) {
+      setErrors({
+        acceptTerms: !formData.acceptTerms ? 'Vous devez accepter les conditions d\'utilisation' : '',
+        acceptPrivacyPolicy: !formData.acceptPrivacyPolicy ? 'Vous devez accepter la politique de confidentialité' : '',
+      });
+      toast.error('Veuillez accepter les conditions avant de continuer avec Google');
+      return;
+    }
+
+    setGoogleLoading(true);
+    setErrors({});
+
+    const consentDate = new Date().toISOString();
+    try {
+      const { error } = await signInWithGoogle({
+        privacyPolicyAcceptedAt: consentDate,
+        termsAcceptedAt: consentDate,
+      });
+
+      if (error) {
+        toast.error(error.message || 'Impossible de s\'inscrire avec Google');
+      }
+    } catch {
+      toast.error('Une erreur inattendue s\'est produite. Veuillez réessayer.');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -250,6 +293,15 @@ const Register = () => {
             </button>
           </div>
         </form>
+
+        <AuthDivider />
+
+        <GoogleSignInButton
+          onClick={handleGoogleSignUp}
+          loading={googleLoading}
+          disabled={loading}
+          label="S'inscrire avec Google"
+        />
         </div>
       </div>
     </div>

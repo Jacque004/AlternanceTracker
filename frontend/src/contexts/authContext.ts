@@ -14,6 +14,10 @@ export interface SupabaseAuthContextType {
     consent?: { privacyPolicyAcceptedAt: string; termsAcceptedAt: string }
   ) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signInWithGoogle: (consent?: {
+    privacyPolicyAcceptedAt: string;
+    termsAcceptedAt: string;
+  }) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<{ error: AuthError | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: AuthError | null }>;
