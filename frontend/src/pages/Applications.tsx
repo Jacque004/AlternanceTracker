@@ -247,10 +247,10 @@ const Applications = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Mes candidatures</h1>
           <p className="mt-1 text-sm sm:text-base text-gray-600">Suivez et gérez toutes vos candidatures en un seul endroit.</p>
         </div>
-        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2.5 sm:gap-3 w-full sm:w-auto sm:justify-end">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:flex xl:flex-wrap gap-2.5 sm:gap-3 w-full sm:w-auto sm:min-w-[18rem] xl:min-w-0 xl:justify-end">
           <Link
             to="/applications/new"
-            className="col-span-2 sm:col-span-1 inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors duration-200"
+            className="inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors duration-200"
           >
             ➕ Ajouter une candidature
           </Link>
@@ -311,7 +311,7 @@ const Applications = () => {
           <button
             type="button"
             onClick={() => exportPDFDashboard()}
-            className="col-span-2 sm:col-span-1 inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium"
+            className="inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium"
           >
             PDF Tableau de bord
           </button>
@@ -327,8 +327,8 @@ const Applications = () => {
             onChange={(e) => setSearch(e.target.value)}
             className="w-full min-w-0 rounded-lg border-gray-300 text-sm py-2.5 min-h-[44px] sm:min-h-0 focus:border-primary-500 focus:ring-primary-500"
           />
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-x-4 sm:gap-y-3 sm:items-end">
-            <label className="flex flex-col gap-1 min-w-0 col-span-2 sm:col-span-1 sm:w-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 sm:gap-4 xl:items-end">
+            <label className="flex flex-col gap-1 min-w-0">
               <span className="text-xs font-medium text-gray-600">Statut</span>
               <select
                 value={statusFilter}
@@ -360,7 +360,7 @@ const Applications = () => {
                 className="w-full min-w-0 rounded-lg border-gray-300 text-sm py-2.5 focus:border-primary-500 focus:ring-primary-500"
               />
             </label>
-            <label className="flex flex-col gap-1 min-w-0 col-span-2 sm:col-span-1 sm:min-w-[12rem]">
+            <label className="flex flex-col gap-1 min-w-0">
               <span className="text-xs font-medium text-gray-600">Tri</span>
               <select
                 value={sortBy}
@@ -372,7 +372,7 @@ const Applications = () => {
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 min-w-0 col-span-2 sm:col-span-1 sm:w-44">
+            <label className="flex flex-col gap-1 min-w-0">
               <span className="text-xs font-medium text-gray-600">Ordre</span>
               <select
                 value={sortOrder}
@@ -420,16 +420,16 @@ const Applications = () => {
             <>
             <ul className="divide-y divide-gray-200">
               {list.map((app) => (
-                <li key={app.id} className="flex items-stretch gap-0 sm:gap-2 transition-colors duration-150">
+                <li key={app.id} className="flex flex-col sm:flex-row sm:items-stretch gap-2 sm:gap-2 p-2 sm:p-0 transition-colors duration-150">
                   <Link
                     to={`/applications/${app.id}/edit`}
-                    className="flex flex-wrap items-center justify-between gap-2 p-3 sm:p-4 hover:bg-gray-50 transition-colors duration-150 flex-1 min-w-0 min-h-[44px]"
+                    className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2 p-3 sm:p-4 hover:bg-gray-50 transition-colors duration-150 flex-1 min-w-0 min-h-[44px] rounded-lg"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-gray-900 truncate">{app.companyName}</p>
-                      <p className="text-sm text-gray-500">{app.position}</p>
+                      <p className="text-sm text-gray-500 break-words">{app.position}</p>
                       {(app.applicationDate || app.notes || (app.status === 'interview' && app.interviewDate)) && (
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-400 mt-1 break-words leading-relaxed">
                           {formatDisplayDate(app.applicationDate)}
                           {app.status === 'interview' && app.interviewDate && (
                             <> · Entretien {formatDisplayDate(app.interviewDate)}{app.interviewTime ? ` ${formatDisplayTime(app.interviewTime)}` : ''}{app.interviewPlace ? ` – ${app.interviewPlace}` : ''}</>
@@ -454,10 +454,11 @@ const Applications = () => {
                   </Link>
                   <Link
                     to={`/preparer/lettres?company=${encodeURIComponent(app.companyName)}&position=${encodeURIComponent(app.position)}`}
-                    className="shrink-0 inline-flex items-center justify-center min-w-[44px] min-h-[44px] sm:min-h-0 sm:min-w-0 px-2 py-1 text-sm text-primary-600 hover:bg-primary-50 rounded-lg self-center sm:self-auto"
+                    className="shrink-0 inline-flex items-center justify-center min-w-[44px] min-h-[44px] sm:min-h-0 sm:min-w-0 px-3 py-2 text-sm text-primary-600 hover:bg-primary-50 rounded-lg self-end sm:self-center"
                     title="Générer une lettre"
                   >
-                    ✉️
+                    <span className="sm:hidden">✉️ Générer une lettre</span>
+                    <span className="hidden sm:inline">✉️</span>
                   </Link>
                 </li>
               ))}

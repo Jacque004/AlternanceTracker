@@ -247,7 +247,7 @@ const Profile = () => {
           title="Photo & identité"
           description="Votre photo est visible dans Mon espace. Les champs ci-dessous servent à personnaliser vos documents et le tableau de bord."
         >
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
+          <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 sm:gap-8">
             <div className="relative shrink-0">
               <div className="rounded-full p-1 ring-2 ring-primary-100 ring-offset-2 ring-offset-white shadow-md">
                 {avatarDisplaySrc ? (
@@ -285,12 +285,12 @@ const Profile = () => {
                   aria-label="Choisir une photo"
                   onChange={(ev) => void handleAvatarFile(ev)}
                 />
-                <div className="mt-4 flex flex-wrap gap-2 justify-center sm:justify-start">
+                <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-2 justify-center sm:justify-start">
                   <button
                     type="button"
                     onClick={handleAvatarPick}
                     disabled={avatarUploading}
-                    className="inline-flex items-center justify-center rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-50 min-h-[44px]"
+                    className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-50 min-h-[44px]"
                   >
                     {user?.avatarUrl ? 'Changer la photo' : 'Ajouter une photo'}
                   </button>
@@ -299,7 +299,7 @@ const Profile = () => {
                       type="button"
                       onClick={() => void handleAvatarRemove()}
                       disabled={avatarUploading}
-                      className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-50 min-h-[44px]"
+                      className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-50 min-h-[44px]"
                     >
                       Supprimer
                     </button>
@@ -587,7 +587,7 @@ const Profile = () => {
           </button>
         </ProfileSection>
 
-        <div className="sticky bottom-3 z-10 flex flex-col-reverse gap-3 rounded-2xl border border-gray-200/90 bg-white/95 p-3 sm:p-4 shadow-lg backdrop-blur-md sm:flex-row sm:items-center sm:justify-between max-w-full box-border">
+        <div className="sticky bottom-2 sm:bottom-3 z-10 flex flex-col-reverse gap-3 rounded-2xl border border-gray-200/90 bg-white/95 p-3 sm:p-4 shadow-lg backdrop-blur-md sm:flex-row sm:items-center sm:justify-between max-w-full box-border">
           <p className="text-center text-xs text-gray-500 sm:text-left">Pensez à enregistrer après vos modifications.</p>
           <button
             type="submit"
@@ -621,7 +621,7 @@ const Profile = () => {
                     type="button"
                     onClick={() => setDeleteConfirmOpen(false)}
                     disabled={deleting}
-                    className="rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 ring-1 ring-gray-200 transition hover:bg-gray-50 disabled:opacity-50"
+                    className="rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 ring-1 ring-gray-200 transition hover:bg-gray-50 disabled:opacity-50 min-h-[44px]"
                   >
                     Annuler
                   </button>
@@ -642,7 +642,7 @@ const Profile = () => {
                       }
                     }}
                     disabled={deleting}
-                    className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-50"
+                    className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-50 min-h-[44px]"
                   >
                     {deleting ? 'Suppression…' : 'Confirmer la suppression'}
                   </button>

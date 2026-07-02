@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { aiService } from '../services/supabaseService';
 import toast from 'react-hot-toast';
 import { userFacingErrorMessage } from '../utils/errorMessage';
+import { normalizeJobOfferUrl } from '../utils/jobOfferUrl';
+import { offerTextFromMetadata } from '../utils/jobOfferImport';
 
 /** Affiche un texte type markdown de façon lisible (titres ##, listes -, gras **) */
 const renderInlineMarkdown = (raw: string) => {
@@ -78,12 +81,27 @@ const OPTIONS = [
 ];
 
 const AnalyserOffre = () => {
+  const [searchParams] = useSearchParams();
   const [jobOfferUrl, setJobOfferUrl] = useState('');
   const [offerText, setOfferText] = useState('');
   const [options, setOptions] = useState({ resume: true, cv: true, lettre: true, entretien: true });
   const [advice, setAdvice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [fetchingUrl, setFetchingUrl] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const q = searchParams.get('jobUrl') || searchParams.get('url');
+    if (!q?.trim()) return;
+    try {
+      const normalized = normalizeJobOfferUrl(decodeURIComponent(q.trim()));
+      if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+        setJobOfferUrl(normalized);
+      }
+    } catch {
+      /* param mal encodé : ignoré */
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (advice !== null && resultRef.current) {
@@ -97,6 +115,43 @@ const AnalyserOffre = () => {
 
   const toggleOption = (id: keyof typeof options) => {
     setOptions((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleLoadFromUrl = async () => {
+    const raw = jobOfferUrl.trim();
+    if (!raw) {
+      toast.error('Collez d’abord l’URL de l’offre.');
+      return;
+    }
+    const url = normalizeJobOfferUrl(raw);
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      toast.error('URL invalide : utilisez une adresse commençant par https:// (ou www.…).');
+      return;
+    }
+    setJobOfferUrl(url);
+    setFetchingUrl(true);
+    try {
+      const meta = await aiService.fetchJobMetadataFromUrl(url);
+      const extracted = offerTextFromMetadata(meta);
+      if (!extracted || extracted.length < 80) {
+        toast(
+          'La page a été lue, mais le texte extrait est insuffisant. Collez le contenu de l’offre manuellement ci-dessous.',
+          { duration: 5500 }
+        );
+        return;
+      }
+      setOfferText((prev) => {
+        if (!prev.trim()) return extracted;
+        const marker = extracted.slice(0, Math.min(60, extracted.length));
+        if (prev.includes(marker)) return prev;
+        return `${prev.trim()}\n\n---\n${extracted}`;
+      });
+      toast.success('Texte de l’offre chargé depuis l’URL. Vérifiez-le puis lancez l’analyse.');
+    } catch (e: unknown) {
+      toast.error(userFacingErrorMessage(e, 'Impossible de charger le texte depuis cette URL.'));
+    } finally {
+      setFetchingUrl(false);
+    }
   };
 
   const handleAnalyze = async () => {
@@ -119,6 +174,9 @@ const AnalyserOffre = () => {
         focusLettre: options.lettre,
         focusEntretien: options.entretien,
       });
+      if (!result.trim()) {
+        throw new Error('L’analyse n’a retourné aucun conseil. Réessayez ou collez plus de texte.');
+      }
       setAdvice(result);
       toast.success('Analyse terminée');
     } catch (error: unknown) {
@@ -131,11 +189,11 @@ const AnalyserOffre = () => {
   return (
     <div className="max-w-4xl mx-auto stack-page">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
           Analyser une offre d'emploi
         </h1>
-        <p className="mt-2 text-gray-600">
-          Saisissez l'offre puis choisissez les conseils dont vous avez besoin. L'analyse vous aidera à adapter votre candidature.
+        <p className="mt-2 text-sm sm:text-base text-gray-600">
+          Collez le texte de l'offre (recommandé) ou chargez-le depuis l'URL, puis choisissez les conseils souhaités.
         </p>
       </div>
 
@@ -150,22 +208,34 @@ const AnalyserOffre = () => {
             <label htmlFor="job-offer-url" className="block text-sm font-medium text-gray-700 mb-1">
               Lien de l'offre (optionnel)
             </label>
-            <input
-              type="url"
-              id="job-offer-url"
-              value={jobOfferUrl}
-              onChange={(e) => setJobOfferUrl(e.target.value)}
-              placeholder="https://..."
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-              disabled={loading}
-            />
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+              <input
+                type="text"
+                inputMode="url"
+                autoComplete="url"
+                id="job-offer-url"
+                value={jobOfferUrl}
+                onChange={(e) => setJobOfferUrl(e.target.value)}
+                placeholder="https://..."
+                className="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm min-h-[44px]"
+                disabled={loading || fetchingUrl}
+              />
+              <button
+                type="button"
+                onClick={() => void handleLoadFromUrl()}
+                disabled={!jobOfferUrl.trim() || loading || fetchingUrl}
+                className="shrink-0 inline-flex justify-center items-center min-h-[44px] px-4 py-2.5 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+              >
+                {fetchingUrl ? 'Chargement…' : 'Charger depuis l’URL'}
+              </button>
+            </div>
             <p className="mt-1 text-xs text-gray-500">
-              LinkedIn, Indeed… bloquent souvent l'accès. Si le lien ne marche pas, collez le texte ci-dessous.
+              LinkedIn, Indeed… bloquent souvent l'accès automatique. Si le chargement échoue, copiez-collez le texte de l'offre ci-dessous.
             </p>
           </div>
           <div>
             <label htmlFor="offer-text" className="block text-sm font-medium text-gray-700 mb-1">
-              Texte de l'offre <span className="text-red-500">*</span>
+              Texte de l'offre
             </label>
             <textarea
               id="offer-text"
@@ -174,10 +244,10 @@ const AnalyserOffre = () => {
               onChange={(e) => setOfferText(e.target.value)}
               placeholder="Collez ici le contenu de l'offre : titre du poste, mission, profil recherché, compétences, lieu..."
               className="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-              disabled={loading}
+              disabled={loading || fetchingUrl}
             />
             <p className="mt-1 text-xs text-gray-500">
-              Minimum 80 caractères. Plus le texte est complet, plus les conseils seront pertinents.
+              Minimum 80 caractères (recommandé). Plus le texte est complet, plus les conseils seront pertinents.
             </p>
           </div>
         </div>
@@ -228,8 +298,8 @@ const AnalyserOffre = () => {
         <button
           type="button"
           onClick={handleAnalyze}
-          disabled={loading || !canSubmit || !atLeastOneOption}
-          className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-lg font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          disabled={loading || fetchingUrl || !canSubmit || !atLeastOneOption}
+          className="w-full sm:w-auto inline-flex items-center justify-center min-h-[44px] px-6 py-3 rounded-lg font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? (
             <>

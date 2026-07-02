@@ -56,6 +56,21 @@ export function SkeletonStats({ count = 4 }: { count?: number }) {
   );
 }
 
+/** Bloc graphique (tableau de bord) */
+export function SkeletonCharts({ count = 2 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="p-4 sm:p-5 bg-white rounded-xl border border-gray-200 shadow-card animate-in min-h-[320px]">
+          <Skeleton height="h-5" width="w-40" className="mb-2" />
+          <Skeleton height="h-3" width="w-28" className="mb-6" />
+          <Skeleton height="h-52" width="w-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Grille calendrier (7 jours × 6 semaines) + en-tête mois et colonne latérale type page Calendrier */
 export function SkeletonCalendarGrid() {
   const cellCount = 42;

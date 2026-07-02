@@ -196,7 +196,7 @@ const ModelesLettres = () => {
   return (
     <div className="max-w-4xl mx-auto stack-page">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
           Modèles de lettres de motivation
         </h1>
         <p className="mt-2 text-gray-600">
@@ -205,7 +205,7 @@ const ModelesLettres = () => {
       </div>
 
       {/* Générer avec l'IA */}
-      <div className="bg-white shadow-card rounded-xl border border-gray-200 p-6">
+      <div className="bg-white shadow-card rounded-xl border border-gray-200 p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Générer une lettre avec l'IA</h2>
         <p className="text-sm text-gray-600 mb-4">
           Entreprise et poste peuvent être pré-remplis si vous venez depuis une candidature.
@@ -246,7 +246,7 @@ const ModelesLettres = () => {
           type="button"
           onClick={handleGenerate}
           disabled={generating || !company.trim() || !position.trim()}
-          className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+          className="inline-flex w-full sm:w-auto items-center justify-center bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 min-h-[44px] rounded-md text-sm font-medium disabled:opacity-50"
         >
           {generating ? 'Génération...' : 'Générer la lettre'}
         </button>
@@ -256,11 +256,11 @@ const ModelesLettres = () => {
               <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-800 whitespace-pre-wrap font-sans overflow-x-auto max-h-96 overflow-y-auto">
                 {generatedLetter}
               </pre>
-              <div className="flex gap-2 mt-2">
-                <button type="button" onClick={() => handleCopy(generatedLetter)} className="text-sm font-medium text-primary-600 hover:underline">
+              <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                <button type="button" onClick={() => handleCopy(generatedLetter)} className="text-sm font-medium text-primary-600 hover:underline text-left">
                   Copier
                 </button>
-                <button type="button" onClick={handleSaveLetter} disabled={savingLetterId !== null} className="text-sm font-medium text-primary-600 hover:underline disabled:opacity-50">
+                <button type="button" onClick={handleSaveLetter} disabled={savingLetterId !== null} className="text-sm font-medium text-primary-600 hover:underline disabled:opacity-50 text-left">
                   {savingLetterId ? 'Enregistrement...' : 'Enregistrer cette lettre'}
                 </button>
               </div>
@@ -270,7 +270,7 @@ const ModelesLettres = () => {
       </div>
 
       {/* Mes lettres enregistrées */}
-      <div className="bg-white shadow-card rounded-xl border border-gray-200 p-6">
+      <div className="bg-white shadow-card rounded-xl border border-gray-200 p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Mes lettres enregistrées</h2>
         {lettersLoading ? (
           <p className="text-sm text-gray-500">Chargement...</p>
@@ -285,14 +285,14 @@ const ModelesLettres = () => {
         ) : (
           <ul className="space-y-2">
             {savedLetters.map((letter) => (
-              <li key={letter.id} className="flex items-center justify-between gap-2 p-3 bg-gray-50 rounded border border-gray-200">
+              <li key={letter.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-gray-50 rounded border border-gray-200">
                 <div className="min-w-0">
                   <p className="font-medium text-gray-900 truncate">{letter.title || 'Sans titre'}</p>
                   {(letter.companyName || letter.position) && (
-                    <p className="text-xs text-gray-500">{letter.companyName} – {letter.position}</p>
+                    <p className="text-xs text-gray-500 break-words">{letter.companyName} – {letter.position}</p>
                   )}
                 </div>
-                <div className="flex gap-1 shrink-0">
+                <div className="flex flex-wrap gap-3 shrink-0">
                   <button type="button" onClick={() => handleCopy(letter.content)} className="text-sm text-primary-600 hover:underline">Copier</button>
                   {letter.id && (
                     <button
@@ -327,16 +327,16 @@ const ModelesLettres = () => {
             <button
               type="button"
               onClick={() => setOpenId(openId === t.id ? null : t.id)}
-              className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-between gap-3 px-4 sm:px-6 py-4 text-left hover:bg-gray-50 transition-colors"
             >
-              <div>
-                <span className="text-lg font-semibold text-gray-900">{t.title}</span>
-                <span className="text-gray-500 text-sm ml-2">— {t.subtitle}</span>
+              <div className="min-w-0">
+                <span className="block text-base sm:text-lg font-semibold text-gray-900">{t.title}</span>
+                <span className="block sm:inline text-gray-500 text-sm sm:ml-2">— {t.subtitle}</span>
               </div>
               <span className="text-gray-500">{openId === t.id ? '▼' : '▶'}</span>
             </button>
             {openId === t.id && (
-              <div className="px-6 pb-6 pt-0 border-t border-gray-100">
+              <div className="px-4 sm:px-6 pb-6 pt-0 border-t border-gray-100">
                 <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded p-3 mt-4 mb-4">
                   💡 {t.tip}
                 </p>
@@ -347,7 +347,7 @@ const ModelesLettres = () => {
                   <button
                     type="button"
                     onClick={() => handleCopy(t.body)}
-                    className="absolute top-2 right-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-medium px-3 py-1.5 rounded"
+                    className="absolute top-2 right-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-medium px-3 py-1.5 rounded max-w-[calc(100%-1rem)]"
                   >
                     Copier le modèle
                   </button>

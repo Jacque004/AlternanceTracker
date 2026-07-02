@@ -23,14 +23,14 @@ export default function PreparerLayout() {
         className="w-full min-w-0 max-w-full rounded-xl bg-white/80 p-1 sm:p-1.5 shadow-card border border-gray-200/80 overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]"
         aria-label="Sections Préparer"
       >
-        <ul className="flex gap-1 min-w-max w-full sm:min-w-0 sm:w-full">
+        <ul className="flex gap-1 min-w-max sm:min-w-0 sm:w-full">
           {tabs.map(({ to, label, shortLabel }) => (
-            <li key={to} className="flex-1 min-w-0">
+            <li key={to} className="flex-none min-w-[5.5rem] sm:flex-1 sm:min-w-0">
               <NavLink
                 to={to}
                 end={false}
                 className={({ isActive }) =>
-                  `flex items-center justify-center text-center px-2.5 sm:px-4 py-2.5 sm:py-3 min-h-[44px] sm:min-h-0 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap ${
+                  `flex w-full items-center justify-center text-center px-3 sm:px-4 py-2.5 sm:py-3 min-h-[44px] text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap ${
                     isActive
                       ? 'bg-primary-600 text-white shadow-sm'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'

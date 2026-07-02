@@ -17,7 +17,7 @@
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "security:audit": "node scripts/security-audit.mjs",
-    "supabase:deploy": "supabase functions deploy analyze-cv-alternance",
+    "supabase:deploy": "supabase functions deploy analyze-cv-alternance && supabase functions deploy analyze-cv-ats && supabase functions deploy analyze-job-offer && supabase functions deploy fetch-job-metadata",
     "supabase:login": "supabase login",
     "supabase:link": "supabase link"
   },

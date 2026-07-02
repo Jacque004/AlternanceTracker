@@ -299,6 +299,7 @@ const ConseilsCV = () => {
 
   const [adviceAlternance, setAdviceAlternance] = useState<string | null>(null);
   const [loadingAlternance, setLoadingAlternance] = useState(false);
+  const [loadingAts, setLoadingAts] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
 
   const [analysisHistory, setAnalysisHistory] = useState<CVAnalysis[]>([]);
@@ -326,6 +327,21 @@ const ConseilsCV = () => {
       if (cv.atsScore != null) {
         setAtsResult((prev) => (prev ? { ...prev, score: cv.atsScore! } : { score: cv.atsScore!, tips: [], suggestedKeywords: [] }));
       }
+      try {
+        const history = await cvAnalysisService.getAll(10);
+        setAnalysisHistory(history);
+        const latestAts = history.find((a) => a.type === 'ats');
+        if (latestAts?.resultJson && typeof latestAts.resultJson === 'object') {
+          const json = latestAts.resultJson as unknown as ATSAnalysisResult;
+          setAtsResult({
+            score: json.score ?? cv.atsScore ?? 0,
+            tips: Array.isArray(json.tips) ? json.tips : [],
+            suggestedKeywords: Array.isArray(json.suggestedKeywords) ? json.suggestedKeywords : [],
+          });
+        }
+      } catch {
+        /* historique optionnel */
+      }
     } catch (e: unknown) {
       toast.error(userFacingErrorMessage(e, 'Impossible de charger le CV.'));
     } finally {
@@ -339,7 +355,7 @@ const ConseilsCV = () => {
 
   useEffect(() => {
     if (!loading) cvAnalysisService.getAll(10).then(setAnalysisHistory).catch(() => {});
-  }, [loading]);
+  }, [loading, adviceAlternance, atsResult]);
 
   const handleSectionChange = (key: CVSectionKey, value: string) => {
     setContent((prev) => ({ ...prev, [key]: value }));
@@ -422,6 +438,36 @@ const ConseilsCV = () => {
     }
   };
 
+  const handleAnalyzeATS = async () => {
+    const plain = cvContentToPlainText(content);
+    if (plain.length < 30) {
+      toast.error('Remplissez au moins une section (30 caractères) pour lancer l\'analyse ATS.');
+      return;
+    }
+    setLoadingAts(true);
+    try {
+      const result = await aiService.analyzeCVForATS(plain);
+      setAtsResult(result);
+      setActiveTab('conseils');
+      if (cvId) {
+        await cvService.update(cvId, { atsScore: result.score });
+      }
+      try {
+        await cvAnalysisService.create({
+          type: 'ats',
+          resultJson: result as unknown as Record<string, unknown>,
+          userCvId: cvId ?? undefined,
+        });
+        cvAnalysisService.getAll(10).then(setAnalysisHistory).catch(() => {});
+      } catch (_) {}
+      toast.success('Analyse ATS terminée');
+    } catch (e: unknown) {
+      toast.error(userFacingErrorMessage(e, 'Impossible d’analyser le CV pour les ATS.'));
+    } finally {
+      setLoadingAts(false);
+    }
+  };
+
   const handleExportTxt = () => {
     const plain = cvContentToPlainText(content);
     if (!plain) {
@@ -490,7 +536,7 @@ const ConseilsCV = () => {
   return (
     <div className="max-w-4xl mx-auto stack-page">
       <div className="text-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
           Conseils CV & éditeur
         </h1>
         <p className="mt-2 text-gray-600">
@@ -499,14 +545,14 @@ const ConseilsCV = () => {
       </div>
 
       {/* Onglets */}
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-1" aria-label="Onglets">
+      <div className="border-b border-gray-200 overflow-x-auto overscroll-x-contain">
+        <nav className="flex gap-1 min-w-max sm:min-w-0" aria-label="Onglets">
           {tabs.map(({ id, label }) => (
             <button
               key={id}
               type="button"
               onClick={() => setActiveTab(id)}
-              className={`px-4 py-3 text-sm font-medium border-b-2 rounded-t transition-colors ${
+              className={`px-4 py-3 text-sm font-medium border-b-2 rounded-t transition-colors whitespace-nowrap min-h-[44px] ${
                 activeTab === id
                   ? 'border-primary-500 text-primary-600 bg-white'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -521,9 +567,9 @@ const ConseilsCV = () => {
       {activeTab === 'editer' && (
         <>
           {/* Barre d'actions */}
-          <div className="bg-white shadow-card rounded-xl border border-gray-200 p-4 flex flex-wrap items-center gap-2">
+          <div className="bg-white shadow-card rounded-xl border border-gray-200 p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[auto_auto_minmax(13rem,1fr)_auto_auto_auto] gap-2 sm:gap-3 items-stretch xl:items-center">
             <label className="cursor-pointer">
-              <span className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+              <span className="inline-flex w-full items-center justify-center px-3 py-2 min-h-[44px] border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                 Importer PDF / TXT
               </span>
               <input
@@ -537,7 +583,7 @@ const ConseilsCV = () => {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50"
+              className="inline-flex items-center justify-center px-4 py-2 min-h-[44px] rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50"
             >
               {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>
@@ -545,7 +591,7 @@ const ConseilsCV = () => {
             <select
               value={pdfTemplateId}
               onChange={(e) => setPdfTemplateId(e.target.value as CvPdfTemplateId)}
-              className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 bg-white border border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              className="inline-flex items-center px-3 py-2 min-h-[44px] rounded-md text-sm font-medium text-gray-700 bg-white border border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 w-full"
               aria-label="Template PDF ATS"
             >
               {CV_PDF_TEMPLATES.map((t) => (
@@ -559,7 +605,7 @@ const ConseilsCV = () => {
               type="button"
               onClick={handleExportTxt}
               disabled={!hasContent}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              className="inline-flex items-center justify-center px-3 py-2 min-h-[44px] border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
             >
               Exporter en .txt
             </button>
@@ -568,18 +614,26 @@ const ConseilsCV = () => {
               type="button"
               onClick={handleExportPdf}
               disabled={!hasContent || exportingPdf}
-              className="inline-flex items-center px-3 py-2 border border-primary-600 rounded-md text-sm font-medium text-primary-600 bg-white hover:bg-primary-50 disabled:opacity-50"
+              className="inline-flex items-center justify-center px-3 py-2 min-h-[44px] border border-primary-600 rounded-md text-sm font-medium text-primary-600 bg-white hover:bg-primary-50 disabled:opacity-50"
             >
               {exportingPdf ? 'Export PDF...' : 'Télécharger PDF (ATS)'}
             </button>
-            <span className="hidden sm:inline text-gray-400">|</span>
+            <span className="hidden xl:inline text-center text-gray-400">|</span>
             <button
               type="button"
               onClick={handleAnalyzeAlternance}
               disabled={loadingAlternance || plainText.length < 50}
-              className="inline-flex items-center px-3 py-2 border border-primary-600 rounded-md text-sm font-medium text-primary-600 bg-white hover:bg-primary-50 disabled:opacity-50"
+              className="inline-flex items-center justify-center px-3 py-2 min-h-[44px] border border-primary-600 rounded-md text-sm font-medium text-primary-600 bg-white hover:bg-primary-50 disabled:opacity-50"
             >
               {loadingAlternance ? 'Analyse...' : 'Conseils alternance'}
+            </button>
+            <button
+              type="button"
+              onClick={handleAnalyzeATS}
+              disabled={loadingAts || plainText.length < 30}
+              className="inline-flex items-center justify-center px-3 py-2 min-h-[44px] border border-emerald-600 rounded-md text-sm font-medium text-emerald-700 bg-white hover:bg-emerald-50 disabled:opacity-50"
+            >
+              {loadingAts ? 'Analyse ATS...' : 'Score ATS'}
             </button>
           </div>
 
@@ -697,6 +751,28 @@ const ConseilsCV = () => {
               <p className="text-sm text-gray-600">
                 Score ATS : <span className="font-medium text-gray-900">{atsResult.score}/100</span>
               </p>
+              {atsResult.tips.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-gray-800 mb-2">Conseils</h3>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                    {atsResult.tips.map((tip, i) => (
+                      <li key={i}>{tip}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {atsResult.suggestedKeywords && atsResult.suggestedKeywords.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-gray-800 mb-2">Mots-clés suggérés</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {atsResult.suggestedKeywords.map((kw, i) => (
+                      <span key={i} className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-100">
+                        {kw}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {adviceAlternance !== null && (
@@ -711,13 +787,20 @@ const ConseilsCV = () => {
           {analysisHistory.length > 0 && (
             <div className="bg-white shadow-card rounded-xl p-6 border border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">Historique des analyses</h2>
-              <p className="text-sm text-gray-500 mb-3">Vos dernières analyses d&apos;alternance sont enregistrées.</p>
+              <p className="text-sm text-gray-500 mb-3">Vos dernières analyses sont enregistrées.</p>
               <ul className="space-y-1 text-sm">
                 {analysisHistory.map((a) => (
-                  <li key={a.id} className="flex items-center gap-2 text-gray-700">
-                    <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
-                      Alternance
+                  <li key={a.id} className="flex flex-wrap items-center gap-2 text-gray-700">
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                        a.type === 'ats' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {a.type === 'ats' ? 'ATS' : 'Alternance'}
                     </span>
+                    {a.type === 'ats' && a.resultJson && typeof (a.resultJson as unknown as ATSAnalysisResult).score === 'number' && (
+                      <span className="text-gray-600">Score {(a.resultJson as unknown as ATSAnalysisResult).score}/100</span>
+                    )}
                     {a.createdAt && (
                       <span className="text-gray-500">
                         {formatDisplayDate(a.createdAt)}
@@ -728,10 +811,10 @@ const ConseilsCV = () => {
               </ul>
             </div>
           )}
-          {adviceAlternance === null && (
+          {adviceAlternance === null && atsResult === null && (
             <div className="bg-white shadow-card rounded-xl p-8 text-center text-gray-500 border border-gray-200">
               <p>Aucune analyse pour l’instant.</p>
-              <p className="mt-2 text-sm">Passez par l’onglet « Éditer mon CV », remplissez votre CV puis lancez « Conseils alternance ».</p>
+              <p className="mt-2 text-sm">Passez par l’onglet « Éditer mon CV », remplissez votre CV puis lancez « Conseils alternance » ou « Score ATS ».</p>
               <button
                 type="button"
                 onClick={() => setActiveTab('editer')}

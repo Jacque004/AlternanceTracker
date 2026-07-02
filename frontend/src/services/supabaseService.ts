@@ -394,6 +394,26 @@ export const dashboardService = {
     if (error) throw error;
     return (data || []).map(mapRowToApplication);
   },
+
+  /** Entretiens passés (historique) */
+  getPastInterviews: async (limit: number = 20): Promise<Application[]> => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const { data, error } = await supabase
+      .from('applications')
+      .select('*')
+      .eq('user_id', user.id)
+      .not('interview_date', 'is', null)
+      .lt('interview_date', today)
+      .order('interview_date', { ascending: false })
+      .order('interview_time', { ascending: false, nullsFirst: true })
+      .limit(limit);
+    if (error) throw error;
+    return (data || []).map(mapRowToApplication);
+  },
 };
 
 export const aiService = {
@@ -425,34 +445,12 @@ export const aiService = {
     return letter;
   },
 
-  /** Analyse le CV et retourne des conseils ciblés pour une recherche d'alternance (backend si VITE_API_URL, sinon Supabase) */
+  /** Analyse le CV et retourne des conseils ciblés pour une recherche d'alternance via Edge Function Supabase. */
   analyzeCVForAlternance: async (cvText: string): Promise<string> => {
-    const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-    if (apiUrl) {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const token = session?.access_token ?? null;
-      const res = await fetch(`${apiUrl}/ai/analyze-cv`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ cvText: cvText.trim() }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const message = data?.message || data?.error || res.statusText || `Erreur ${res.status}`;
-        throw new Error(message);
-      }
-      return data?.advice ?? '';
-    }
-
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '') || '';
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
     if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Configuration manquante : définissez VITE_API_URL (backend) ou VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY (Supabase).');
+      throw new Error('Configuration Supabase manquante (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).');
     }
 
     const accessToken = await getUserAccessTokenForEdgeFunctions();
@@ -476,36 +474,46 @@ export const aiService = {
     }
 
     if (body?.error) throw new Error(body.error);
-    return body?.advice ?? '';
+    const advice = body?.advice ?? '';
+    if (!advice.trim()) {
+      throw new Error('L’analyse n’a retourné aucun conseil. Réessayez ou collez plus de texte.');
+    }
+    return advice;
   },
 
-  /** Analyse le CV pour la compatibilité ATS (score + conseils). Nécessite VITE_API_URL (backend). */
+  /** Analyse le CV pour la compatibilité ATS (score + conseils) via Edge Function Supabase. */
   analyzeCVForATS: async (cvText: string): Promise<{ score: number; tips: string[]; suggestedKeywords: string[] }> => {
-    const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-    if (!apiUrl) {
-      throw new Error('L\'analyse ATS est disponible avec le backend (VITE_API_URL).');
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '') || '';
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Configuration Supabase manquante (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).');
     }
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const token = session?.access_token ?? null;
-    const res = await fetch(`${apiUrl}/ai/analyze-cv-ats`, {
+
+    const accessToken = await getUserAccessTokenForEdgeFunctions();
+
+    const url = `${supabaseUrl}/functions/v1/analyze-cv-ats`;
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        Authorization: `Bearer ${accessToken}`,
+        apikey: supabaseAnonKey,
       },
       body: JSON.stringify({ cvText: cvText.trim() }),
     });
-    const data = await res.json().catch(() => ({}));
+
+    const body = await res.json().catch(() => ({}));
+
     if (!res.ok) {
-      const message = data?.message || data?.error || res.statusText || `Erreur ${res.status}`;
+      const message = body?.error || body?.message || res.statusText || `Erreur ${res.status}`;
       throw new Error(message);
     }
+
+    if (body?.error) throw new Error(body.error);
     return {
-      score: Math.min(100, Math.max(0, Number(data?.score) ?? 0)),
-      tips: Array.isArray(data?.tips) ? data.tips : [],
-      suggestedKeywords: Array.isArray(data?.suggestedKeywords) ? data.suggestedKeywords : [],
+      score: Math.min(100, Math.max(0, Number(body?.score) ?? 0)),
+      tips: Array.isArray(body?.tips) ? body.tips : [],
+      suggestedKeywords: Array.isArray(body?.suggestedKeywords) ? body.suggestedKeywords : [],
     };
   },
 
@@ -549,7 +557,11 @@ export const aiService = {
       throw new Error(message);
     }
     if (body?.error) throw new Error(body.error);
-    return body?.advice ?? '';
+    const advice = body?.advice ?? '';
+    if (!advice.trim()) {
+      throw new Error('L’analyse n’a retourné aucun conseil. Réessayez ou collez plus de texte.');
+    }
+    return advice;
   },
 
   /**

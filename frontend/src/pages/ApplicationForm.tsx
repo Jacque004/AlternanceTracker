@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { applicationService, aiService } from '../services/supabaseService';
 import { formatDateForInput, formatTimeForInput } from '../utils/dateDisplay';
 import { normalizeJobOfferUrl } from '../utils/jobOfferUrl';
+import { looksLikeReaderOrErrorDump } from '../utils/jobOfferImport';
 import toast from 'react-hot-toast';
 import type { Application } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -14,19 +15,6 @@ const STATUS_OPTIONS = [
   { value: 'accepted', label: 'Acceptée' },
   { value: 'rejected', label: 'Refusée' },
 ];
-
-/** Texte type réponse Jina / page d’erreur — ne pas remplir le formulaire avec ça. */
-function looksLikeReaderOrErrorDump(text: string | null | undefined): boolean {
-  if (!text?.trim()) return false;
-  const t = text.slice(0, 2500);
-  return (
-    /url source:\s*https?:/i.test(t) ||
-    /warning:\s*target url returned error/i.test(t) ||
-    /markdown content:/i.test(t) ||
-    /erreur\s+de\s+tâche\s+personnalis/i.test(t) ||
-    /target url returned error/i.test(t)
-  );
-}
 
 const ApplicationForm = () => {
   const { id } = useParams();
@@ -218,7 +206,7 @@ const ApplicationForm = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto stack-page">
+    <div className="max-w-3xl mx-auto stack-page page-shell">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
           {isEdit ? 'Modifier la candidature' : 'Nouvelle candidature'}
@@ -230,7 +218,7 @@ const ApplicationForm = () => {
 
       <form onSubmit={handleSubmit} className="bg-white shadow-card rounded-xl border border-gray-200 p-4 sm:p-6 md:p-8 space-y-5 sm:space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-          <div className="sm:col-span-2 rounded-xl border border-sky-100 bg-sky-50/50 p-3 sm:p-4 space-y-3">
+          <div className="sm:col-span-2 rounded-xl border border-sky-100 bg-sky-50/50 p-4 space-y-3">
             <h2 className="text-sm font-semibold text-gray-900">Importer depuis l’URL de l’offre</h2>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 sm:items-end">
               <div className="flex-1 min-w-0">
@@ -245,7 +233,7 @@ const ApplicationForm = () => {
                   name="jobUrl"
                   value={formData.jobUrl}
                   onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 min-h-[44px]"
                   placeholder="https://…"
                 />
               </div>
@@ -271,7 +259,7 @@ const ApplicationForm = () => {
               required
               value={formData.companyName}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 min-h-[44px]"
             />
           </div>
           <div className="sm:col-span-2">
@@ -285,7 +273,7 @@ const ApplicationForm = () => {
               required
               value={formData.position}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 min-h-[44px]"
               placeholder="Ex. Assistant commercial, Comptable, Infirmier, Technicien BTP, Designer…"
             />
           </div>
@@ -298,7 +286,7 @@ const ApplicationForm = () => {
               name="status"
               value={formData.status}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 min-h-[44px]"
             >
               {STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -317,7 +305,7 @@ const ApplicationForm = () => {
               name="location"
               value={formData.location}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 min-h-[44px]"
             />
           </div>
           <div>
@@ -330,7 +318,7 @@ const ApplicationForm = () => {
               name="applicationDate"
               value={formData.applicationDate}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 min-h-[44px]"
             />
           </div>
           <div>
@@ -359,7 +347,7 @@ const ApplicationForm = () => {
                   name="interviewDate"
                   value={formData.interviewDate}
                   onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 min-h-[44px]"
                 />
               </div>
               <div>
@@ -372,7 +360,7 @@ const ApplicationForm = () => {
                   name="interviewTime"
                   value={formData.interviewTime}
                   onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 min-h-[44px]"
                 />
               </div>
               <div className="sm:col-span-2">
@@ -385,7 +373,7 @@ const ApplicationForm = () => {
                   name="interviewPlace"
                   value={formData.interviewPlace}
                   onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 min-h-[44px]"
                   placeholder="Adresse ou visio"
                 />
               </div>
@@ -402,7 +390,7 @@ const ApplicationForm = () => {
               name="salaryRange"
               value={formData.salaryRange}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 min-h-[44px]"
               placeholder="Ex. 1200-1400 €"
             />
           </div>
@@ -416,7 +404,7 @@ const ApplicationForm = () => {
               rows={3}
               value={formData.notes}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 min-h-[44px]"
               placeholder="Contact recruteur, relance prévue..."
             />
           </div>

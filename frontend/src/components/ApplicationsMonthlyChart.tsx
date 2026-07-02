@@ -1,3 +1,13 @@
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+
 export interface MonthlyApplicationCount {
   month: string;
   count: number;
@@ -13,30 +23,51 @@ export function ApplicationsMonthlyChart({ monthlyData, maxBars = 12 }: Applicat
     return null;
   }
 
-  const bars = [...monthlyData].sort((a, b) => a.month.localeCompare(b.month)).slice(-maxBars);
-  const maxCount = Math.max(...bars.map((m) => m.count), 1);
+  const bars = [...monthlyData]
+    .sort((a, b) => a.month.localeCompare(b.month))
+    .slice(-maxBars)
+    .map(({ month, count }) => ({
+      month,
+      count,
+      label: month.slice(5),
+    }));
 
   return (
-    <div className="bg-white rounded-xl shadow-card p-4 border border-gray-200 min-w-0 w-full overflow-hidden">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Candidatures par mois</h2>
-      <div className="flex items-end gap-1 h-32 min-w-0 max-w-full overflow-hidden">
-        {bars.map(({ month, count }) => {
-          const pct = (count / maxCount) * 100;
-          return (
-            <div key={month} className="flex-1 flex flex-col items-center gap-1" title={`${month}: ${count}`}>
-              <div
-                className="w-full bg-gray-200 rounded-t flex flex-col justify-end"
-                style={{ height: '100%' }}
-              >
-                <div
-                  className="bg-primary-500 rounded-t transition-all min-h-[4px]"
-                  style={{ height: `${pct}%` }}
-                />
-              </div>
-              <span className="text-xs text-gray-500 truncate w-full text-center">{month.slice(5)}</span>
-            </div>
-          );
-        })}
+    <div className="bg-white rounded-xl shadow-card p-4 sm:p-5 border border-gray-200 min-w-0 w-full overflow-hidden">
+      <h2 className="text-lg font-semibold text-gray-900">Candidatures par mois</h2>
+      <p className="mt-1 text-sm text-gray-500">Évolution sur les derniers mois</p>
+      <div className="mt-4 w-full min-h-[220px] sm:min-h-[240px]">
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={bars} margin={{ top: 8, right: 4, left: -12, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+            <XAxis
+              dataKey="label"
+              tick={{ fontSize: 11, fill: '#6b7280' }}
+              axisLine={{ stroke: '#e5e7eb' }}
+              tickLine={false}
+            />
+            <YAxis
+              allowDecimals={false}
+              tick={{ fontSize: 11, fill: '#6b7280' }}
+              axisLine={false}
+              tickLine={false}
+              width={32}
+            />
+            <Tooltip
+              formatter={(value: number) => [`${value} candidature${value > 1 ? 's' : ''}`, '']}
+              labelFormatter={(_, payload) => {
+                const month = payload?.[0]?.payload?.month;
+                return month ? `Mois ${month}` : '';
+              }}
+              contentStyle={{
+                borderRadius: '0.5rem',
+                border: '1px solid #e5e7eb',
+                fontSize: '0.875rem',
+              }}
+            />
+            <Bar dataKey="count" fill="#0ea5e9" radius={[4, 4, 0, 0]} maxBarSize={48} />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );

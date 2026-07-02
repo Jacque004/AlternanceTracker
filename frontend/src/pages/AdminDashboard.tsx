@@ -5,16 +5,10 @@ import { adminService } from '../services/adminService';
 import { AdminRecentUser, AdminStats } from '../types';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { ApplicationsMonthlyChart } from '../components/ApplicationsMonthlyChart';
-import { SkeletonStats } from '../components/Skeleton';
+import { ApplicationsStatusChart } from '../components/ApplicationsStatusChart';
+import { SkeletonCharts } from '../components/Skeleton';
 import { userFacingErrorMessage } from '../utils/errorMessage';
 import { formatDisplayDate } from '../utils/dateDisplay';
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'En attente',
-  interview: 'Entretien',
-  accepted: 'Acceptée',
-  rejected: 'Refusée',
-};
 
 function StatCard({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
@@ -88,7 +82,7 @@ const AdminDashboard = () => {
           <div className="h-9 w-56 skeleton rounded-lg" />
           <div className="h-4 w-80 skeleton rounded mt-2" />
         </div>
-        <SkeletonStats count={4} />
+        <SkeletonCharts count={2} />
       </div>
     );
   }
@@ -107,8 +101,8 @@ const AdminDashboard = () => {
     );
   }
 
-  const statusEntries = Object.entries(stats.applicationsByStatus);
   const adminCount = users.filter((u) => u.is_admin).length;
+  const byStatus = stats.applicationsByStatus;
 
   return (
     <div className="max-w-6xl mx-auto stack-page page-shell w-full min-w-0 overflow-x-hidden">
@@ -142,31 +136,21 @@ const AdminDashboard = () => {
         />
       </div>
 
-      {stats.monthlyData.length > 0 ? (
-        <ApplicationsMonthlyChart monthlyData={stats.monthlyData} />
-      ) : null}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
+        <ApplicationsStatusChart
+          pending={byStatus.pending ?? 0}
+          interview={byStatus.interview ?? 0}
+          accepted={byStatus.accepted ?? 0}
+          rejected={byStatus.rejected ?? 0}
+          total={stats.applicationsCount}
+        />
+        {stats.monthlyData.length > 0 ? (
+          <ApplicationsMonthlyChart monthlyData={stats.monthlyData} />
+        ) : null}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
-        <section className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-6 min-w-0 overflow-hidden">
-          <h2 className="text-base font-semibold text-gray-900">Candidatures par statut</h2>
-          {statusEntries.length === 0 ? (
-            <p className="mt-3 text-sm text-gray-500">Aucune candidature enregistrée.</p>
-          ) : (
-            <ul className="mt-4 space-y-2">
-              {statusEntries.map(([status, count]) => (
-                <li
-                  key={status}
-                  className="flex items-center justify-between gap-3 py-2 border-b border-gray-100 last:border-0"
-                >
-                  <span className="text-sm text-gray-700">{STATUS_LABELS[status] ?? status}</span>
-                  <span className="text-sm font-semibold text-gray-900 tabular-nums">{count}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-6 min-w-0 overflow-hidden">
+        <section className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-6 min-w-0 overflow-hidden lg:col-span-2">
           <h2 className="text-base font-semibold text-gray-900">Activité récente</h2>
           <ul className="mt-4 space-y-3 text-sm text-gray-600">
             <li>

@@ -4,9 +4,11 @@ import { applicationService, dashboardService } from '../services/supabaseServic
 import type { Application, DashboardStatistics } from '../types';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import toast from 'react-hot-toast';
-import { SkeletonCardGrid, SkeletonStats, SkeletonList } from '../components/Skeleton';
+import { SkeletonCardGrid, SkeletonCharts, SkeletonList } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { ApplicationsMonthlyChart } from '../components/ApplicationsMonthlyChart';
+import { ApplicationsStatusChart } from '../components/ApplicationsStatusChart';
+import { PastInterviewsList } from '../components/PastInterviewsList';
 import { userFacingErrorMessage } from '../utils/errorMessage';
 import { formatDisplayDate, formatDisplayTime, getCalendarDaysAgo } from '../utils/dateDisplay';
 
@@ -29,27 +31,31 @@ const Dashboard = () => {
   const [recent, setRecent] = useState<Application[]>([]);
   const [toRelance, setToRelance] = useState<Application[]>([]);
   const [upcomingInterviews, setUpcomingInterviews] = useState<Application[]>([]);
+  const [pastInterviews, setPastInterviews] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingId, setMarkingId] = useState<number | null>(null);
 
   const loadData = async () => {
     try {
-      const [statsRes, recentRes, pendingRes, upcomingRes] = await Promise.all([
+      const [statsRes, recentRes, pendingRes, upcomingRes, pastRes] = await Promise.all([
         dashboardService.getStatistics(),
         dashboardService.getRecent(5),
         applicationService.getAll({ status: 'pending' }),
         dashboardService.getUpcomingInterviews(10),
+        dashboardService.getPastInterviews(15),
       ]);
       setStats(statsRes);
       setRecent(recentRes);
       setToRelance((pendingRes?.data ?? []).filter(isToRelance));
       setUpcomingInterviews(upcomingRes || []);
+      setPastInterviews(pastRes || []);
     } catch (e) {
       toast.error(userFacingErrorMessage(e, 'Impossible de charger le tableau de bord.'));
       setStats(null);
       setRecent([]);
       setToRelance([]);
       setUpcomingInterviews([]);
+      setPastInterviews([]);
     } finally {
       setLoading(false);
     }
@@ -81,7 +87,7 @@ const Dashboard = () => {
           <div className="h-4 w-72 skeleton rounded mt-2" />
         </div>
         <SkeletonCardGrid count={6} />
-        <SkeletonStats count={4} />
+        <SkeletonCharts count={2} />
         <div className="bg-white rounded-xl border border-gray-200 shadow-card p-6">
           <div className="h-5 w-40 skeleton rounded mb-4" />
           <SkeletonList lines={5} />
@@ -160,35 +166,25 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Stats */}
+      {/* Statistiques */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-white rounded-xl shadow-card p-4 border border-gray-200 transition-shadow duration-200 hover:shadow-card-hover">
-            <p className="text-sm text-gray-500">Total candidatures</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-card p-4 border border-gray-200 transition-shadow duration-200 hover:shadow-card-hover">
-            <p className="text-sm text-gray-500">En attente</p>
-            <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-card p-4 border border-gray-200 transition-shadow duration-200 hover:shadow-card-hover">
-            <p className="text-sm text-gray-500">Entretiens</p>
-            <p className="text-2xl font-bold text-blue-600">{stats.interview}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-card p-4 border border-gray-200 transition-shadow duration-200 hover:shadow-card-hover">
-            <p className="text-sm text-gray-500">Acceptées</p>
-            <p className="text-2xl font-bold text-green-600">{stats.accepted}</p>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ApplicationsStatusChart
+            pending={stats.pending}
+            interview={stats.interview}
+            accepted={stats.accepted}
+            rejected={stats.rejected}
+            total={stats.total}
+          />
+          {stats.monthlyData.length > 0 ? (
+            <ApplicationsMonthlyChart monthlyData={stats.monthlyData} />
+          ) : null}
         </div>
       )}
 
-      {stats && stats.monthlyData.length > 0 ? (
-        <ApplicationsMonthlyChart monthlyData={stats.monthlyData} />
-      ) : null}
-
       {/* Entretiens à venir */}
       {upcomingInterviews.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
             <span>📅</span> Entretiens à venir
           </h2>
@@ -200,13 +196,13 @@ const Dashboard = () => {
               <li key={app.id}>
                 <Link
                   to={`/applications/${app.id}/edit`}
-                  className="flex flex-wrap items-center justify-between gap-2 p-3 bg-white rounded border border-blue-200 hover:border-blue-400 transition-colors"
+                  className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2 p-3 bg-white rounded border border-blue-200 hover:border-blue-400 transition-colors"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <span className="font-medium text-gray-900">{app.companyName}</span>
-                    <span className="text-gray-500"> · {app.position}</span>
+                    <span className="text-gray-500 break-words"> · {app.position}</span>
                   </div>
-                  <span className="text-sm text-blue-700">
+                  <span className="text-sm text-blue-700 break-words sm:text-right">
                     {formatDisplayDate(app.interviewDate)}
                     {app.interviewTime ? ` à ${formatDisplayTime(app.interviewTime)}` : ''}
                     {app.interviewPlace ? ` – ${app.interviewPlace}` : ''}
@@ -217,6 +213,25 @@ const Dashboard = () => {
           </ul>
         </div>
       )}
+
+      {/* Historique des entretiens effectués */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-card p-4 sm:p-6">
+        <h2 className="text-lg font-semibold text-gray-900 flex flex-wrap items-center gap-2">
+          <span aria-hidden>📋</span>
+          <span>Historique des entretiens effectués</span>
+          {pastInterviews.length > 0 ? (
+            <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs font-semibold text-gray-700 tabular-nums">
+              {pastInterviews.length}
+            </span>
+          ) : null}
+        </h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Entretiens dont la date est passée, avec le statut actuel de la candidature.
+        </p>
+        <div className="mt-4">
+          <PastInterviewsList interviews={pastInterviews} />
+        </div>
+      </div>
 
       {/* À relancer */}
       {toRelance.length > 0 && (
@@ -306,14 +321,14 @@ const Dashboard = () => {
       )}
 
       {/* Dernières candidatures */}
-      <div className="bg-white rounded-xl shadow-card border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="bg-white rounded-xl shadow-card border border-gray-200 overflow-hidden">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-gray-900">Dernières candidatures</h2>
           <Link to="/applications" className="text-sm font-medium text-primary-600 hover:text-primary-700">
             Voir tout
           </Link>
         </div>
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {recent.length === 0 ? (
             <EmptyState
               compact
@@ -335,11 +350,11 @@ const Dashboard = () => {
                 <li key={app.id}>
                   <Link
                     to={`/applications/${app.id}/edit`}
-                    className="flex items-center justify-between py-3 hover:bg-gray-50 -mx-2 px-2 rounded"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 hover:bg-gray-50 -mx-2 px-2 rounded"
                   >
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-medium text-gray-900">{app.companyName}</p>
-                      <p className="text-sm text-gray-500">{app.position}</p>
+                      <p className="text-sm text-gray-500 break-words">{app.position}</p>
                     </div>
                     <span className={`text-sm font-medium px-2 py-0.5 rounded ${
                       app.status === 'accepted' ? 'bg-green-100 text-green-800' :
