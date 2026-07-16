@@ -32,23 +32,92 @@ Règles pour le score et les conseils :
 - Format : texte simple, listes à puces, pas de tableaux ni images dans le texte (déjà du texte brut ici).
 - Longueur : 1 page pour junior/alternance, 2 max pour expérimenté.
 - suggestedKeywords : 5 à 10 mots ou expressions que le candidat pourrait ajouter selon son profil (secteur déduit du CV).
+- Échappe correctement les guillemets dans les chaînes JSON (\\" si besoin). Pas de saut de ligne brut non échappé dans une chaîne.
 
 Sois concret et actionnable. En français.`;
 
 type AtsResult = { score: number; tips: string[]; suggestedKeywords: string[] };
 
+/** Extrait le premier objet JSON équilibré (ignore le markdown / texte autour). */
+function extractJsonObject(raw: string): string {
+  let text = raw.trim();
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence?.[1]) text = fence[1].trim();
+
+  const start = text.indexOf('{');
+  if (start < 0) throw new Error('Aucun objet JSON dans la réponse');
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  throw new Error('JSON incomplet dans la réponse du modèle');
+}
+
 function parseAtsResponse(raw: string): AtsResult {
-  const jsonStr = raw.replace(/^[\s\S]*?\{/, '{').replace(/\}[\s\S]*$/, '}');
-  const parsed = JSON.parse(jsonStr) as {
+  const jsonStr = extractJsonObject(raw);
+  let parsed: {
     score?: number;
     tips?: string[];
     suggestedKeywords?: string[];
   };
+  try {
+    parsed = JSON.parse(jsonStr) as typeof parsed;
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : 'JSON invalide';
+    throw new Error(`Réponse ATS illisible (${detail})`);
+  }
   return {
     score: Math.min(100, Math.max(0, Number(parsed.score) || 0)),
-    tips: Array.isArray(parsed.tips) ? parsed.tips : [],
-    suggestedKeywords: Array.isArray(parsed.suggestedKeywords) ? parsed.suggestedKeywords : [],
+    tips: Array.isArray(parsed.tips) ? parsed.tips.map(String) : [],
+    suggestedKeywords: Array.isArray(parsed.suggestedKeywords)
+      ? parsed.suggestedKeywords.map(String)
+      : [],
   };
+}
+
+function summarizeProviderError(raw: string, fallback: string): string {
+  try {
+    const parsed = JSON.parse(raw) as {
+      error?: { code?: number; status?: string; message?: string };
+    };
+    const code = parsed.error?.code;
+    const status = parsed.error?.status || '';
+    if (code === 429 || status === 'RESOURCE_EXHAUSTED') {
+      return 'Quota Gemini dépassé (free tier). Réessayez plus tard ou utilisez OpenAI.';
+    }
+    if (parsed.error?.message) {
+      const msg = parsed.error.message;
+      return msg.length > 220 ? msg.slice(0, 220) + '…' : msg;
+    }
+  } catch {
+    // ignore
+  }
+  if (/quota|rate.?limit|resource_exhausted|429/i.test(raw)) {
+    return 'Quota Gemini dépassé (free tier). Réessayez plus tard ou utilisez OpenAI.';
+  }
+  return raw.length > 0 && raw.length < 220 ? raw : fallback;
 }
 
 async function callGemini(cvText: string): Promise<AtsResult> {
@@ -66,6 +135,7 @@ async function callGemini(cvText: string): Promise<AtsResult> {
           generationConfig: {
             maxOutputTokens: 1200,
             temperature: 0.3,
+            responseMimeType: 'application/json',
           },
         }),
       }
@@ -73,9 +143,22 @@ async function callGemini(cvText: string): Promise<AtsResult> {
     if (res.ok) {
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-      if (text) return parseAtsResponse(text.trim());
+      if (text) {
+        try {
+          return parseAtsResponse(text.trim());
+        } catch (parseErr) {
+          lastError = parseErr instanceof Error ? parseErr.message : 'Parse Gemini échoué';
+          continue;
+        }
+      }
+      lastError = 'Réponse vide de Gemini';
     } else {
-      lastError = await res.text();
+      const errText = await res.text();
+      lastError = summarizeProviderError(errText, 'Erreur API Gemini');
+      // Quota / rate-limit : inutile d'essayer les autres modèles Gemini
+      if (res.status === 429 || /quota|resource_exhausted/i.test(errText)) {
+        throw new Error(lastError);
+      }
     }
   }
   throw new Error(lastError || 'Erreur API Gemini');
@@ -96,6 +179,7 @@ async function callOpenAI(cvText: string): Promise<AtsResult> {
       ],
       temperature: 0.3,
       max_tokens: 800,
+      response_format: { type: 'json_object' },
     }),
   });
   if (!res.ok) {
@@ -113,6 +197,35 @@ async function callOpenAI(cvText: string): Promise<AtsResult> {
   const raw = data.choices[0]?.message?.content?.trim() || '';
   if (!raw) throw new Error('Réponse vide de l\'API OpenAI');
   return parseAtsResponse(raw);
+}
+
+async function analyzeCv(cvText: string): Promise<AtsResult> {
+  const errors: string[] = [];
+
+  if (GEMINI_API_KEY) {
+    try {
+      return await callGemini(cvText);
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : 'Erreur Gemini');
+      if (!OPENAI_API_KEY) {
+        throw new Error(
+          (e instanceof Error ? e.message : 'Erreur Gemini') +
+            ' Ajoutez OPENAI_API_KEY dans les secrets Supabase pour un secours automatique.'
+        );
+      }
+    }
+  }
+
+  if (OPENAI_API_KEY) {
+    try {
+      return await callOpenAI(cvText);
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : 'Erreur OpenAI');
+      throw new Error(errors.filter(Boolean).join(' → ') || 'Erreur API');
+    }
+  }
+
+  throw new Error('Aucune clé API configurée. Ajoutez GEMINI_API_KEY ou OPENAI_API_KEY.');
 }
 
 serve(async (req) => {
@@ -158,30 +271,17 @@ serve(async (req) => {
       );
     }
 
-    let result: AtsResult;
-    if (GEMINI_API_KEY) {
-      try {
-        result = await callGemini(cvText);
-      } catch (e) {
-        return new Response(
-          JSON.stringify({ error: e?.message || 'Erreur API Gemini' }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    } else {
-      try {
-        result = await callOpenAI(cvText);
-      } catch (e) {
-        return new Response(
-          JSON.stringify({ error: e?.message || 'Erreur API OpenAI' }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    try {
+      const result = await analyzeCv(cvText);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (e) {
+      return new Response(
+        JSON.stringify({ error: e instanceof Error ? e.message : 'Erreur API' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
-
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
   } catch (error) {
     return new Response(
       JSON.stringify({ error: error?.message || 'Erreur serveur' }),

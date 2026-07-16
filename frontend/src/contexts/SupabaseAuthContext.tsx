@@ -1,7 +1,7 @@
 import { useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { SupabaseAuthReactContext } from './authContext';
-import { supabase } from '../lib/supabase';
+import { isInvalidRefreshTokenError, supabase } from '../lib/supabase';
 import { User as AppUser } from '../types';
 import { normalizeSupabaseAvatarPublicUrl } from '../utils/supabaseStorageUrl';
 import { isSupabaseSchemaError } from '../utils/supabaseSchema';
@@ -24,43 +24,60 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const clearLocalSession = async () => {
+      await supabase.auth.signOut({ scope: 'local' });
+      setSession(null);
+      setUser(null);
+      setLoading(false);
+    };
+
     // Récupérer la session actuelle
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
+    void (async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+
       if (error) {
         console.error('Erreur lors de la récupération de la session:', error);
+        if (isInvalidRefreshTokenError(error)) {
+          await clearLocalSession();
+          return;
+        }
         setLoading(false);
         return;
       }
-      
-      // Vérifier si la session est expirée
-      if (session && session.expires_at) {
-        const expiresAt = session.expires_at * 1000; // Convertir en millisecondes
-        const now = Date.now();
-        
-        if (now >= expiresAt) {
-          // Session expirée, déconnecter l'utilisateur
-          console.log('Session expirée, déconnexion...');
-          supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
-          setLoading(false);
+
+      // Access token expiré : tenter un refresh avant de déconnecter
+      if (session?.expires_at && session.expires_at * 1000 <= Date.now()) {
+        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshed.session) {
+          if (refreshError && isInvalidRefreshTokenError(refreshError)) {
+            console.warn('Refresh token invalide, session locale effacée.');
+          } else {
+            console.log('Session expirée, déconnexion...');
+          }
+          await clearLocalSession();
           return;
         }
+        setSession(refreshed.session);
+        if (refreshed.session.user) {
+          await loadUserProfile(refreshed.session.user);
+        } else {
+          setLoading(false);
+        }
+        return;
       }
-      
+
       setSession(session);
       if (session?.user) {
         loadUserProfile(session.user);
       } else {
         setLoading(false);
       }
-    });
+    })();
 
     // Écouter les changements d'authentification
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // Gérer l'expiration du token
       if (event === 'TOKEN_REFRESHED') {
         console.log('Token rafraîchi avec succès');
       } else if (event === 'SIGNED_OUT') {
@@ -69,21 +86,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
         return;
       }
-      
-      // Vérifier si la session est expirée
-      if (session && session.expires_at) {
-        const expiresAt = session.expires_at * 1000;
-        const now = Date.now();
-        
-        if (now >= expiresAt) {
-          supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-      }
-      
+
       setSession(session);
       if (session?.user) {
         loadUserProfile(session.user);

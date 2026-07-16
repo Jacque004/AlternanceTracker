@@ -1,5 +1,5 @@
 import { format, isValid, parseISO } from 'date-fns';
-import { supabase } from '../lib/supabase';
+import { supabase, isInvalidRefreshTokenError } from '../lib/supabase';
 import { notificationService } from './notificationService';
 import { normalizeJobOfferUrl } from '../utils/jobOfferUrl';
 import {
@@ -17,10 +17,23 @@ import {
 /** JWT session pour appeler les Edge Functions protégées (pas la clé anon en Bearer). */
 async function getUserAccessTokenForEdgeFunctions(): Promise<string> {
   let session = (await supabase.auth.getSession()).data.session;
-  if (!session?.access_token) {
-    const { data: refreshed } = await supabase.auth.refreshSession();
+
+  const accessStillValid =
+    !!session?.access_token &&
+    (!session.expires_at || session.expires_at * 1000 > Date.now() + 30_000);
+
+  if (!accessStillValid) {
+    const { data: refreshed, error } = await supabase.auth.refreshSession();
+    if (error) {
+      if (isInvalidRefreshTokenError(error)) {
+        await supabase.auth.signOut({ scope: 'local' });
+        throw new Error('Session expirée. Reconnectez-vous pour continuer.');
+      }
+      throw new Error('Vous devez être connecté pour utiliser cette fonctionnalité.');
+    }
     session = refreshed.session ?? null;
   }
+
   if (!session?.access_token) {
     throw new Error('Vous devez être connecté pour utiliser cette fonctionnalité.');
   }
@@ -577,28 +590,25 @@ export const aiService = {
     if (!canonicalUrl.startsWith('http://') && !canonicalUrl.startsWith('https://')) {
       throw new Error('URL invalide : une adresse https://… est attendue.');
     }
-    let session = (await supabase.auth.getSession()).data.session;
-    if (!session?.access_token) {
-      const { data: refreshed } = await supabase.auth.refreshSession();
-      session = refreshed.session ?? null;
-    }
-    if (!session?.access_token) {
-      throw new Error('Vous devez être connecté pour importer une offre depuis une URL.');
-    }
-    const call = (accessToken: string) =>
+    const accessToken = await getUserAccessTokenForEdgeFunctions();
+    const call = (token: string) =>
       fetch(`${supabaseUrl}/functions/v1/fetch-job-metadata`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
           apikey: supabaseAnonKey,
         },
         body: JSON.stringify({ url: canonicalUrl }),
       });
 
-    let res = await call(session.access_token);
+    let res = await call(accessToken);
     if (res.status === 401) {
-      const { data: refreshed } = await supabase.auth.refreshSession();
+      const { data: refreshed, error } = await supabase.auth.refreshSession();
+      if (error && isInvalidRefreshTokenError(error)) {
+        await supabase.auth.signOut({ scope: 'local' });
+        throw new Error('Session expirée. Reconnectez-vous pour continuer.');
+      }
       const next = refreshed.session?.access_token;
       if (next) res = await call(next);
     }
