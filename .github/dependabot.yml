@@ -1,0 +1,127 @@
+# Configuration Dependabot pour AlternanceTracker
+# Surveille automatiquement les vulnérabilités des dépendances npm
+# Crée automatiquement des PRs pour les mises à jour de sécurité
+
+version: 2
+updates:
+  # Backend - npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "your-github-username"  # ⚠️ MODIFIER avec votre username GitHub
+    assignees:
+      - "your-github-username"  # ⚠️ MODIFIER
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "backend"
+    # Regrouper les mises à jour mineures et patches
+    groups:
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "patch"
+    # Ignorer certains packages si nécessaire
+    # ignore:
+    #   - dependency-name: "package-name"
+    #     versions: ["1.x"]
+
+    # Mises à jour de sécurité en priorité
+    allow:
+      - dependency-type: "all"
+
+  # Frontend - npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "your-github-username"  # ⚠️ MODIFIER
+    assignees:
+      - "your-github-username"  # ⚠️ MODIFIER
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "frontend"
+    groups:
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "patch"
+    allow:
+      - dependency-type: "all"
+
+  # Root - npm dependencies (concurrently, supabase CLI)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "your-github-username"  # ⚠️ MODIFIER
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "root"
+
+  # GitHub Actions (si vous en avez)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "github-actions"
+      - "ci"
+
+# Notes:
+# - Dependabot créera des PRs automatiquement pour les vulnérabilités de sécurité
+# - Les PRs sont créées le lundi matin à 9h (Europe/Paris)
+# - Maximum 10 PRs ouvertes simultanément pour ne pas surcharger
+# - Les mises à jour mineures et patches sont regroupées quand possible
+# - Les mises à jour majeures sont toujours séparées (breaking changes)
+
+# Pour activer:
+# 1. Commiter ce fichier dans GitHub
+# 2. GitHub activera automatiquement Dependabot
+# 3. Les PRs commenceront à apparaître chaque lundi
+
+# Pour tester immédiatement:
+# Settings → Security & analysis → Dependabot security updates → Enable
+# Settings → Code security and analysis → Dependabot version updates → Enable

@@ -1,13 +1,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { requireSupabaseUser } from '../_shared/requireUser.ts';
+import { getCorsHeaders } from '../_shared/corsHeaders.ts';
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 const SYSTEM_PROMPT_ATS =
   'Tu es un expert en recrutement et en systèmes ATS (Applicant Tracking Systems). Tu analyses des CV pour évaluer leur compatibilité avec les logiciels de tri automatique utilisés par les entreprises. Tu réponds UNIQUEMENT en JSON valide.';
@@ -229,6 +225,8 @@ async function analyzeCv(cvText: string): Promise<AtsResult> {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }

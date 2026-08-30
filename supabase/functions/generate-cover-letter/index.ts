@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { corsHeaders } from 'https://esm.sh/@supabase/supabase-js@2.97.0/cors';
+import { getCorsHeaders } from '../_shared/corsHeaders.ts';
 import { requireSupabaseUser } from '../_shared/requireUser.ts';
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')?.trim() || undefined;

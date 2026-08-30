@@ -175,8 +175,11 @@ async function extractTextFromFile(file: File): Promise<string> {
     });
   }
   const pdfjsLib = await import('pdfjs-dist');
-  (pdfjsLib as any).GlobalWorkerOptions.workerSrc =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  // Utiliser le worker du package npm pour correspondre à la version exacte
+  (pdfjsLib as any).GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/build/pdf.worker.mjs',
+    import.meta.url
+  ).toString();
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await (pdfjsLib as any).getDocument({ data: arrayBuffer }).promise;
   let fullText = '';

@@ -1,22 +1,27 @@
 import { Response } from 'express';
+import format from 'pg-format';
 import { pool } from '../database/connection';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { sendErrorResponse, SafeErrorMessages, ErrorCategories } from '../utils/errorHandler';
 
 export const getAllApplications = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { status, sortBy = 'created_at', order = 'DESC' } = req.query;
-    const allowedSortColumns = new Set([
-      'created_at',
-      'updated_at',
-      'application_date',
-      'response_date',
-      'company_name',
-      'position',
-      'status',
-    ]);
-    const normalizedSortBy = String(sortBy);
+
+    // Whitelist stricte des colonnes autorisées avec mapping TypeScript
+    const ALLOWED_SORT_COLUMNS: Record<string, string> = {
+      'created_at': 'created_at',
+      'updated_at': 'updated_at',
+      'application_date': 'application_date',
+      'response_date': 'response_date',
+      'company_name': 'company_name',
+      'position': 'position',
+      'status': 'status',
+    };
+
+    const sortByParam = String(sortBy);
+    const safeSortBy = ALLOWED_SORT_COLUMNS[sortByParam] || 'created_at';
     const normalizedOrder = String(order).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
-    const safeSortBy = allowedSortColumns.has(normalizedSortBy) ? normalizedSortBy : 'created_at';
 
     let query = 'SELECT * FROM applications WHERE user_id = $1';
     const params: any[] = [req.userId];
@@ -26,7 +31,10 @@ export const getAllApplications = async (req: AuthRequest, res: Response): Promi
       params.push(status);
     }
 
-    query += ` ORDER BY ${safeSortBy} ${normalizedOrder}`;
+    // Utiliser pg-format pour sécuriser l'injection de la clause ORDER BY
+    // %I = identifiant (nom de colonne), %s = string littéral
+    const orderClause = format(' ORDER BY %I %s', safeSortBy, normalizedOrder);
+    query += orderClause;
 
     const result = await pool.query(query, params);
     res.json(result.rows.map(row => ({
@@ -44,11 +52,7 @@ export const getAllApplications = async (req: AuthRequest, res: Response): Promi
       updatedAt: row.updated_at
     })));
   } catch (error: any) {
-    console.error('Erreur lors de la récupération des candidatures:', error);
-    res.status(500).json({
-      message: 'Erreur serveur',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message }),
-    });
+    sendErrorResponse(res, 500, SafeErrorMessages.DATABASE_ERROR, error, ErrorCategories.DATABASE);
   }
 };
 
@@ -82,16 +86,29 @@ export const getApplicationById = async (req: AuthRequest, res: Response): Promi
       updatedAt: row.updated_at
     });
   } catch (error: any) {
-    console.error('Erreur lors de la récupération de la candidature:', error);
-    res.status(500).json({
-      message: 'Erreur serveur',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message }),
-    });
+    sendErrorResponse(res, 500, SafeErrorMessages.DATABASE_ERROR, error, ErrorCategories.DATABASE);
   }
 };
 
 export const createApplication = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    // Vérifier le nombre de candidatures existantes pour éviter les abus
+    const MAX_APPLICATIONS_PER_USER = 1000;
+
+    const countResult = await pool.query(
+      'SELECT COUNT(*) as count FROM applications WHERE user_id = $1',
+      [req.userId]
+    );
+
+    const currentCount = parseInt(countResult.rows[0]?.count || '0', 10);
+
+    if (currentCount >= MAX_APPLICATIONS_PER_USER) {
+      res.status(403).json({
+        message: `Limite de ${MAX_APPLICATIONS_PER_USER} candidatures atteinte. Supprimez des anciennes candidatures pour en créer de nouvelles.`
+      });
+      return;
+    }
+
     const {
       companyName,
       position,
@@ -131,11 +148,7 @@ export const createApplication = async (req: AuthRequest, res: Response): Promis
       }
     });
   } catch (error: any) {
-    console.error('Erreur lors de la création de la candidature:', error);
-    res.status(500).json({
-      message: 'Erreur serveur',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message }),
-    });
+    sendErrorResponse(res, 500, 'Erreur lors de la création de la candidature.', error, ErrorCategories.DATABASE);
   }
 };
 
@@ -201,11 +214,7 @@ export const updateApplication = async (req: AuthRequest, res: Response): Promis
       }
     });
   } catch (error: any) {
-    console.error('Erreur lors de la mise à jour de la candidature:', error);
-    res.status(500).json({
-      message: 'Erreur serveur',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message }),
-    });
+    sendErrorResponse(res, 500, 'Erreur lors de la mise à jour de la candidature.', error, ErrorCategories.DATABASE);
   }
 };
 
@@ -225,11 +234,7 @@ export const deleteApplication = async (req: AuthRequest, res: Response): Promis
 
     res.json({ message: 'Candidature supprimée avec succès' });
   } catch (error: any) {
-    console.error('Erreur lors de la suppression de la candidature:', error);
-    res.status(500).json({
-      message: 'Erreur serveur',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message }),
-    });
+    sendErrorResponse(res, 500, 'Erreur lors de la suppression de la candidature.', error, ErrorCategories.DATABASE);
   }
 };
 

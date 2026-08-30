@@ -8,9 +8,9 @@ export const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Gestion des erreurs de connexion
+// Gestion des erreurs de connexion (ne pas tuer le processus)
 pool.on('error', (err) => {
-  console.error('Erreur inattendue sur le client PostgreSQL:', err);
-  process.exit(-1);
+  console.error('⚠️  Erreur PostgreSQL (connexion perdue ou non disponible):', err.message);
+  // Ne pas faire process.exit() pour permettre au serveur de tourner sans BDD
 });
 

@@ -1,18 +1,46 @@
 import { z } from 'zod';
 import { Request, Response, NextFunction } from 'express';
+import { isDisposableEmailDomain } from './disposableEmailDomains';
+
+// Regex stricte pour validation email (RFC 5322 simplifié)
+const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
 // Schéma de validation pour l'inscription avec Zod
 export const registerSchema = z.object({
   email: z
     .string()
-    .email('Email invalide')
     .min(1, 'L\'email est requis')
     .toLowerCase()
-    .trim(),
+    .trim()
+    .regex(EMAIL_REGEX, 'Format d\'email invalide')
+    .max(254, 'L\'email ne peut pas dépasser 254 caractères') // RFC 5321
+    .refine(
+      (email) => {
+        // Vérifier que le domaine n'est pas jetable
+        const domain = email.split('@')[1];
+        if (!domain) return false;
+
+        // Vérifier caractères interdits dans le domaine
+        if (domain.includes('..') || domain.startsWith('.') || domain.endsWith('.')) {
+          return false;
+        }
+
+        return true;
+      },
+      { message: 'Domaine d\'email invalide' }
+    )
+    .refine(
+      (email) => !isDisposableEmailDomain(email),
+      { message: 'Les adresses email temporaires ne sont pas autorisées' }
+    ),
   password: z
     .string()
-    .min(6, 'Le mot de passe doit contenir au moins 6 caractères')
-    .max(100, 'Le mot de passe ne peut pas dépasser 100 caractères'),
+    .min(12, 'Le mot de passe doit contenir au moins 12 caractères')
+    .max(128, 'Le mot de passe ne peut pas dépasser 128 caractères')
+    .regex(/[A-Z]/, 'Le mot de passe doit contenir au moins une majuscule')
+    .regex(/[a-z]/, 'Le mot de passe doit contenir au moins une minuscule')
+    .regex(/[0-9]/, 'Le mot de passe doit contenir au moins un chiffre')
+    .regex(/[^A-Za-z0-9]/, 'Le mot de passe doit contenir au moins un caractère spécial (@, #, $, etc.)'),
   firstName: z
     .string()
     .min(1, 'Le prénom est requis')
@@ -25,14 +53,15 @@ export const registerSchema = z.object({
     .trim(),
 });
 
-// Schéma de validation pour la connexion
+// Schéma de validation pour la connexion (moins strict, pas de vérification domaine jetable)
 export const loginSchema = z.object({
   email: z
     .string()
-    .email('Email invalide')
     .min(1, 'L\'email est requis')
     .toLowerCase()
-    .trim(),
+    .trim()
+    .regex(EMAIL_REGEX, 'Format d\'email invalide')
+    .max(254, 'L\'email ne peut pas dépasser 254 caractères'),
   password: z
     .string()
     .min(1, 'Le mot de passe est requis'),
@@ -55,10 +84,43 @@ export const applicationSchema = z.object({
   }),
   applicationDate: z.string().optional().nullable(),
   responseDate: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
+  notes: z.string()
+    .max(5000, 'Les notes ne peuvent pas dépasser 5000 caractères')
+    .optional()
+    .nullable(),
   location: z.string().max(255).optional().nullable(),
   salaryRange: z.string().max(100).optional().nullable(),
-  jobUrl: z.string().url('URL invalide').optional().nullable().or(z.literal('')),
+  jobUrl: z.string()
+    .refine(
+      (val) => {
+        if (!val || val === '') return true;
+        return /^https?:\/\/.+/.test(val);
+      },
+      { message: 'L\'URL doit commencer par http:// ou https://' }
+    )
+    .refine(
+      (val) => {
+        if (!val || val === '') return true;
+        try {
+          const url = new URL(val);
+          const blockedHosts = ['localhost', '127.0.0.1', '0.0.0.0', '::1', '10.', '172.16.', '192.168.'];
+          const hostname = url.hostname.toLowerCase();
+          if (blockedHosts.some(blocked => hostname.startsWith(blocked) || hostname === blocked)) {
+            return false;
+          }
+          if (url.port && url.port !== '80' && url.port !== '443' && url.port !== '') {
+            return false;
+          }
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: 'URL non autorisée (localhost, IP privée ou port non standard)' }
+    )
+    .optional()
+    .nullable()
+    .or(z.literal('')),
   interviewDate: z.string().optional().nullable(),
   interviewTime: z.string().optional().nullable(),
   interviewPlace: z.string().max(500).optional().nullable(),
@@ -83,10 +145,43 @@ export const applicationUpdateSchema = z.object({
   }).optional(),
   applicationDate: z.string().optional().nullable(),
   responseDate: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
+  notes: z.string()
+    .max(5000, 'Les notes ne peuvent pas dépasser 5000 caractères')
+    .optional()
+    .nullable(),
   location: z.string().max(255).optional().nullable(),
   salaryRange: z.string().max(100).optional().nullable(),
-  jobUrl: z.string().url('URL invalide').optional().nullable().or(z.literal('')),
+  jobUrl: z.string()
+    .refine(
+      (val) => {
+        if (!val || val === '') return true;
+        return /^https?:\/\/.+/.test(val);
+      },
+      { message: 'L\'URL doit commencer par http:// ou https://' }
+    )
+    .refine(
+      (val) => {
+        if (!val || val === '') return true;
+        try {
+          const url = new URL(val);
+          const blockedHosts = ['localhost', '127.0.0.1', '0.0.0.0', '::1', '10.', '172.16.', '192.168.'];
+          const hostname = url.hostname.toLowerCase();
+          if (blockedHosts.some(blocked => hostname.startsWith(blocked) || hostname === blocked)) {
+            return false;
+          }
+          if (url.port && url.port !== '80' && url.port !== '443' && url.port !== '') {
+            return false;
+          }
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: 'URL non autorisée (localhost, IP privée ou port non standard)' }
+    )
+    .optional()
+    .nullable()
+    .or(z.literal('')),
   interviewDate: z.string().optional().nullable(),
   interviewTime: z.string().optional().nullable(),
   interviewPlace: z.string().max(500).optional().nullable(),

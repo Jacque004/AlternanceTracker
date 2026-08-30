@@ -26,6 +26,7 @@ import HomeRoute from './pages/HomeRoute';
 import AdminRoute from './components/AdminRoute';
 import AdminDashboard from './pages/AdminDashboard';
 import { pageTitleFromPath } from './utils/documentTitle';
+import ChatBot from './components/ChatBot';
 
 function RouteTitle() {
   const location = useLocation();
@@ -105,6 +106,9 @@ function App() {
               />
             </Route>
           </Routes>
+
+          {/* Chatbot intelligent */}
+          <ChatBot />
         </Router>
       </SupabaseAuthProvider>
     </>

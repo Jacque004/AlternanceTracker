@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import OpenAI from 'openai';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { sendErrorResponse, ErrorCategories } from '../utils/errorHandler';
 
 function getOpenAIClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -10,15 +11,16 @@ function getOpenAIClient(): OpenAI {
   return new OpenAI({ apiKey });
 }
 
-export const generateCoverLetter = async (req: AuthRequest, res: Response) => {
+export const generateCoverLetter = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const openai = getOpenAIClient();
     const { companyName, position, userInfo, additionalContext } = req.body;
 
     if (!companyName || !position) {
-      return res.status(400).json({ 
-        message: 'Le nom de l\'entreprise et le poste sont requis' 
+      res.status(400).json({
+        message: 'Le nom de l\'entreprise et le poste sont requis'
       });
+      return;
     }
 
     const prompt = `Tu es un assistant expert en rédaction de lettres de motivation professionnelles.
@@ -57,31 +59,35 @@ Commence directement par "Madame, Monsieur," ou "Monsieur," ou "Madame," selon l
     const coverLetter = completion.choices[0]?.message?.content || '';
 
     if (!coverLetter) {
-      return res.status(500).json({ message: 'Erreur lors de la génération de la lettre' });
+      res.status(500).json({ message: 'Erreur lors de la génération de la lettre' });
+      return;
     }
 
-    return res.json({
+    res.json({
       message: 'Lettre de motivation générée avec succès',
       coverLetter
     });
   } catch (error: any) {
-    console.error('Erreur lors de la génération de la lettre de motivation:', error);
-
     if (error.message?.includes('OPENAI_API_KEY')) {
-      return res.status(503).json({
-        message: 'Service de génération indisponible. Clé API OpenAI non configurée (OPENAI_API_KEY dans backend/.env).'
+      res.status(503).json({
+        message: 'Service de génération indisponible. Veuillez contacter l\'administrateur.'
       });
+      return;
     }
     if (error.code === 'insufficient_quota' || error.status === 429) {
-      return res.status(429).json({ 
-        message: 'Quota API OpenAI dépassé. Veuillez vérifier votre clé API.' 
+      res.status(429).json({
+        message: 'Service temporairement indisponible. Veuillez réessayer plus tard.'
       });
+      return;
     }
 
-    return res.status(500).json({ 
-      message: 'Erreur lors de la génération de la lettre de motivation',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    sendErrorResponse(
+      res,
+      500,
+      'Erreur lors de la génération de la lettre de motivation.',
+      error,
+      ErrorCategories.EXTERNAL_API
+    );
   }
 };
 
@@ -115,18 +121,39 @@ Fournis une analyse structurée en français avec des conseils concrets pour am�
 
 Sois direct, bienveillant et concret. Utilise des listes à puces. Le candidat doit pouvoir appliquer tes conseils facilement.`;
 
-export const analyzeCVForAlternance = async (req: AuthRequest, res: Response) => {
+export const analyzeCVForAlternance = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const openai = getOpenAIClient();
     const { cvText } = req.body;
 
-    if (!cvText || typeof cvText !== 'string' || cvText.trim().length < 50) {
-      return res.status(400).json({
-        message: 'Un CV d\'au moins 50 caractères est requis',
+    // Limites strictes pour éviter les abus et contrôler les coûts API
+    const MIN_CV_LENGTH = 100; // Minimum réaliste pour un CV
+    const MAX_CV_LENGTH = 15000; // ~3-4 pages de texte
+
+    if (!cvText || typeof cvText !== 'string') {
+      res.status(400).json({
+        message: 'Le texte du CV est requis',
       });
+      return;
     }
 
-    const prompt = USER_PROMPT_CV_PREFIX + cvText.trim().substring(0, 12000) + '\n' + USER_PROMPT_CV_SUFFIX;
+    const trimmedCV = cvText.trim();
+
+    if (trimmedCV.length < MIN_CV_LENGTH) {
+      res.status(400).json({
+        message: `Le CV doit contenir au moins ${MIN_CV_LENGTH} caractères (environ 1/4 de page)`,
+      });
+      return;
+    }
+
+    if (trimmedCV.length > MAX_CV_LENGTH) {
+      res.status(400).json({
+        message: `Le CV ne peut pas dépasser ${MAX_CV_LENGTH} caractères (environ 3-4 pages)`,
+      });
+      return;
+    }
+
+    const prompt = USER_PROMPT_CV_PREFIX + trimmedCV.substring(0, 12000) + '\n' + USER_PROMPT_CV_SUFFIX;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
@@ -141,28 +168,30 @@ export const analyzeCVForAlternance = async (req: AuthRequest, res: Response) =>
     const advice = completion.choices[0]?.message?.content || '';
 
     if (!advice) {
-      return res.status(500).json({ message: 'Erreur lors de l\'analyse du CV' });
+      res.status(500).json({ message: 'Erreur lors de l\'analyse du CV' });
+      return;
     }
 
-    return res.json({ advice });
+    res.json({ advice });
   } catch (error: any) {
-    console.error('Erreur lors de l\'analyse du CV:', error);
-
     if (error.message?.includes('OPENAI_API_KEY')) {
-      return res.status(503).json({
-        message: 'Service d\'analyse indisponible. Clé API OpenAI non configurée (OPENAI_API_KEY dans backend/.env).',
+      res.status(503).json({
+        message: 'Service d\'analyse indisponible. Veuillez contacter l\'administrateur.',
       });
     }
     if (error.code === 'insufficient_quota' || error.status === 429) {
-      return res.status(429).json({
-        message: 'Quota API OpenAI dépassé. Veuillez vérifier votre clé API.',
+      res.status(429).json({
+        message: 'Service temporairement indisponible. Veuillez réessayer plus tard.',
       });
     }
 
-    return res.status(500).json({
-      message: error?.message || 'Erreur lors de l\'analyse du CV',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-    });
+    sendErrorResponse(
+      res,
+      500,
+      'Erreur lors de l\'analyse du CV.',
+      error,
+      ErrorCategories.EXTERNAL_API
+    );
   }
 };
 
@@ -191,22 +220,43 @@ Règles pour le score et les conseils :
 
 Sois concret et actionnable. En français.`;
 
-export const analyzeCVForATS = async (req: AuthRequest, res: Response) => {
+export const analyzeCVForATS = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const openai = getOpenAIClient();
     const { cvText } = req.body;
 
-    if (!cvText || typeof cvText !== 'string' || cvText.trim().length < 30) {
-      return res.status(400).json({
-        message: 'Un CV d\'au moins 30 caractères est requis',
+    // Limites strictes pour éviter les abus
+    const MIN_CV_LENGTH = 100;
+    const MAX_CV_LENGTH = 15000;
+
+    if (!cvText || typeof cvText !== 'string') {
+      res.status(400).json({
+        message: 'Le texte du CV est requis',
       });
+      return;
+    }
+
+    const trimmedCV = cvText.trim();
+
+    if (trimmedCV.length < MIN_CV_LENGTH) {
+      res.status(400).json({
+        message: `Le CV doit contenir au moins ${MIN_CV_LENGTH} caractères`,
+      });
+      return;
+    }
+
+    if (trimmedCV.length > MAX_CV_LENGTH) {
+      res.status(400).json({
+        message: `Le CV ne peut pas dépasser ${MAX_CV_LENGTH} caractères`,
+      });
+      return;
     }
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT_ATS },
-        { role: 'user', content: USER_PROMPT_ATS(cvText.trim()) },
+        { role: 'user', content: USER_PROMPT_ATS(trimmedCV) },
       ],
       temperature: 0.3,
       max_tokens: 800,
@@ -214,7 +264,8 @@ export const analyzeCVForATS = async (req: AuthRequest, res: Response) => {
 
     const raw = completion.choices[0]?.message?.content?.trim() || '';
     if (!raw) {
-      return res.status(500).json({ message: 'Erreur lors de l\'analyse ATS' });
+      res.status(500).json({ message: 'Erreur lors de l\'analyse ATS' });
+      return;
     }
 
     let parsed: { score?: number; tips?: string[]; suggestedKeywords?: string[] };
@@ -222,31 +273,37 @@ export const analyzeCVForATS = async (req: AuthRequest, res: Response) => {
       const jsonStr = raw.replace(/^[\s\S]*?\{/, '{').replace(/\}[\s\S]*$/, '}');
       parsed = JSON.parse(jsonStr);
     } catch {
-      return res.status(500).json({
+      res.status(500).json({
         message: 'Réponse du service ATS invalide',
         raw: process.env.NODE_ENV === 'development' ? raw : undefined,
       });
+      return;
     }
 
     const score = Math.min(100, Math.max(0, Number(parsed.score) || 0));
     const tips = Array.isArray(parsed.tips) ? parsed.tips : [];
     const suggestedKeywords = Array.isArray(parsed.suggestedKeywords) ? parsed.suggestedKeywords : [];
 
-    return res.json({ score, tips, suggestedKeywords });
+    res.json({ score, tips, suggestedKeywords });
   } catch (error: any) {
-    console.error('Erreur lors de l\'analyse ATS du CV:', error);
     if (error.message?.includes('OPENAI_API_KEY')) {
-      return res.status(503).json({
-        message: 'Service indisponible. Clé API OpenAI non configurée.',
+      res.status(503).json({
+        message: 'Service indisponible. Veuillez contacter l\'administrateur.',
       });
     }
     if (error.code === 'insufficient_quota' || error.status === 429) {
-      return res.status(429).json({ message: 'Quota API OpenAI dépassé.' });
+      res.status(429).json({
+        message: 'Service temporairement indisponible. Veuillez réessayer plus tard.'
+      });
     }
-    return res.status(500).json({
-      message: error?.message || 'Erreur lors de l\'analyse ATS',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-    });
+
+    sendErrorResponse(
+      res,
+      500,
+      'Erreur lors de l\'analyse ATS.',
+      error,
+      ErrorCategories.EXTERNAL_API
+    );
   }
 };
 

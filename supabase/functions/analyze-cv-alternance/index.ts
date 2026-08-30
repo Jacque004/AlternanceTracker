@@ -1,13 +1,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { requireSupabaseUser } from '../_shared/requireUser.ts';
+import { getCorsHeaders } from '../_shared/corsHeaders.ts';
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 const SYSTEM_PROMPT = 'Tu es un expert RH spécialisé alternance. Tu donnes des conseils CV clairs, structurés en markdown, en français.';
 
@@ -103,6 +99,8 @@ async function callOpenAI(cvText: string): Promise<string> {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }

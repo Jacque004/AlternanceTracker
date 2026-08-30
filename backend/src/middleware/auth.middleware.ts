@@ -32,14 +32,23 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     return;
   }
 
-  jwt.verify(token, jwtSecret, (err: any, decoded: any) => {
-    if (err) {
-      res.status(403).json({ message: 'Token invalide ou expiré' });
-      return;
+  // Vérifier le token avec issuer et audience pour une sécurité renforcée
+  jwt.verify(
+    token,
+    jwtSecret,
+    {
+      issuer: 'alternance-tracker',
+      audience: 'alternance-tracker-api',
+    },
+    (err: any, decoded: any) => {
+      if (err) {
+        res.status(403).json({ message: 'Token invalide ou expiré' });
+        return;
+      }
+      req.userId = decoded.userId;
+      req.user = decoded;
+      next();
     }
-    req.userId = decoded.userId;
-    req.user = decoded;
-    next();
-  });
+  );
 };
 

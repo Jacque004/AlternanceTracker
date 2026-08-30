@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../database/connection';
 import { UserCreate, UserPublic } from '../models/User';
+import { sendErrorResponse, SafeErrorMessages, ErrorCategories } from '../utils/errorHandler';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -41,12 +42,16 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     const user = result.rows[0];
 
-    // Générer le token JWT
+    // Générer le token JWT avec issuer et audience pour plus de sécurité
     const jwtSecret = getJwtSecret();
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       jwtSecret,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as jwt.SignOptions
+      {
+        expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+        issuer: 'alternance-tracker',
+        audience: 'alternance-tracker-api',
+      } as jwt.SignOptions
     );
 
     const userPublic: UserPublic = {
@@ -63,22 +68,23 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       user: userPublic
     });
   } catch (error: any) {
-    console.error('Erreur lors de l\'inscription:', error);
-    
     // Gestion spécifique des erreurs PostgreSQL (contrainte unique)
-    if (error.code === '23505') { // Code d'erreur PostgreSQL pour violation de contrainte unique
-      res.status(409).json({ 
+    if (error.code === '23505') {
+      res.status(409).json({
         message: 'Cet email est déjà utilisé',
         field: 'email'
       });
       return;
     }
 
-    // Erreur serveur générique
-    res.status(500).json({ 
-      message: 'Erreur serveur lors de l\'inscription',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    // Erreur serveur générique - ne pas exposer les détails
+    sendErrorResponse(
+      res,
+      500,
+      'Erreur lors de l\'inscription. Veuillez réessayer.',
+      error,
+      ErrorCategories.DATABASE
+    );
   }
 };
 
@@ -86,33 +92,45 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
 
+    // Hash factice pour éviter le timing attack
+    // Ce hash ne correspond à aucun mot de passe réel, mais prend le même temps à vérifier
+    const DUMMY_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMye5m5rqjCJxKJD9dQwXjNUQhQe2XqY0Wq';
+
+    let userHash = DUMMY_HASH;
+    let user = null;
+
     // Trouver l'utilisateur
     const result = await pool.query(
       'SELECT * FROM users WHERE email = $1',
       [email]
     );
 
-    if (result.rows.length === 0) {
+    if (result.rows.length > 0) {
+      user = result.rows[0];
+      userHash = user.password;
+    }
+
+    // TOUJOURS vérifier le hash, même si l'utilisateur n'existe pas
+    // Cela garantit un temps de réponse constant et empêche l'énumération de comptes
+    const isValidPassword = await bcrypt.compare(password, userHash);
+
+    // Vérifier que l'utilisateur existe ET que le mot de passe est valide
+    if (!user || !isValidPassword) {
+      // Même message d'erreur dans tous les cas (utilisateur inexistant ou mot de passe invalide)
       res.status(401).json({ message: 'Email ou mot de passe incorrect' });
       return;
     }
 
-    const user = result.rows[0];
-
-    // Vérifier le mot de passe
-    const isValidPassword = await bcrypt.compare(password, user.password);
-
-    if (!isValidPassword) {
-      res.status(401).json({ message: 'Email ou mot de passe incorrect' });
-      return;
-    }
-
-    // Générer le token JWT
+    // Générer le token JWT avec issuer et audience pour plus de sécurité
     const jwtSecret = getJwtSecret();
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       jwtSecret,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as jwt.SignOptions
+      {
+        expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+        issuer: 'alternance-tracker',
+        audience: 'alternance-tracker-api',
+      } as jwt.SignOptions
     );
 
     res.json({
@@ -126,11 +144,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       }
     });
   } catch (error: any) {
-    console.error('Erreur lors de la connexion:', error);
-    res.status(500).json({
-      message: 'Erreur serveur',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message }),
-    });
+    sendErrorResponse(
+      res,
+      500,
+      SafeErrorMessages.INTERNAL_ERROR,
+      error,
+      ErrorCategories.AUTHENTICATION
+    );
   }
 };
 
