@@ -39,7 +39,7 @@
     "@types/pg": "^8.10.9",
     "@types/pg-format": "^1.0.5",
     "cross-env": "^7.0.3",
-    "jest": "^29.7.0",
+    "jest": "^30.4.2",
     "nodemon": "^3.0.2",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
