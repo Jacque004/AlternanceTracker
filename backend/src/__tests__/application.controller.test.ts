@@ -53,20 +53,19 @@ describe('Application Controller - Create', () => {
         jobUrl: 'https://example.com/job',
       };
 
-      // Mock de la requête SQL
-      mockPool.query = jest.fn().mockResolvedValue({
-        rows: [mockApplication],
-      });
+      // Mock des requêtes SQL : comptage puis insertion
+      mockPool.query = jest.fn()
+        .mockResolvedValueOnce({ rows: [{ count: '0' }] })
+        .mockResolvedValueOnce({ rows: [mockApplication] });
 
       await createApplication(mockRequest as AuthRequest, mockResponse as Response);
 
-      // Vérifier que la requête SQL a été appelée
-      expect(mockPool.query).toHaveBeenCalled();
-      const queryCall = (mockPool.query as jest.Mock).mock.calls[0];
-      expect(queryCall[0]).toContain('INSERT INTO applications');
-      expect(queryCall[1]).toContain(1); // user_id
-      expect(queryCall[1]).toContain('Tech Corp');
-      expect(queryCall[1]).toContain('Développeur Full Stack');
+      expect(mockPool.query).toHaveBeenCalledTimes(2);
+      const insertCall = (mockPool.query as jest.Mock).mock.calls[1];
+      expect(insertCall[0]).toContain('INSERT INTO applications');
+      expect(insertCall[1]).toContain(1);
+      expect(insertCall[1]).toContain('Tech Corp');
+      expect(insertCall[1]).toContain('Développeur Full Stack');
       expect(mockResponse.status).toHaveBeenCalledWith(201);
       expect(mockResponse.json).toHaveBeenCalledWith({
         message: 'Candidature créée avec succès',
@@ -134,10 +133,9 @@ describe('Application Controller - Create', () => {
       await createApplication(mockRequest as AuthRequest, mockResponse as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        message: 'Erreur serveur',
-        error: 'Database connection error',
-      });
+      const jsonCall = (mockResponse.json as jest.Mock).mock.calls[0][0];
+      expect(jsonCall.message).toBe('Erreur lors de la création de la candidature.');
+      expect(jsonCall.errorId).toMatch(/^ERR_/);
 
       consoleSpy.mockRestore();
     });
@@ -359,10 +357,9 @@ describe('Application Controller - Update', () => {
       await updateApplication(mockRequest as AuthRequest, mockResponse as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        message: 'Erreur serveur',
-        error: 'Database connection error',
-      });
+      const jsonCall = (mockResponse.json as jest.Mock).mock.calls[0][0];
+      expect(jsonCall.message).toBe('Erreur lors de la mise à jour de la candidature.');
+      expect(jsonCall.errorId).toMatch(/^ERR_/);
 
       consoleSpy.mockRestore();
     });

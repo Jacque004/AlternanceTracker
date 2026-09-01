@@ -13,6 +13,14 @@ const mockPool = pool as jest.Mocked<typeof pool>;
 const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
 const mockJwt = jwt as jest.Mocked<typeof jwt>;
 
+const JWT_SIGN_OPTIONS = {
+  expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  issuer: 'alternance-tracker',
+  audience: 'alternance-tracker-api',
+};
+
+const DUMMY_PASSWORD_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMye5m5rqjCJxKJD9dQwXjNUQhQe2XqY0Wq';
+
 describe('Auth Controller - Login', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
@@ -67,7 +75,7 @@ describe('Auth Controller - Login', () => {
       expect(mockJwt.sign).toHaveBeenCalledWith(
         { userId: 1, email: 'test@example.com' },
         'test-secret',
-        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+        JWT_SIGN_OPTIONS
       );
       expect(mockResponse.status).not.toHaveBeenCalled();
       expect(mockResponse.json).toHaveBeenCalledWith({
@@ -95,13 +103,15 @@ describe('Auth Controller - Login', () => {
         rows: [],
       });
 
+      mockBcrypt.compare = jest.fn().mockResolvedValue(false);
+
       await login(mockRequest as Request, mockResponse as Response);
 
       expect(mockPool.query).toHaveBeenCalledWith(
         'SELECT * FROM users WHERE email = $1',
         ['nonexistent@example.com']
       );
-      expect(mockBcrypt.compare).not.toHaveBeenCalled();
+      expect(mockBcrypt.compare).toHaveBeenCalledWith('password123', DUMMY_PASSWORD_HASH);
       expect(mockJwt.sign).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
@@ -164,10 +174,9 @@ describe('Auth Controller - Login', () => {
       await login(mockRequest as Request, mockResponse as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        message: 'Erreur serveur',
-        error: 'Database connection error',
-      });
+      const jsonCall = (mockResponse.json as jest.Mock).mock.calls[0][0];
+      expect(jsonCall.message).toBe('Une erreur interne est survenue. Veuillez réessayer plus tard.');
+      expect(jsonCall.errorId).toMatch(/^ERR_/);
 
       // Restaurer console.error
       consoleSpy.mockRestore();

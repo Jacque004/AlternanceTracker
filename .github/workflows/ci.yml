@@ -9,7 +9,7 @@ on:
 jobs:
   backend-test:
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:15-alpine
@@ -27,25 +27,33 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      
+          cache: 'npm'
+
       - name: Install dependencies
         run: npm ci
-      
+
+      - name: Verify TypeScript installation
+        run: |
+          if [ ! -d "node_modules/typescript" ]; then
+            echo "TypeScript not found in root node_modules, installing..."
+            npm install
+          fi
+
       - name: Run migrations
         working-directory: ./backend
         env:
           DATABASE_URL: postgresql://alternancetracker:alternancetracker123@localhost:5432/alternancetracker
         run: npm run migrate
-      
+
       - name: Build
         working-directory: ./backend
         run: npm run build
-      
+
       - name: Lint
         working-directory: ./backend
         run: npm run lint
@@ -59,22 +67,30 @@ jobs:
 
   frontend-test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      
+          cache: 'npm'
+
       - name: Install dependencies
         run: npm ci
-      
+
+      - name: Verify TypeScript installation
+        run: |
+          if [ ! -d "node_modules/typescript" ]; then
+            echo "TypeScript not found in root node_modules, installing..."
+            npm install
+          fi
+
       - name: Build
         working-directory: ./frontend
         run: npm run build
-      
+
       - name: Lint
         working-directory: ./frontend
         run: npm run lint

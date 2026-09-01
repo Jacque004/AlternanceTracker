@@ -7,6 +7,11 @@ jest.mock('jsonwebtoken');
 
 const mockJwt = jwt as jest.Mocked<typeof jwt>;
 
+const JWT_VERIFY_OPTIONS = {
+  issuer: 'alternance-tracker',
+  audience: 'alternance-tracker-api',
+};
+
 describe('Auth Middleware', () => {
   let mockRequest: Partial<AuthRequest>;
   let mockResponse: Partial<Response>;
@@ -34,11 +39,13 @@ describe('Auth Middleware', () => {
         authorization: `Bearer ${mockToken}`,
       };
 
-      mockJwt.verify = jest.fn((_token: string, _secret: string, callback?: (err: any, decoded: any) => void) => {
-        if (callback) {
-          callback(null, mockDecoded);
-        }
-        return mockDecoded as any;
+      mockJwt.verify = jest.fn((
+        _token: string,
+        _secret: string,
+        _options: jwt.VerifyOptions,
+        callback: (err: any, decoded: any) => void
+      ) => {
+        callback(null, mockDecoded);
       }) as any;
 
       authenticateToken(mockRequest as AuthRequest, mockResponse as Response, mockNext);
@@ -46,6 +53,7 @@ describe('Auth Middleware', () => {
       expect(mockJwt.verify).toHaveBeenCalledWith(
         mockToken,
         'test-secret',
+        JWT_VERIFY_OPTIONS,
         expect.any(Function)
       );
       expect(mockRequest.userId).toBe(1);
@@ -88,11 +96,13 @@ describe('Auth Middleware', () => {
         authorization: `Bearer ${mockToken}`,
       };
 
-      mockJwt.verify = jest.fn((_token: string, _secret: string, callback?: (err: any, decoded: any) => void) => {
-        if (callback) {
-          callback(new Error('Invalid token'), null);
-        }
-        return null as any;
+      mockJwt.verify = jest.fn((
+        _token: string,
+        _secret: string,
+        _options: jwt.VerifyOptions,
+        callback: (err: any, decoded: any) => void
+      ) => {
+        callback(new Error('Invalid token'), null);
       }) as any;
 
       authenticateToken(mockRequest as AuthRequest, mockResponse as Response, mockNext);
@@ -114,11 +124,13 @@ describe('Auth Middleware', () => {
       const expiredError = new Error('Token expired');
       expiredError.name = 'TokenExpiredError';
 
-      mockJwt.verify = jest.fn((_token: string, _secret: string, callback?: (err: any, decoded: any) => void) => {
-        if (callback) {
-          callback(expiredError, null);
-        }
-        return null as any;
+      mockJwt.verify = jest.fn((
+        _token: string,
+        _secret: string,
+        _options: jwt.VerifyOptions,
+        callback: (err: any, decoded: any) => void
+      ) => {
+        callback(expiredError, null);
       }) as any;
 
       authenticateToken(mockRequest as AuthRequest, mockResponse as Response, mockNext);

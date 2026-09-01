@@ -13,6 +13,12 @@ const mockPool = pool as jest.Mocked<typeof pool>;
 const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
 const mockJwt = jwt as jest.Mocked<typeof jwt>;
 
+const JWT_SIGN_OPTIONS = {
+  expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  issuer: 'alternance-tracker',
+  audience: 'alternance-tracker-api',
+};
+
 describe('Auth Controller - Register', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
@@ -26,6 +32,7 @@ describe('Auth Controller - Register', () => {
       json: jest.fn().mockReturnThis(),
     };
     jest.clearAllMocks();
+    process.env.JWT_SECRET = 'test-secret-key';
   });
 
   describe('POST /register - Test succès inscription', () => {
@@ -70,8 +77,8 @@ describe('Auth Controller - Register', () => {
       );
       expect(mockJwt.sign).toHaveBeenCalledWith(
         { userId: 1, email: 'newuser@example.com' },
-        process.env.JWT_SECRET || 'secret',
-        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+        'test-secret-key',
+        JWT_SIGN_OPTIONS
       );
       expect(mockResponse.status).toHaveBeenCalledWith(201);
       expect(mockResponse.json).toHaveBeenCalledWith({
@@ -185,10 +192,9 @@ describe('Auth Controller - Register', () => {
       await register(mockRequest as Request, mockResponse as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
-      // En mode test, NODE_ENV peut être 'test', donc l'erreur peut ne pas être incluse
       const jsonCall = (mockResponse.json as jest.Mock).mock.calls[0][0];
-      expect(jsonCall.message).toBe('Erreur serveur lors de l\'inscription');
-      // L'erreur peut être incluse ou non selon NODE_ENV
+      expect(jsonCall.message).toBe('Erreur lors de l\'inscription. Veuillez réessayer.');
+      expect(jsonCall.errorId).toMatch(/^ERR_/);
 
       consoleSpy.mockRestore();
     });
