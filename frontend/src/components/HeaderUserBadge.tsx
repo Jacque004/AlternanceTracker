@@ -34,7 +34,7 @@ const HeaderUserBadge = ({ user, compact = false }: HeaderUserBadgeProps) => {
       </span>
       <span
         className={`min-w-0 truncate font-medium text-gray-700 group-hover:text-gray-900 ${
-          compact ? 'text-xs sm:text-sm' : 'text-sm'
+          compact ? 'hidden sm:inline text-sm' : 'text-sm'
         }`}
       >
         {label}

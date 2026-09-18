@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { doubleCsrf } from 'csrf-csrf';
+import { logger, securityLogger } from '../utils/logger';
 
 /**
  * Configuration de la protection CSRF avec csrf-csrf (moderne, non-deprecated)
@@ -44,7 +45,7 @@ export const generateCsrfToken = (req: Request, res: Response, next: NextFunctio
     res.locals.csrfToken = csrfToken;
     next();
   } catch (error) {
-    console.error('Erreur génération token CSRF:', error);
+    logger.error('Erreur génération token CSRF', { event: 'csrf_generate_error' });
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };
@@ -63,7 +64,7 @@ export const getCsrfToken = (req: Request, res: Response): void => {
     const csrfToken = generateToken(req, res);
     res.json({ csrfToken });
   } catch (error) {
-    console.error('Erreur génération token CSRF:', error);
+    logger.error('Erreur génération token CSRF', { event: 'csrf_token_route_error' });
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };
@@ -73,11 +74,12 @@ export const getCsrfToken = (req: Request, res: Response): void => {
  */
 export const csrfErrorHandler = (
   err: any,
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction
 ): void => {
-  if (err.code === 'EBADCSRFTOKEN') {
+  if (err.code === 'EBADCSRFTOKEN' || err.code === 'ERR_BAD_CSRF_TOKEN') {
+    securityLogger.csrfViolation(req);
     res.status(403).json({
       message: 'Token CSRF invalide ou expiré. Veuillez rafraîchir la page.',
       code: 'CSRF_INVALID',

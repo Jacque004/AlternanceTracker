@@ -102,22 +102,30 @@ const logsDir = path.join(process.cwd(), 'logs');
 /**
  * Configuration des transports (où envoyer les logs)
  */
+const securityOnly = winston.format((info) =>
+  info.category === 'security' ? info : false
+);
+
 const transports: winston.transport[] = [
-  // Logs d'erreurs dans un fichier séparé
   new winston.transports.File({
     filename: path.join(logsDir, 'error.log'),
     level: 'error',
-    maxsize: 10 * 1024 * 1024, // 10 MB
-    maxFiles: 10, // Garder 10 fichiers maximum
-    format: productionFormat,
-  }),
-
-  // Tous les logs dans un fichier combiné
-  new winston.transports.File({
-    filename: path.join(logsDir, 'combined.log'),
-    maxsize: 10 * 1024 * 1024, // 10 MB
+    maxsize: 10 * 1024 * 1024,
     maxFiles: 10,
     format: productionFormat,
+  }),
+  new winston.transports.File({
+    filename: path.join(logsDir, 'combined.log'),
+    maxsize: 10 * 1024 * 1024,
+    maxFiles: 10,
+    format: productionFormat,
+  }),
+  new winston.transports.File({
+    filename: path.join(logsDir, 'security.log'),
+    level: 'info',
+    maxsize: 10 * 1024 * 1024,
+    maxFiles: 20,
+    format: winston.format.combine(securityOnly(), productionFormat),
   }),
 ];
 
@@ -135,67 +143,109 @@ if (process.env.NODE_ENV !== 'production') {
  */
 export const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+  defaultMeta: { service: 'alternancetracker' },
   format: productionFormat,
   transports,
-  // Ne pas quitter sur erreur non gérée
   exitOnError: false,
 });
 
-/**
- * Logger spécifique pour les événements de sécurité
- */
+type ReqLike = {
+  ip?: string;
+  socket?: { remoteAddress?: string };
+  get?: (name: string) => string | undefined;
+  headers?: Record<string, unknown>;
+  path?: string;
+  originalUrl?: string;
+  method?: string;
+};
+
+export function requestMeta(req: ReqLike) {
+  const ua =
+    typeof req.get === 'function'
+      ? req.get('user-agent')
+      : typeof req.headers?.['user-agent'] === 'string'
+        ? req.headers['user-agent']
+        : undefined;
+  return {
+    ip: req.ip || req.socket?.remoteAddress || 'unknown',
+    userAgent: ua,
+    path: req.path || req.originalUrl,
+    method: req.method,
+  };
+}
+
+function writeSecurity(
+  level: 'info' | 'warn' | 'error',
+  message: string,
+  event: string,
+  extra: Record<string, unknown> = {}
+) {
+  logger.log(level, message, {
+    category: 'security',
+    service: 'alternancetracker-security',
+    event,
+    timestamp: new Date().toISOString(),
+    ...extra,
+  });
+}
+
 export const securityLogger = {
-  /**
-   * Log une tentative de connexion échouée
-   */
   failedLogin: (email: string, ip: string, userAgent?: string) => {
-    logger.warn('Failed login attempt', {
-      category: 'security',
-      event: 'failed_login',
+    writeSecurity('warn', 'Failed login attempt', 'failed_login', { email, ip, userAgent });
+  },
+
+  successfulLogin: (userId: number | string, email: string, ip: string, userAgent?: string) => {
+    writeSecurity('info', 'Successful login', 'login_success', { userId, email, ip, userAgent });
+  },
+
+  registerConflict: (email: string, ip: string, userAgent?: string) => {
+    writeSecurity('warn', 'Registration conflict (email already used)', 'register_conflict', {
       email,
       ip,
       userAgent,
-      timestamp: new Date().toISOString(),
     });
   },
 
-  /**
-   * Log une tentative d'accès non autorisée
-   */
   unauthorizedAccess: (userId: number | undefined, resource: string, ip: string) => {
-    logger.warn('Unauthorized access attempt', {
-      category: 'security',
-      event: 'unauthorized_access',
+    writeSecurity('warn', 'Unauthorized access attempt', 'unauthorized_access', {
       userId,
       resource,
       ip,
-      timestamp: new Date().toISOString(),
     });
   },
 
-  /**
-   * Log un token invalide
-   */
   invalidToken: (ip: string, userAgent?: string) => {
-    logger.warn('Invalid token provided', {
-      category: 'security',
-      event: 'invalid_token',
-      ip,
-      userAgent,
-      timestamp: new Date().toISOString(),
+    writeSecurity('warn', 'Invalid token provided', 'invalid_token', { ip, userAgent });
+  },
+
+  csrfViolation: (req: ReqLike) => {
+    writeSecurity('warn', 'CSRF token rejected', 'csrf_violation', requestMeta(req));
+  },
+
+  rateLimited: (req: ReqLike, limiter: string) => {
+    writeSecurity('warn', 'Rate limit exceeded', 'rate_limited', {
+      ...requestMeta(req),
+      limiter,
     });
   },
 
-  /**
-   * Log une activité suspecte
-   */
-  suspiciousActivity: (description: string, details: Record<string, any>) => {
-    logger.warn('Suspicious activity detected', {
-      category: 'security',
-      event: 'suspicious_activity',
+  validationFailed: (
+    req: ReqLike,
+    fields: string[],
+    unusual: boolean
+  ) => {
+    writeSecurity(
+      unusual ? 'warn' : 'info',
+      unusual ? 'Unusual validation failure' : 'Request validation failed',
+      unusual ? 'validation_unusual' : 'validation_failed',
+      { ...requestMeta(req), fields: fields.slice(0, 20), fieldCount: fields.length }
+    );
+  },
+
+  suspiciousActivity: (description: string, details: Record<string, unknown>) => {
+    writeSecurity('warn', 'Suspicious activity detected', 'suspicious_activity', {
       description,
       ...details,
-      timestamp: new Date().toISOString(),
     });
   },
 };

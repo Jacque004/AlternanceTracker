@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-# Installer toutes les dépendances (y compris dev) pour disposer de TypeScript (tsc) lors du build
+# Contexte Docker = dossier backend (pas le lockfile racine). Versions épinglées dans package.json.
 RUN npm install
 
 COPY . .

@@ -42,10 +42,12 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: 'En attente',
+  to_apply: 'À postuler',
+  pending: 'Envoyée',
+  followed_up: 'Relancée',
   interview: 'Entretien',
-  accepted: 'Acceptée',
-  rejected: 'Refusée',
+  accepted: 'Offre',
+  rejected: 'Refus',
 };
 
 serve(async (req) => {
@@ -95,7 +97,7 @@ serve(async (req) => {
     for (const app of applications || []) {
       byStatus[app.status] = (byStatus[app.status] || 0) + 1;
       if (new Date(app.created_at) >= new Date(weekAgo)) recent.push(app);
-      if (app.status === 'pending') {
+      if (app.status === 'pending' || app.status === 'followed_up') {
         const refDate = app.application_date ?? app.created_at;
         if (refDate) {
           const daysAgo = getDaysAgo(refDate);

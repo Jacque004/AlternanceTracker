@@ -71,7 +71,8 @@ describe('Auth Middleware', () => {
 
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
-        message: 'Token d\'authentification manquant',
+        message: 'Authentification invalide',
+        code: 'AUTH_FAILED',
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -89,7 +90,7 @@ describe('Auth Middleware', () => {
   });
 
   describe('authenticateToken - Token invalide ou expiré', () => {
-    it('devrait retourner 403 si le token est invalide', () => {
+    it('devrait retourner 401 si le token est invalide', () => {
       const mockToken = 'invalid-token';
 
       mockRequest.headers = {
@@ -107,14 +108,15 @@ describe('Auth Middleware', () => {
 
       authenticateToken(mockRequest as AuthRequest, mockResponse as Response, mockNext);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(403);
+      expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
-        message: 'Token invalide ou expiré',
+        message: 'Authentification invalide',
+        code: 'AUTH_FAILED',
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it('devrait retourner 403 si le token est expiré', () => {
+    it('devrait retourner 401 si le token est expiré', () => {
       const mockToken = 'expired-token';
 
       mockRequest.headers = {
@@ -135,9 +137,10 @@ describe('Auth Middleware', () => {
 
       authenticateToken(mockRequest as AuthRequest, mockResponse as Response, mockNext);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(403);
+      expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
-        message: 'Token invalide ou expiré',
+        message: 'Authentification invalide',
+        code: 'AUTH_FAILED',
       });
       expect(mockNext).not.toHaveBeenCalled();
     });

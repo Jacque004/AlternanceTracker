@@ -37,13 +37,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify TypeScript installation
-        run: |
-          if [ ! -d "node_modules/typescript" ]; then
-            echo "TypeScript not found in root node_modules, installing..."
-            npm install
-          fi
-
       - name: Run migrations
         working-directory: ./backend
         env:
@@ -79,13 +72,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Verify TypeScript installation
-        run: |
-          if [ ! -d "node_modules/typescript" ]; then
-            echo "TypeScript not found in root node_modules, installing..."
-            npm install
-          fi
 
       - name: Build
         working-directory: ./frontend

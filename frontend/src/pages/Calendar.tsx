@@ -16,11 +16,14 @@ import {
   subMonths,
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useQuery } from '@tanstack/react-query';
 import { applicationService } from '../services/supabaseService';
 import type { Application } from '../types';
 import { SkeletonCalendarGrid } from '../components/Skeleton';
 import { PastInterviewsList } from '../components/PastInterviewsList';
 import { userFacingErrorMessage } from '../utils/errorMessage';
+import { isRelanceEligibleStatus } from '../utils/applicationStatus';
+import { queryKeys } from '../query/keys';
 
 type CalendarItemType = 'interview' | 'relance';
 
@@ -57,11 +60,18 @@ function parseDateOnly(s: string): Date {
 }
 
 const WEEKDAY_LABELS = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
+const WEEKDAY_SHORT = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 export default function CalendarPage() {
-  const [loading, setLoading] = useState(true);
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const appsQuery = useQuery({
+    queryKey: queryKeys.applications.list({}),
+    queryFn: () => applicationService.getAll(),
+  });
+  const applications = appsQuery.data?.data ?? [];
+  const loading = appsQuery.isPending && !appsQuery.data;
+  const error = appsQuery.error
+    ? userFacingErrorMessage(appsQuery.error, 'Impossible de charger les candidatures.')
+    : null;
 
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
@@ -69,30 +79,6 @@ export default function CalendarPage() {
   const [showRelances, setShowRelances] = useState(true);
   const [showPastInterviews, setShowPastInterviews] = useState(true);
   const upcomingScrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await applicationService.getAll();
-        if (!cancelled) {
-          setApplications(data);
-          setError(null);
-        }
-      } catch (e: unknown) {
-        if (!cancelled) {
-          setError(userFacingErrorMessage(e, 'Impossible de charger les candidatures.'));
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const { upcomingItemsByDate, pastInterviews } = useMemo(() => {
     const upcoming = new Map<string, CalendarItem[]>();
@@ -111,8 +97,10 @@ export default function CalendarPage() {
         }
       }
 
-      if (app.status === 'pending' && app.applicationDate) {
-        const relanceDate = addDaysToDateString(app.applicationDate, 7);
+      if (isRelanceEligibleStatus(app.status) && (app.lastRelanceAt || app.applicationDate)) {
+        const base = app.lastRelanceAt || app.applicationDate;
+        if (!base) continue;
+        const relanceDate = addDaysToDateString(base.slice(0, 10), 7);
         if (relanceDate >= todayIso) {
           const list = upcoming.get(relanceDate) ?? [];
           list.push({ date: relanceDate, type: 'relance', application: app });
@@ -284,12 +272,13 @@ export default function CalendarPage() {
             </div>
 
             <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden border border-gray-200">
-              {WEEKDAY_LABELS.map((label) => (
+              {WEEKDAY_LABELS.map((label, i) => (
                 <div
-                  key={label}
-                  className="bg-gray-50 text-center text-[10px] sm:text-xs font-semibold text-gray-500 py-1.5 sm:py-2 uppercase tracking-wide"
+                  key={`${label}-${i}`}
+                  className="bg-gray-50 text-center text-[11px] sm:text-xs font-semibold text-gray-500 py-1.5 sm:py-2 uppercase tracking-wide"
                 >
-                  {label}
+                  <span className="sm:hidden">{WEEKDAY_SHORT[i]}</span>
+                  <span className="hidden sm:inline">{label}</span>
                 </div>
               ))}
               {calendarDays.map((day) => {
@@ -310,7 +299,7 @@ export default function CalendarPage() {
                       }
                     }}
                     className={[
-                      'relative min-h-[3.1rem] sm:min-h-[3.25rem] md:min-h-[3.75rem] flex flex-col items-center justify-start pt-1 sm:pt-1.5 text-xs sm:text-sm transition-colors',
+                      'relative min-h-[44px] sm:min-h-[3.25rem] md:min-h-[3.75rem] flex flex-col items-center justify-start pt-1 sm:pt-1.5 text-xs sm:text-sm transition-colors',
                       inMonth ? 'bg-white text-gray-900' : 'bg-gray-50/80 text-gray-400',
                       selected ? 'ring-2 ring-inset ring-sky-500 z-[1]' : '',
                       today && !selected ? 'font-semibold' : '',

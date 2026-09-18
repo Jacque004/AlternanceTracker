@@ -463,7 +463,10 @@ const Profile = () => {
                 className={inputClass}
                 placeholder="Ex. 5"
               />
-              <p className="mt-2 text-xs text-gray-600">Affiché sur le tableau de bord. Mettez 0 pour masquer le bloc objectif.</p>
+              <p className="mt-2 text-xs text-gray-600">
+                Sert au suivi « à faire cette semaine » (candidatures). Relances et lettre restent à 2 et 1.
+                Mettez 0 pour revenir à 3 candidatures par défaut.
+              </p>
             </div>
           </div>
         </ProfileSection>

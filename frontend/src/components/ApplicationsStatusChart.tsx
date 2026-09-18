@@ -6,44 +6,26 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
-
-const STATUS_CONFIG = [
-  { key: 'pending', label: 'En attente', color: '#d97706' },
-  { key: 'interview', label: 'Entretien', color: '#2563eb' },
-  { key: 'accepted', label: 'Acceptée', color: '#16a34a' },
-  { key: 'rejected', label: 'Refusée', color: '#dc2626' },
-] as const;
+import { PIPELINE_COLUMNS } from '../utils/applicationStatus';
 
 export interface ApplicationsStatusChartProps {
-  pending: number;
-  interview: number;
-  accepted: number;
-  rejected: number;
+  counts: Record<string, number>;
   total?: number;
   title?: string;
 }
 
-type StatusKey = (typeof STATUS_CONFIG)[number]['key'];
-
-function getCount(key: StatusKey, props: ApplicationsStatusChartProps): number {
-  return props[key] ?? 0;
-}
-
 export function ApplicationsStatusChart({
-  pending,
-  interview,
-  accepted,
-  rejected,
+  counts,
   total,
   title = 'Répartition par statut',
 }: ApplicationsStatusChartProps) {
-  const props = { pending, interview, accepted, rejected };
-  const computedTotal = total ?? pending + interview + accepted + rejected;
+  const computedTotal =
+    total ?? PIPELINE_COLUMNS.reduce((sum, col) => sum + (counts[col.key] ?? 0), 0);
 
-  const data = STATUS_CONFIG.map(({ key, label, color }) => ({
+  const data = PIPELINE_COLUMNS.map(({ key, label, color }) => ({
     key,
     name: label,
-    value: getCount(key, props),
+    value: counts[key] ?? 0,
     color,
   })).filter((item) => item.value > 0);
 

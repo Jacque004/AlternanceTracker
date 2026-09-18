@@ -6,6 +6,7 @@ import Footer from './Footer';
 import OnboardingTour, { shouldShowOnboarding, markOnboardingDone } from './OnboardingTour';
 import NotificationBell from './NotificationBell';
 import HeaderUserBadge from './HeaderUserBadge';
+import MobileBottomNav from './MobileBottomNav';
 import { NotificationsProvider } from '../contexts/NotificationsContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
@@ -101,9 +102,10 @@ const Layout = () => {
           <div className="flex items-center justify-between gap-2 min-w-0 w-full h-14 sm:h-16">
             <Link
               to="/"
-              className="shrink min-w-0 max-w-[38vw] sm:max-w-[10rem] md:max-w-none truncate text-base sm:text-xl font-bold tracking-tight text-primary-600 hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-lg transition-colors duration-200 min-h-[44px] flex items-center"
+              className="shrink-0 text-base sm:text-xl font-bold tracking-tight text-primary-600 hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-lg transition-colors duration-200 min-h-[44px] flex items-center px-1"
             >
-              AlternanceTracker
+              <span className="sm:hidden">AT</span>
+              <span className="hidden sm:inline">AlternanceTracker</span>
             </Link>
               {user ? (
                 <nav className="hidden lg:flex lg:gap-0.5 lg:flex-1 lg:justify-center lg:px-2 min-w-0" aria-label="Navigation principale">
@@ -189,22 +191,37 @@ const Layout = () => {
             aria-label="Menu de navigation"
           >
             <div className="pt-2 pb-4 px-4 space-y-1 overflow-y-auto overscroll-contain flex-1 min-h-0">
-              {user
-                ? navItems.map(({ to, label, match }) => {
-                    const active = match(location.pathname);
-                    return (
-                      <Link
-                        key={to}
-                        to={to}
-                        aria-current={active ? 'page' : undefined}
-                        className={linkClass(active)}
-                        onClick={closeMobileNavFromAction}
-                      >
-                        {label}
-                      </Link>
-                    );
-                  })
-                : null}
+              {user ? (
+                <>
+                  <p className="px-3 pt-1 pb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Compte et infos
+                  </p>
+                  <Link
+                    to="/a-propos"
+                    onClick={closeMobileNavFromAction}
+                    className={linkClass(location.pathname === '/a-propos')}
+                  >
+                    À propos
+                  </Link>
+                  <Link
+                    to="/profile"
+                    onClick={closeMobileNavFromAction}
+                    className={linkClass(location.pathname.startsWith('/profile'))}
+                  >
+                    Mon espace
+                  </Link>
+                  <Link
+                    to="/politique-confidentialite"
+                    onClick={closeMobileNavFromAction}
+                    className={linkClass(false)}
+                  >
+                    Confidentialité
+                  </Link>
+                  <Link to="/cgu" onClick={closeMobileNavFromAction} className={linkClass(false)}>
+                    CGU
+                  </Link>
+                </>
+              ) : null}
 
               {!user ? (
                 <div className="pt-3 mt-3 border-t border-gray-200 space-y-2">
@@ -241,13 +258,15 @@ const Layout = () => {
 
       <main
         id="main"
-        className="flex-1 min-w-0 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-safe box-border overflow-x-hidden"
+        className="flex-1 min-w-0 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-safe box-border overflow-x-hidden"
         role="main"
       >
         <PageTransition className="min-w-0 w-full max-w-full">
           <Outlet />
         </PageTransition>
       </main>
+
+      {user ? <MobileBottomNav /> : null}
 
       <Footer />
     </div>

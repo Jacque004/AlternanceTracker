@@ -1,24 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { applicationService, dashboardService } from '../services/supabaseService';
 import type { Application, ApplicationListParams } from '../types';
 import { SkeletonList } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+import { ApplicationsKanban } from '../components/ApplicationsKanban';
 import { userFacingErrorMessage } from '../utils/errorMessage';
+import {
+  APPLICATION_STATUS_OPTIONS,
+  applicationStatusBadgeClass,
+  applicationStatusLabel,
+  type ApplicationStatus,
+} from '../utils/applicationStatus';
 import {
   formatDisplayDate,
   formatDisplayTime,
   formatLocalDateIso,
   formatTodayDisplay,
 } from '../utils/dateDisplay';
+import { queryKeys } from '../query/keys';
+import { invalidateApplicationCaches } from '../query/client';
 
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'En attente',
-  interview: 'Entretien',
-  accepted: 'Acceptée',
-  rejected: 'Refusée',
-};
+const VIEW_STORAGE_KEY = 'applications-view';
 
 const SORT_OPTIONS: { value: ApplicationListParams['sortBy']; label: string }[] = [
   { value: 'created_at', label: 'Date d\'ajout' },
@@ -47,7 +52,7 @@ function exportCSV(apps: Application[]) {
   const rows = apps.map((a) => [
     a.companyName,
     a.position,
-    STATUS_LABELS[a.status] || a.status,
+    applicationStatusLabel(a.status),
     formatDisplayDate(a.applicationDate),
     formatDisplayDate(a.responseDate),
     formatDisplayDate(a.interviewDate),
@@ -79,7 +84,7 @@ function exportPDF(apps: Application[]) {
         `<tr>
           <td>${a.companyName}</td>
           <td>${a.position}</td>
-          <td>${STATUS_LABELS[a.status] || a.status}</td>
+          <td>${applicationStatusLabel(a.status)}</td>
           <td>${formatDisplayDate(a.applicationDate)}</td>
           <td>${formatDisplayDate(a.responseDate)}</td>
           <td>${formatDisplayDate(a.interviewDate)} ${formatDisplayTime(a.interviewTime)}</td>
@@ -137,7 +142,7 @@ async function exportPDFDashboard() {
         `<tr>
           <td>${a.companyName}</td>
           <td>${a.position}</td>
-          <td>${STATUS_LABELS[a.status] || a.status}</td>
+          <td>${applicationStatusLabel(a.status)}</td>
           <td>${formatDisplayDate(a.applicationDate)}</td>
         </tr>`
     )
@@ -145,10 +150,12 @@ async function exportPDFDashboard() {
   const statsHtml = stats
     ? `<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
         <span><strong>Total:</strong> ${stats.total}</span>
-        <span><strong>En attente:</strong> ${stats.pending}</span>
+        <span><strong>À postuler:</strong> ${stats.toApply}</span>
+        <span><strong>Envoyées:</strong> ${stats.pending}</span>
+        <span><strong>Relancées:</strong> ${stats.followedUp}</span>
         <span><strong>Entretiens:</strong> ${stats.interview}</span>
-        <span><strong>Acceptées:</strong> ${stats.accepted}</span>
-        <span><strong>Refusées:</strong> ${stats.rejected}</span>
+        <span><strong>Offres:</strong> ${stats.accepted}</span>
+        <span><strong>Refus:</strong> ${stats.rejected}</span>
       </div>`
     : '';
   printWindow.document.write(`
@@ -191,11 +198,18 @@ async function exportPDFDashboard() {
 
 const PAGE_SIZE = 20;
 
+function readStoredView(): 'kanban' | 'list' {
+  try {
+    const stored = localStorage.getItem(VIEW_STORAGE_KEY);
+    if (stored === 'list' || stored === 'kanban') return stored;
+  } catch {
+    /* ignore */
+  }
+  return 'kanban';
+}
+
 const Applications = () => {
-  const [list, setList] = useState<Application[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [search, setSearch] = useState('');
@@ -204,6 +218,32 @@ const Applications = () => {
   const [dateTo, setDateTo] = useState('');
   const [sortBy, setSortBy] = useState<ApplicationListParams['sortBy']>('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [view, setView] = useState<'kanban' | 'list'>(readStoredView);
+  const [movingId, setMovingId] = useState<number | null>(null);
+
+  const listParams = useMemo((): ApplicationListParams => {
+    const params: ApplicationListParams = { sortBy, sortOrder };
+    if (statusFilter) params.status = statusFilter;
+    if (searchDebounced.trim()) params.search = searchDebounced.trim();
+    if (dateFrom) params.dateFrom = dateFrom;
+    if (dateTo) params.dateTo = dateTo;
+    return params;
+  }, [statusFilter, searchDebounced, dateFrom, dateTo, sortBy, sortOrder]);
+
+  const listQuery = useQuery({
+    queryKey: [...queryKeys.applications.list(listParams), view, page] as const,
+    queryFn: () =>
+      view === 'kanban'
+        ? applicationService
+            .getAllMatchingUnpaginated(listParams)
+            .then((data) => ({ data, total: data.length }))
+        : applicationService.getAll({ ...listParams, page, pageSize: PAGE_SIZE }),
+    placeholderData: keepPreviousData,
+  });
+
+  const list = listQuery.data?.data ?? [];
+  const total = listQuery.data?.total ?? 0;
+  const loading = listQuery.isPending && !listQuery.data;
 
   useEffect(() => {
     const t = setTimeout(() => setSearchDebounced(search), 300);
@@ -212,48 +252,146 @@ const Applications = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, searchDebounced, dateFrom, dateTo, sortBy, sortOrder]);
+  }, [statusFilter, searchDebounced, dateFrom, dateTo, sortBy, sortOrder, view]);
 
   useEffect(() => {
-    setLoading(true);
-    const params: ApplicationListParams = {
-      sortBy,
-      sortOrder,
-      page,
-      pageSize: PAGE_SIZE,
-    };
-    if (statusFilter) params.status = statusFilter;
-    if (searchDebounced.trim()) params.search = searchDebounced.trim();
-    if (dateFrom) params.dateFrom = dateFrom;
-    if (dateTo) params.dateTo = dateTo;
-    applicationService
-      .getAll(params)
-      .then((res) => {
-        setList(res.data);
-        setTotal(res.total);
-      })
-      .catch((err) => {
-        setList([]);
-        setTotal(0);
-        toast.error(userFacingErrorMessage(err, 'Impossible de charger les candidatures.'));
-      })
-      .finally(() => setLoading(false));
-  }, [statusFilter, searchDebounced, dateFrom, dateTo, sortBy, sortOrder, page]);
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, view);
+    } catch {
+      /* ignore */
+    }
+  }, [view]);
+
+  useEffect(() => {
+    if (listQuery.error) {
+      toast.error(userFacingErrorMessage(listQuery.error, 'Impossible de charger les candidatures.'));
+    }
+  }, [listQuery.error]);
+
+  const handleStatusChange = async (id: number, status: ApplicationStatus) => {
+    setMovingId(id);
+    try {
+      const updated = await applicationService.update(id, { status });
+      await invalidateApplicationCaches();
+      toast.success(`${updated.companyName} → ${applicationStatusLabel(updated.status)}`);
+    } catch (err) {
+      toast.error(userFacingErrorMessage(err, 'Impossible de changer le statut.'));
+    } finally {
+      setMovingId(null);
+    }
+  };
 
   return (
-    <div className="max-w-5xl mx-auto stack-page page-shell">
+    <div className="max-w-7xl mx-auto stack-page page-shell">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Mes candidatures</h1>
-          <p className="mt-1 text-sm sm:text-base text-gray-600">Suivez et gérez toutes vos candidatures en un seul endroit.</p>
+          <p className="mt-1 text-sm sm:text-base text-gray-600">
+            <span className="sm:hidden">Changez le statut d’une carte, ou passez en liste.</span>
+            <span className="hidden sm:inline">
+              Pipeline Kanban : glissez les cartes d’une étape à l’autre, ou utilisez la liste.
+            </span>
+          </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:flex xl:flex-wrap gap-2.5 sm:gap-3 w-full sm:w-auto sm:min-w-[18rem] xl:min-w-0 xl:justify-end">
-          <Link
-            to="/applications/new"
-            className="inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors duration-200"
-          >
-            ➕ Ajouter une candidature
-          </Link>
+        <div className="flex flex-col gap-2.5 w-full sm:w-auto">
+          <div className="flex gap-2">
+            <Link
+              to="/applications/new"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors duration-200"
+            >
+              Ajouter
+            </Link>
+            <div className="inline-flex flex-1 sm:flex-none rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setView('kanban')}
+                className={`flex-1 min-h-[44px] px-3 rounded-md text-sm font-medium ${
+                  view === 'kanban' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
+                }`}
+              >
+                Kanban
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('list')}
+                className={`flex-1 min-h-[44px] px-3 rounded-md text-sm font-medium ${
+                  view === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
+                }`}
+              >
+                Liste
+              </button>
+            </div>
+          </div>
+          <details className="sm:hidden rounded-lg border border-gray-200 bg-white">
+            <summary className="min-h-[44px] px-4 py-2.5 text-sm font-medium text-gray-700 cursor-pointer list-none flex items-center justify-between">
+              Exporter
+              <span aria-hidden className="text-gray-400">▾</span>
+            </summary>
+            <div className="px-3 pb-3 grid grid-cols-1 gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (total === 0) return;
+                  setExporting(true);
+                  try {
+                    const apps = await applicationService.getAllMatchingUnpaginated({
+                      sortBy,
+                      sortOrder,
+                      status: statusFilter || undefined,
+                      search: searchDebounced.trim() || undefined,
+                      dateFrom: dateFrom || undefined,
+                      dateTo: dateTo || undefined,
+                    });
+                    exportCSV(apps);
+                    toast.success(`Export CSV : ${apps.length} candidature(s)`);
+                  } catch (err) {
+                    toast.error(userFacingErrorMessage(err, 'Impossible d’exporter le CSV'));
+                  } finally {
+                    setExporting(false);
+                  }
+                }}
+                disabled={total === 0 || exporting}
+                className="inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium disabled:opacity-50"
+              >
+                {exporting ? 'Export…' : 'Export CSV'}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (total === 0) return;
+                  setExporting(true);
+                  try {
+                    const apps = await applicationService.getAllMatchingUnpaginated({
+                      sortBy,
+                      sortOrder,
+                      status: statusFilter || undefined,
+                      search: searchDebounced.trim() || undefined,
+                      dateFrom: dateFrom || undefined,
+                      dateTo: dateTo || undefined,
+                    });
+                    exportPDF(apps);
+                    toast.success(`Export PDF : ${apps.length} candidature(s)`);
+                  } catch (err) {
+                    toast.error(userFacingErrorMessage(err, 'Impossible d’exporter le PDF'));
+                  } finally {
+                    setExporting(false);
+                  }
+                }}
+                disabled={total === 0 || exporting}
+                className="inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium disabled:opacity-50"
+              >
+                Export PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => exportPDFDashboard()}
+                className="inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium"
+              >
+                PDF Tableau de bord
+              </button>
+            </div>
+          </details>
+          <div className="hidden sm:flex sm:flex-wrap gap-2 xl:justify-end">
           <button
             type="button"
             onClick={async () => {
@@ -315,6 +453,7 @@ const Applications = () => {
           >
             PDF Tableau de bord
           </button>
+          </div>
         </div>
       </div>
 
@@ -336,10 +475,11 @@ const Applications = () => {
                 className="w-full min-w-0 rounded-lg border-gray-300 text-sm py-2.5 focus:border-primary-500 focus:ring-primary-500"
               >
                 <option value="">Tous</option>
-                <option value="pending">En attente</option>
-                <option value="interview">Entretien</option>
-                <option value="accepted">Acceptée</option>
-                <option value="rejected">Refusée</option>
+                {APPLICATION_STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="flex flex-col gap-1 min-w-0">
@@ -385,28 +525,16 @@ const Applications = () => {
             </label>
           </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className={view === 'kanban' ? 'p-3 sm:p-4' : 'overflow-x-auto'}>
           {loading ? (
             <div className="p-6 sm:p-8">
-              <div className="h-7 w-48 skeleton rounded-lg mb-6" />
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="p-4 border-b border-gray-200 space-y-2">
-                  <div className="h-9 w-full skeleton rounded" />
-                  <div className="flex gap-2">
-                    <div className="h-9 w-24 skeleton rounded" />
-                    <div className="h-9 w-32 skeleton rounded" />
-                  </div>
-                </div>
-                <div className="p-4">
-                  <SkeletonList lines={8} />
-                </div>
-              </div>
+              <SkeletonList lines={8} />
             </div>
           ) : list.length === 0 ? (
             <EmptyState
               className="mx-4 my-6 sm:mx-6"
               title="Aucune candidature pour l’instant"
-              description="Enregistrez une candidature pour suivre le statut, les relances et les entretiens au même endroit."
+              description="Enregistrez une candidature pour la suivre dans le pipeline (À postuler → Offre / Refus)."
               icon="📋"
             >
               <Link
@@ -416,6 +544,12 @@ const Applications = () => {
                 Ajouter une candidature
               </Link>
             </EmptyState>
+          ) : view === 'kanban' ? (
+            <ApplicationsKanban
+              applications={list}
+              onStatusChange={handleStatusChange}
+              movingId={movingId}
+            />
           ) : (
             <>
             <ul className="divide-y divide-gray-200">
@@ -428,28 +562,23 @@ const Applications = () => {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-gray-900 truncate">{app.companyName}</p>
                       <p className="text-sm text-gray-500 break-words">{app.position}</p>
-                      {(app.applicationDate || app.notes || (app.status === 'interview' && app.interviewDate)) && (
+                      {(app.applicationDate || app.notes || (app.status === 'interview' && app.interviewDate) || app.lastRelanceAt) && (
                         <p className="text-xs text-gray-400 mt-1 break-words leading-relaxed">
                           {formatDisplayDate(app.applicationDate)}
                           {app.status === 'interview' && app.interviewDate && (
                             <> · Entretien {formatDisplayDate(app.interviewDate)}{app.interviewTime ? ` ${formatDisplayTime(app.interviewTime)}` : ''}{app.interviewPlace ? ` – ${app.interviewPlace}` : ''}</>
+                          )}
+                          {app.status === 'followed_up' && app.lastRelanceAt && (
+                            <> · Relancé le {formatDisplayDate(app.lastRelanceAt)}</>
                           )}
                           {app.notes && ` · ${app.notes.slice(0, 50)}${app.notes.length > 50 ? '…' : ''}`}
                         </p>
                       )}
                     </div>
                     <span
-                      className={`shrink-0 text-sm font-medium px-2 py-1 rounded ${
-                        app.status === 'accepted'
-                          ? 'bg-green-100 text-green-800'
-                          : app.status === 'interview'
-                            ? 'bg-blue-100 text-blue-800'
-                            : app.status === 'rejected'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-amber-100 text-amber-800'
-                      }`}
+                      className={`shrink-0 text-sm font-medium px-2 py-1 rounded ${applicationStatusBadgeClass(app.status)}`}
                     >
-                      {STATUS_LABELS[app.status] || app.status}
+                      {applicationStatusLabel(app.status)}
                     </span>
                   </Link>
                   <Link

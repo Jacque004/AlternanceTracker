@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { pool } from '../database/connection';
 import { UserCreate, UserPublic } from '../models/User';
 import { sendErrorResponse, SafeErrorMessages, ErrorCategories } from '../utils/errorHandler';
+import { requestMeta, securityLogger } from '../utils/logger';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -24,6 +25,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     );
 
     if (existingUser.rows.length > 0) {
+      const meta = requestMeta(req);
+      securityLogger.registerConflict(String(email || ''), meta.ip, meta.userAgent);
       res.status(409).json({ 
         message: 'Cet email est déjà utilisé',
         field: 'email'
@@ -70,6 +73,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   } catch (error: any) {
     // Gestion spécifique des erreurs PostgreSQL (contrainte unique)
     if (error.code === '23505') {
+      const meta = requestMeta(req);
+      securityLogger.registerConflict(String(req.body?.email || ''), meta.ip, meta.userAgent);
       res.status(409).json({
         message: 'Cet email est déjà utilisé',
         field: 'email'
@@ -116,7 +121,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     // Vérifier que l'utilisateur existe ET que le mot de passe est valide
     if (!user || !isValidPassword) {
-      // Même message d'erreur dans tous les cas (utilisateur inexistant ou mot de passe invalide)
+      const meta = requestMeta(req);
+      securityLogger.failedLogin(String(email || ''), meta.ip, meta.userAgent);
       res.status(401).json({ message: 'Email ou mot de passe incorrect' });
       return;
     }
@@ -132,6 +138,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         audience: 'alternance-tracker-api',
       } as jwt.SignOptions
     );
+
+    const meta = requestMeta(req);
+    securityLogger.successfulLogin(user.id, user.email, meta.ip, meta.userAgent);
 
     res.json({
       message: 'Connexion réussie',

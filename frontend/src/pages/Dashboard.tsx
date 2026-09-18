@@ -1,21 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { applicationService, dashboardService } from '../services/supabaseService';
-import type { Application, DashboardStatistics } from '../types';
+import type { Application } from '../types';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import toast from 'react-hot-toast';
 import { SkeletonCardGrid, SkeletonCharts, SkeletonList } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { ApplicationsMonthlyChart } from '../components/ApplicationsMonthlyChart';
 import { ApplicationsStatusChart } from '../components/ApplicationsStatusChart';
-import { PastInterviewsList } from '../components/PastInterviewsList';
+import { WeeklyEffortCard } from '../components/WeeklyEffortCard';
 import { userFacingErrorMessage } from '../utils/errorMessage';
+import { applicationStatusBadgeClass, applicationStatusLabel, isRelanceEligibleStatus } from '../utils/applicationStatus';
 import { formatDisplayDate, formatDisplayTime, getCalendarDaysAgo } from '../utils/dateDisplay';
+import {
+  WEEKLY_LETTERS_TARGET,
+  WEEKLY_RELANCES_TARGET,
+  applicationsWeeklyTarget,
+  computeApplicationStreak,
+} from '../utils/weeklyEffort';
+import { queryKeys } from '../query/keys';
+import { invalidateApplicationCaches } from '../query/client';
 
 const DAYS_BEFORE_REMINDER = 7;
 
 function isToRelance(app: Application): boolean {
-  if (app.status !== 'pending') return false;
+  if (!isRelanceEligibleStatus(app.status)) return false;
   if (app.lastRelanceAt) {
     const daysSinceRelance = getCalendarDaysAgo(app.lastRelanceAt);
     if (daysSinceRelance < DAYS_BEFORE_REMINDER) return false;
@@ -27,52 +37,69 @@ function isToRelance(app: Application): boolean {
 
 const Dashboard = () => {
   const { user } = useSupabaseAuth();
-  const [stats, setStats] = useState<DashboardStatistics | null>(null);
-  const [recent, setRecent] = useState<Application[]>([]);
-  const [toRelance, setToRelance] = useState<Application[]>([]);
-  const [upcomingInterviews, setUpcomingInterviews] = useState<Application[]>([]);
-  const [pastInterviews, setPastInterviews] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
   const [markingId, setMarkingId] = useState<number | null>(null);
+  const [optimisticRelanceIds, setOptimisticRelanceIds] = useState<number[]>([]);
 
-  const loadData = async () => {
-    try {
-      const [statsRes, recentRes, pendingRes, upcomingRes, pastRes] = await Promise.all([
-        dashboardService.getStatistics(),
-        dashboardService.getRecent(5),
-        applicationService.getAll({ status: 'pending' }),
-        dashboardService.getUpcomingInterviews(10),
-        dashboardService.getPastInterviews(15),
-      ]);
-      setStats(statsRes);
-      setRecent(recentRes);
-      setToRelance((pendingRes?.data ?? []).filter(isToRelance));
-      setUpcomingInterviews(upcomingRes || []);
-      setPastInterviews(pastRes || []);
-    } catch (e) {
-      toast.error(userFacingErrorMessage(e, 'Impossible de charger le tableau de bord.'));
-      setStats(null);
-      setRecent([]);
-      setToRelance([]);
-      setUpcomingInterviews([]);
-      setPastInterviews([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const statsQuery = useQuery({
+    queryKey: queryKeys.dashboard.stats,
+    queryFn: dashboardService.getStatistics,
+  });
+  const recentQuery = useQuery({
+    queryKey: queryKeys.dashboard.recent,
+    queryFn: () => dashboardService.getRecent(5),
+  });
+  const appsQuery = useQuery({
+    queryKey: queryKeys.applications.list({}),
+    queryFn: () => applicationService.getAll(),
+  });
+  const upcomingQuery = useQuery({
+    queryKey: queryKeys.dashboard.upcoming,
+    queryFn: () => dashboardService.getUpcomingInterviews(10),
+  });
+
+  const stats = statsQuery.data ?? null;
+  const recent = recentQuery.data ?? [];
+  const allApps = appsQuery.data?.data ?? [];
+  const toRelance = useMemo(
+    () => allApps.filter((app) => isToRelance(app) && !optimisticRelanceIds.includes(app.id)),
+    [allApps, optimisticRelanceIds]
+  );
+  const upcomingInterviews = upcomingQuery.data ?? [];
+  const createdAtList = useMemo(
+    () => allApps.map((a) => a.createdAt).filter((d): d is string => Boolean(d)),
+    [allApps]
+  );
+
+  const loading =
+    (statsQuery.isPending && !statsQuery.data) ||
+    (appsQuery.isPending && !appsQuery.data) ||
+    (recentQuery.isPending && !recentQuery.data);
 
   useEffect(() => {
-    loadData().then(() => {});
-  }, []);
+    const err =
+      statsQuery.error ||
+      recentQuery.error ||
+      appsQuery.error ||
+      upcomingQuery.error;
+    if (err) {
+      toast.error(userFacingErrorMessage(err, 'Impossible de charger le tableau de bord.'));
+    }
+  }, [
+    statsQuery.error,
+    recentQuery.error,
+    appsQuery.error,
+    upcomingQuery.error,
+  ]);
 
   const handleMarkRelance = async (id: number) => {
-    const previous = toRelance;
     setMarkingId(id);
-    setToRelance((prev) => prev.filter((a) => a.id !== id));
+    setOptimisticRelanceIds((prev) => [...prev, id]);
     try {
       await applicationService.markRelance(id);
+      await invalidateApplicationCaches();
+      setOptimisticRelanceIds((prev) => prev.filter((item) => item !== id));
     } catch (err) {
-      setToRelance(previous);
+      setOptimisticRelanceIds((prev) => prev.filter((item) => item !== id));
       toast.error(userFacingErrorMessage(err, 'Impossible d’enregistrer la relance.'));
     } finally {
       setMarkingId(null);
@@ -104,10 +131,10 @@ const Dashboard = () => {
       </div>
 
       {/* Liens rapides */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <Link
           to="/applications/new"
-          className="block p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
+          className="block p-3 sm:p-4 min-h-[44px] bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
         >
           <p className="font-semibold text-gray-900">Ajouter une candidature</p>
           <p className="text-sm text-gray-500 mt-0.5">Enregistrer une nouvelle candidature</p>
@@ -149,31 +176,28 @@ const Dashboard = () => {
         </Link>
       </div>
 
-      {/* Objectif hebdo */}
-      {user?.applicationsGoal != null && user.applicationsGoal > 0 && stats && (
-        <div className="bg-white rounded-xl shadow-card p-4 border border-gray-200">
-          <p className="text-sm text-gray-500">Objectif cette semaine</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {stats.applicationsThisWeek ?? 0} / {user.applicationsGoal}
-          </p>
-          <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary-600 rounded-full transition-all duration-300 ease-out"
-              style={{ width: `${Math.min(100, ((stats.applicationsThisWeek ?? 0) / user.applicationsGoal) * 100)}%` }}
-            />
-          </div>
-          <Link to="/profile" className="text-xs text-primary-600 hover:underline mt-1 inline-block">Modifier l'objectif</Link>
-        </div>
+      {/* À faire cette semaine */}
+      {stats && (
+        <WeeklyEffortCard
+          applicationsCurrent={stats.applicationsThisWeek ?? 0}
+          applicationsTarget={applicationsWeeklyTarget(user?.applicationsGoal)}
+          relancesCurrent={stats.relancesThisWeek ?? 0}
+          relancesTarget={WEEKLY_RELANCES_TARGET}
+          lettersCurrent={stats.lettersThisWeek ?? 0}
+          lettersTarget={WEEKLY_LETTERS_TARGET}
+          streak={computeApplicationStreak(
+            createdAtList,
+            applicationsWeeklyTarget(user?.applicationsGoal)
+          )}
+          toRelanceWaiting={toRelance.length}
+        />
       )}
 
       {/* Statistiques */}
       {stats && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <ApplicationsStatusChart
-            pending={stats.pending}
-            interview={stats.interview}
-            accepted={stats.accepted}
-            rejected={stats.rejected}
+            counts={stats.statusDistribution}
             total={stats.total}
           />
           {stats.monthlyData.length > 0 ? (
@@ -213,25 +237,6 @@ const Dashboard = () => {
           </ul>
         </div>
       )}
-
-      {/* Historique des entretiens effectués */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-card p-4 sm:p-6">
-        <h2 className="text-lg font-semibold text-gray-900 flex flex-wrap items-center gap-2">
-          <span aria-hidden>📋</span>
-          <span>Historique des entretiens effectués</span>
-          {pastInterviews.length > 0 ? (
-            <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs font-semibold text-gray-700 tabular-nums">
-              {pastInterviews.length}
-            </span>
-          ) : null}
-        </h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Entretiens dont la date est passée, avec le statut actuel de la candidature.
-        </p>
-        <div className="mt-4">
-          <PastInterviewsList interviews={pastInterviews} />
-        </div>
-      </div>
 
       {/* À relancer */}
       {toRelance.length > 0 && (
@@ -356,15 +361,8 @@ const Dashboard = () => {
                       <p className="font-medium text-gray-900">{app.companyName}</p>
                       <p className="text-sm text-gray-500 break-words">{app.position}</p>
                     </div>
-                    <span className={`text-sm font-medium px-2 py-0.5 rounded ${
-                      app.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                      app.status === 'interview' ? 'bg-blue-100 text-blue-800' :
-                      app.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                      'bg-amber-100 text-amber-800'
-                    }`}>
-                      {app.status === 'pending' ? 'En attente' :
-                       app.status === 'interview' ? 'Entretien' :
-                       app.status === 'accepted' ? 'Acceptée' : 'Refusée'}
+                    <span className={`text-sm font-medium px-2 py-0.5 rounded ${applicationStatusBadgeClass(app.status)}`}>
+                      {applicationStatusLabel(app.status)}
                     </span>
                   </Link>
                 </li>

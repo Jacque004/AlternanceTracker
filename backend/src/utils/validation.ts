@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Request, Response, NextFunction } from 'express';
 import { isDisposableEmailDomain } from './disposableEmailDomains';
+import { securityLogger } from './logger';
 
 // Regex stricte pour validation email (RFC 5322 simplifié)
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
@@ -79,7 +80,7 @@ export const applicationSchema = z.object({
     .min(1, 'Le poste est requis')
     .max(255, 'Le poste ne peut pas dépasser 255 caractères')
     .trim(),
-  status: z.enum(['pending', 'interview', 'accepted', 'rejected'], {
+  status: z.enum(['to_apply', 'pending', 'followed_up', 'interview', 'accepted', 'rejected'], {
     errorMap: () => ({ message: 'Statut invalide' }),
   }),
   applicationDate: z.string().optional().nullable(),
@@ -140,7 +141,7 @@ export const applicationUpdateSchema = z.object({
     .max(255, 'Le poste ne peut pas dépasser 255 caractères')
     .trim()
     .optional(),
-  status: z.enum(['pending', 'interview', 'accepted', 'rejected'], {
+  status: z.enum(['to_apply', 'pending', 'followed_up', 'interview', 'accepted', 'rejected'], {
     errorMap: () => ({ message: 'Statut invalide' }),
   }).optional(),
   applicationDate: z.string().optional().nullable(),
@@ -199,6 +200,11 @@ export const validate = (schema: z.ZodSchema) => {
           field: err.path.join('.'),
           message: err.message,
         }));
+        const fields = errors.map((e) => e.field);
+        const unusual =
+          fields.length >= 6 ||
+          errors.some((e) => /localhost|IP privée|non autorisée/i.test(e.message));
+        securityLogger.validationFailed(req, fields, unusual);
         res.status(400).json({
           message: 'Erreur de validation',
           errors,

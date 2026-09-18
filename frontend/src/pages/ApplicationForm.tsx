@@ -1,20 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { applicationService, aiService } from '../services/supabaseService';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { applicationService, aiService, interviewPrepService } from '../services/supabaseService';
 import { formatDateForInput, formatTimeForInput } from '../utils/dateDisplay';
 import { normalizeJobOfferUrl } from '../utils/jobOfferUrl';
 import { looksLikeReaderOrErrorDump } from '../utils/jobOfferImport';
 import toast from 'react-hot-toast';
 import type { Application } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { ApplicationHistory } from '../components/ApplicationHistory';
+import { InterviewPrepCard } from '../components/InterviewPrepCard';
 import { userFacingErrorMessage } from '../utils/errorMessage';
-
-const STATUS_OPTIONS = [
-  { value: 'pending', label: 'En attente' },
-  { value: 'interview', label: 'Entretien' },
-  { value: 'accepted', label: 'Acceptée' },
-  { value: 'rejected', label: 'Refusée' },
-];
+import { APPLICATION_STATUS_OPTIONS } from '../utils/applicationStatus';
+import { queryKeys } from '../query/keys';
+import { invalidateApplicationCaches } from '../query/client';
 
 const ApplicationForm = () => {
   const { id } = useParams();
@@ -22,8 +21,21 @@ const ApplicationForm = () => {
   const [searchParams] = useSearchParams();
   const isEdit = Boolean(id);
   const [loading, setLoading] = useState(false);
-  const [loadOne, setLoadOne] = useState(true);
   const [fetchingImport, setFetchingImport] = useState(false);
+  const applicationId = isEdit && id ? Number(id) : null;
+
+  const appQuery = useQuery({
+    queryKey: queryKeys.applications.detail(applicationId ?? 0),
+    queryFn: () => applicationService.getById(applicationId!),
+    enabled: applicationId != null && Number.isFinite(applicationId),
+  });
+  const eventsQuery = useQuery({
+    queryKey: queryKeys.applications.events(applicationId ?? 0),
+    queryFn: () => applicationService.getEvents(applicationId!),
+    enabled: applicationId != null && Number.isFinite(applicationId),
+  });
+  const queryClient = useQueryClient();
+
   const [formData, setFormData] = useState({
     companyName: '',
     position: '',
@@ -39,34 +51,52 @@ const ApplicationForm = () => {
     interviewPlace: '',
   });
 
+  const prepQuery = useQuery({
+    queryKey: queryKeys.applications.interviewPrep(applicationId ?? 0),
+    queryFn: () => interviewPrepService.getByApplicationId(applicationId!),
+    enabled:
+      applicationId != null && Number.isFinite(applicationId) && formData.status === 'interview',
+  });
+  const generatePrep = useMutation({
+    mutationFn: () => interviewPrepService.generate(applicationId!),
+    onSuccess: (prep) => {
+      queryClient.setQueryData(queryKeys.applications.interviewPrep(applicationId!), prep);
+      toast.success('Préparation d’entretien générée.');
+    },
+    onError: (err) => {
+      toast.error(userFacingErrorMessage(err, 'Impossible de générer la préparation.'));
+    },
+  });
+
   useEffect(() => {
     if (!isEdit || !id) {
-      setLoadOne(false);
       return;
     }
-    applicationService
-      .getById(Number(id))
-      .then((app) => {
-        setFormData({
-          companyName: app.companyName,
-          position: app.position,
-          status: app.status,
-          applicationDate: formatDateForInput(app.applicationDate),
-          responseDate: formatDateForInput(app.responseDate),
-          notes: app.notes || '',
-          location: app.location || '',
-          salaryRange: app.salaryRange || '',
-          jobUrl: app.jobUrl || '',
-          interviewDate: formatDateForInput(app.interviewDate),
-          interviewTime: formatTimeForInput(app.interviewTime),
-          interviewPlace: app.interviewPlace || '',
-        });
-      })
-      .catch((err: unknown) =>
-        toast.error(userFacingErrorMessage(err, 'Candidature introuvable ou impossible à charger.'))
-      )
-      .finally(() => setLoadOne(false));
-  }, [isEdit, id]);
+    const app = appQuery.data;
+    if (!app) return;
+    setFormData({
+      companyName: app.companyName,
+      position: app.position,
+      status: app.status,
+      applicationDate: formatDateForInput(app.applicationDate),
+      responseDate: formatDateForInput(app.responseDate),
+      notes: app.notes || '',
+      location: app.location || '',
+      salaryRange: app.salaryRange || '',
+      jobUrl: app.jobUrl || '',
+      interviewDate: formatDateForInput(app.interviewDate),
+      interviewTime: formatTimeForInput(app.interviewTime),
+      interviewPlace: app.interviewPlace || '',
+    });
+  }, [isEdit, id, appQuery.data]);
+
+  useEffect(() => {
+    if (appQuery.error) {
+      toast.error(
+        userFacingErrorMessage(appQuery.error, 'Candidature introuvable ou impossible à charger.')
+      );
+    }
+  }, [appQuery.error]);
 
   useEffect(() => {
     if (isEdit) return;
@@ -188,6 +218,7 @@ const ApplicationForm = () => {
         await applicationService.create(payload);
         toast.success('Candidature créée');
       }
+      await invalidateApplicationCaches();
       navigate('/applications');
     } catch (err: unknown) {
       toast.error(userFacingErrorMessage(err, 'Erreur lors de l’enregistrement.'));
@@ -196,7 +227,7 @@ const ApplicationForm = () => {
     }
   };
 
-  if (loadOne) {
+  if (isEdit && appQuery.isPending && !appQuery.data) {
     return (
       <div className="max-w-2xl mx-auto py-12 flex flex-col items-center gap-4">
         <LoadingSpinner size="lg" />
@@ -288,7 +319,7 @@ const ApplicationForm = () => {
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 min-h-[44px]"
             >
-              {STATUS_OPTIONS.map((o) => (
+              {APPLICATION_STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
@@ -435,6 +466,31 @@ const ApplicationForm = () => {
           )}
         </div>
       </form>
+
+      {isEdit && formData.status === 'interview' && applicationId ? (
+        <InterviewPrepCard
+          companyName={formData.companyName}
+          prep={prepQuery.data ?? null}
+          loading={prepQuery.isPending && !prepQuery.data}
+          generating={generatePrep.isPending}
+          onGenerate={() => generatePrep.mutate()}
+        />
+      ) : null}
+
+      {isEdit ? (
+        <section className="bg-white shadow-card rounded-xl border border-gray-200 p-4 sm:p-6 md:p-8">
+          <h2 className="text-lg font-semibold text-gray-900">Journal</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Changements de statut, relances et déplacements d’entretien.
+          </p>
+          <div className="mt-4">
+            <ApplicationHistory
+              events={eventsQuery.data ?? []}
+              loading={eventsQuery.isPending && !eventsQuery.data}
+            />
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 };

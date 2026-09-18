@@ -138,10 +138,7 @@ const AdminDashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
         <ApplicationsStatusChart
-          pending={byStatus.pending ?? 0}
-          interview={byStatus.interview ?? 0}
-          accepted={byStatus.accepted ?? 0}
-          rejected={byStatus.rejected ?? 0}
+          counts={byStatus}
           total={stats.applicationsCount}
         />
         {stats.monthlyData.length > 0 ? (

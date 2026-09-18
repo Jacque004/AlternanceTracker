@@ -11,6 +11,8 @@ export function isSupabaseSchemaError(error: { code?: string; message?: string; 
     msg.includes('schema cache') ||
     msg.includes('in_app_notifications_enabled') ||
     msg.includes('user_notifications') ||
+    msg.includes('application_events') ||
+    msg.includes('interview_preps') ||
     (error.status === 400 &&
       (msg.includes('column') || msg.includes('relation') || msg.includes('schema')))
   );

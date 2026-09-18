@@ -112,7 +112,7 @@ serve(async (req) => {
     const now = new Date();
 
     for (const app of applications || []) {
-      if (app.status === 'pending') {
+      if (app.status === 'pending' || app.status === 'followed_up') {
         const refDate = app.application_date ?? (app as { created_at?: string }).created_at;
         if (refDate) {
           const daysAgo = getDaysAgo(refDate);

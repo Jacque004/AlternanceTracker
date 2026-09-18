@@ -4,6 +4,7 @@ import { notificationService } from './notificationService';
 import { normalizeJobOfferUrl } from '../utils/jobOfferUrl';
 import {
   Application,
+  ApplicationEvent,
   ApplicationListParams,
   ApplicationsResult,
   DashboardStatistics,
@@ -12,7 +13,11 @@ import {
   GeneratedLetter,
   CVAnalysis,
   JobMetadataFromUrl,
+  InterviewPrep,
 } from '../types';
+import { isSupabaseSchemaError } from '../utils/supabaseSchema';
+import { normalizeApplicationStatus } from '../utils/applicationStatus';
+import { weekStartIso } from '../utils/weeklyEffort';
 
 /** JWT session pour appeler les Edge Functions protégées (pas la clé anon en Bearer). */
 async function getUserAccessTokenForEdgeFunctions(): Promise<string> {
@@ -45,7 +50,7 @@ function mapRowToApplication(row: any): Application {
     id: row.id,
     companyName: row.company_name,
     position: row.position,
-    status: row.status,
+    status: normalizeApplicationStatus(row.status),
     applicationDate: row.application_date,
     responseDate: row.response_date,
     notes: row.notes,
@@ -229,6 +234,7 @@ export const applicationService = {
     if (data.interviewDate !== undefined) updates.interview_date = data.interviewDate || null;
     if (data.interviewTime !== undefined) updates.interview_time = data.interviewTime || null;
     if (data.interviewPlace !== undefined) updates.interview_place = data.interviewPlace || null;
+    if (data.lastRelanceAt !== undefined) updates.last_relance_at = data.lastRelanceAt;
 
     const { data: result, error } = await supabase
       .from('applications')
@@ -258,7 +264,7 @@ export const applicationService = {
     if (!user) throw new Error('User not authenticated');
     const { data: result, error } = await supabase
       .from('applications')
-      .update({ last_relance_at: new Date().toISOString() })
+      .update({ last_relance_at: new Date().toISOString(), status: 'followed_up' })
       .eq('id', id)
       .eq('user_id', user.id)
       .select()
@@ -266,6 +272,32 @@ export const applicationService = {
     if (error) throw new Error(error.message || 'Erreur lors de la mise à jour');
     if (!result) throw new Error('Candidature non trouvée');
     return mapRowToApplication(result);
+  },
+
+  getEvents: async (applicationId: number): Promise<ApplicationEvent[]> => {
+    const { data, error } = await supabase
+      .from('application_events')
+      .select('*')
+      .eq('application_id', applicationId)
+      .order('created_at', { ascending: false })
+      .limit(80);
+
+    if (error) {
+      if (isSupabaseSchemaError(error)) return [];
+      throw error;
+    }
+
+    return (data || []).map((row: Record<string, unknown>) => ({
+      id: String(row.id),
+      applicationId: Number(row.application_id),
+      userId: String(row.user_id),
+      eventType: row.event_type as ApplicationEvent['eventType'],
+      fromStatus: (row.from_status as string | null) ?? null,
+      toStatus: (row.to_status as string | null) ?? null,
+      summary: String(row.summary ?? ''),
+      metadata: (row.metadata as Record<string, unknown>) || {},
+      createdAt: String(row.created_at ?? ''),
+    }));
   },
 
   delete: async (id: number): Promise<void> => {
@@ -332,18 +364,32 @@ export const dashboardService = {
 
     const monthly = Object.entries(monthlyMap).map(([month, count]) => ({ month, count }));
 
-    /** Nombre de candidatures cette semaine (pour objectif) */
-    const startOfWeek = new Date();
-    startOfWeek.setHours(0, 0, 0, 0);
-    const day = startOfWeek.getDay();
-    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
-    startOfWeek.setDate(diff);
-    const weekStart = format(startOfWeek, 'yyyy-MM-dd');
+    const weekStart = weekStartIso();
     const { count: applicationsThisWeek } = await supabase
       .from('applications')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .gte('created_at', weekStart);
+
+    const { count: relancesThisWeek } = await supabase
+      .from('applications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('last_relance_at', weekStart);
+
+    let lettersThisWeek = 0;
+    const { count: lettersCount, error: lettersError } = await supabase
+      .from('generated_letters')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', weekStart);
+    if (lettersError) {
+      if (!isSupabaseSchemaError(lettersError)) {
+        console.warn('Lettres cette semaine:', lettersError.message);
+      }
+    } else {
+      lettersThisWeek = lettersCount ?? 0;
+    }
 
     // Taux de réponse
     const { count: responded } = await supabase
@@ -360,11 +406,15 @@ export const dashboardService = {
       monthlyData: monthly,
       responseRate: Math.round(responseRate * 100) / 100,
       responded: responded || 0,
+      toApply: statusDistribution.to_apply || 0,
       pending: statusDistribution.pending || 0,
+      followedUp: statusDistribution.followed_up || 0,
       interview: statusDistribution.interview || 0,
       accepted: statusDistribution.accepted || 0,
       rejected: statusDistribution.rejected || 0,
       applicationsThisWeek: applicationsThisWeek ?? 0,
+      relancesThisWeek: relancesThisWeek ?? 0,
+      lettersThisWeek,
     };
   },
 
@@ -836,7 +886,87 @@ export const cvAnalysisService = {
   },
 };
 
-/** RGPD : export et suppression du compte */
+/** Préparation d’entretien (questions + points CV) */
+export const interviewPrepService = {
+  mapRow(row: Record<string, unknown>): InterviewPrep {
+    const questions = Array.isArray(row.questions)
+      ? row.questions.filter((q): q is string => typeof q === 'string')
+      : [];
+    const cvTalkingPoints = Array.isArray(row.cv_talking_points)
+      ? row.cv_talking_points.filter((q): q is string => typeof q === 'string')
+      : [];
+    return {
+      id: String(row.id),
+      applicationId: Number(row.application_id),
+      questions,
+      cvTalkingPoints,
+      generatedAt: String(row.generated_at ?? ''),
+    };
+  },
+
+  getByApplicationId: async (applicationId: number): Promise<InterviewPrep | null> => {
+    const { data, error } = await supabase
+      .from('interview_preps')
+      .select('*')
+      .eq('application_id', applicationId)
+      .maybeSingle();
+    if (error) {
+      if (isSupabaseSchemaError(error)) return null;
+      throw error;
+    }
+    return data ? interviewPrepService.mapRow(data as Record<string, unknown>) : null;
+  },
+
+  getByApplicationIds: async (applicationIds: number[]): Promise<InterviewPrep[]> => {
+    if (applicationIds.length === 0) return [];
+    const { data, error } = await supabase
+      .from('interview_preps')
+      .select('*')
+      .in('application_id', applicationIds);
+    if (error) {
+      if (isSupabaseSchemaError(error)) return [];
+      throw error;
+    }
+    return (data || []).map((row) => interviewPrepService.mapRow(row as Record<string, unknown>));
+  },
+
+  generate: async (applicationId: number): Promise<InterviewPrep> => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '') || '';
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Configuration Supabase manquante.');
+    }
+    const accessToken = await getUserAccessTokenForEdgeFunctions();
+    const res = await fetch(`${supabaseUrl}/functions/v1/prepare-interview`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+        apikey: supabaseAnonKey,
+      },
+      body: JSON.stringify({ applicationId }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(
+        (body as { error?: string }).error || res.statusText || 'Impossible de générer la préparation.'
+      );
+    }
+    const questions = Array.isArray(body.questions) ? body.questions : [];
+    const cvTalkingPoints = Array.isArray(body.cvTalkingPoints) ? body.cvTalkingPoints : [];
+    if (!questions.length) {
+      throw new Error((body as { error?: string }).error || 'Préparation vide.');
+    }
+    return {
+      id: String(body.id ?? ''),
+      applicationId: Number(body.applicationId ?? applicationId),
+      questions,
+      cvTalkingPoints,
+      generatedAt: String(body.generatedAt ?? new Date().toISOString()),
+    };
+  },
+};
+
 export const rgpdService = {
   /** Droit à la portabilité — export de toutes les données personnelles */
   exportMyData: async (): Promise<Record<string, unknown>> => {

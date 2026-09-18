@@ -10,6 +10,7 @@ import {
   markInAppNotificationsColumnMissing,
   markInAppNotificationsColumnPresent,
 } from '../utils/inAppNotificationsSchema';
+import { queryClient } from '../query/client';
 import { getAppBaseUrl } from '../utils/appUrl';
 import { getOAuthAvatarUrl, getOAuthFirstName, getOAuthLastName } from '../utils/oauthUserMetadata';
 
@@ -341,6 +342,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     }
     setUser(null);
     setSession(null);
+    queryClient.clear();
   };
 
   const sendPasswordReset = async (email: string) => {

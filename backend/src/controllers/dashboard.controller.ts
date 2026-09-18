@@ -60,7 +60,9 @@ export const getStatistics = async (req: AuthRequest, res: Response) => {
       })),
       responseRate: Math.round(responseRate * 100) / 100,
       responded,
+      toApply: statusDistribution.to_apply || 0,
       pending: statusDistribution.pending || 0,
+      followedUp: statusDistribution.followed_up || 0,
       interview: statusDistribution.interview || 0,
       accepted: statusDistribution.accepted || 0,
       rejected: statusDistribution.rejected || 0

@@ -63,11 +63,33 @@ export interface UserNotification {
   createdAt: string;
 }
 
+export type ApplicationStatus =
+  | 'to_apply'
+  | 'pending'
+  | 'followed_up'
+  | 'interview'
+  | 'accepted'
+  | 'rejected';
+
+export type ApplicationEventType = 'created' | 'status_change' | 'relance' | 'interview_changed';
+
+export interface ApplicationEvent {
+  id: string;
+  applicationId: number;
+  userId: string;
+  eventType: ApplicationEventType;
+  fromStatus?: string | null;
+  toStatus?: string | null;
+  summary: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+}
+
 export interface Application {
   id: number;
   companyName: string;
   position: string;
-  status: 'pending' | 'interview' | 'accepted' | 'rejected';
+  status: ApplicationStatus;
   applicationDate?: string;
   responseDate?: string;
   notes?: string;
@@ -84,6 +106,14 @@ export interface Application {
   lastRelanceAt?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface InterviewPrep {
+  id: string;
+  applicationId: number;
+  questions: string[];
+  cvTalkingPoints: string[];
+  generatedAt: string;
 }
 
 /** Métadonnées extraites d’une page d’offre (Edge Function fetch-job-metadata) */
@@ -119,24 +149,25 @@ export interface ApplicationsResult {
 
 export interface DashboardStatistics {
   total: number;
-  statusDistribution: {
-    pending?: number;
-    interview?: number;
-    accepted?: number;
-    rejected?: number;
-  };
+  statusDistribution: Partial<Record<ApplicationStatus, number>> & Record<string, number>;
   monthlyData: Array<{
     month: string;
     count: number;
   }>;
   responseRate: number;
   responded: number;
+  toApply: number;
   pending: number;
+  followedUp: number;
   interview: number;
   accepted: number;
   rejected: number;
   /** Candidatures créées cette semaine (pour objectif) */
   applicationsThisWeek?: number;
+  /** Relances enregistrées cette semaine */
+  relancesThisWeek?: number;
+  /** Lettres générées / enregistrées cette semaine */
+  lettersThisWeek?: number;
 }
 
 /** Sections standard pour un CV compatible ATS (titres reconnus par les logiciels de tri) */

@@ -20,7 +20,7 @@ export default function PreparerLayout() {
       </div>
 
       <nav
-        className="w-full min-w-0 max-w-full rounded-xl bg-white/80 p-1 sm:p-1.5 shadow-card border border-gray-200/80 overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]"
+        className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 w-full min-w-0 max-w-full rounded-xl bg-white/95 backdrop-blur-md p-1 sm:p-1.5 shadow-card border border-gray-200/80 overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]"
         aria-label="Sections Préparer"
       >
         <ul className="flex gap-1 min-w-max sm:min-w-0 sm:w-full">

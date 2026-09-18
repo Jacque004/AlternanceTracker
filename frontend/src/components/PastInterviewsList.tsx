@@ -1,20 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { Application } from '../types';
 import { formatDisplayDate, formatDisplayTime } from '../utils/dateDisplay';
-
-const STATUS_LABELS: Record<Application['status'], string> = {
-  pending: 'En attente',
-  interview: 'Entretien',
-  accepted: 'Acceptée',
-  rejected: 'Refusée',
-};
-
-const STATUS_BADGE: Record<Application['status'], string> = {
-  pending: 'bg-amber-100 text-amber-800',
-  interview: 'bg-blue-100 text-blue-800',
-  accepted: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
-};
+import { applicationStatusBadgeClass, applicationStatusLabel } from '../utils/applicationStatus';
 
 interface PastInterviewsListProps {
   interviews: Application[];
@@ -48,9 +35,9 @@ export function PastInterviewsList({
                 {app.interviewPlace ? ` – ${app.interviewPlace}` : ''}
               </span>
               <span
-                className={`text-xs font-medium px-2 py-0.5 rounded shrink-0 ${STATUS_BADGE[app.status]}`}
+                className={`text-xs font-medium px-2 py-0.5 rounded shrink-0 ${applicationStatusBadgeClass(app.status)}`}
               >
-                {STATUS_LABELS[app.status]}
+                {applicationStatusLabel(app.status)}
               </span>
             </div>
           </Link>
