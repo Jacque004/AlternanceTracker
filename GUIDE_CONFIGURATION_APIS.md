@@ -344,12 +344,12 @@ Les fonctionnalités de génération de lettres et d'analyse CV ne fonctionneron
 Une fois tout configuré, votre `backend/.env` devrait ressembler à :
 
 ```bash
-JWT_SECRET=yYpPuOs8yXW85GhceXhZTPoE+dKd6xeCAGqrLIbOmlSaY1EOsxEV+24EZ3vjH3F57mgneS2Rl4KCwb1CvScOBw==
-CSRF_SECRET=KNcf0CGQw5lfEUvSO1SCV0YWa8X4RlDo14BGpRuBIig=
+JWT_SECRET=<générer : openssl rand -base64 64>
+CSRF_SECRET=<générer : openssl rand -base64 32>
 SUPABASE_URL=https://xxxxxxxxxxxxx.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-OPENAI_API_KEY=sk-proj-xxxxx... (ou GEMINI_API_KEY)
+SUPABASE_ANON_KEY=<anon key du dashboard>
+SUPABASE_SERVICE_ROLE_KEY=<service_role key du dashboard — jamais dans Git>
+OPENAI_API_KEY=<clé OpenAI>   # ou GEMINI_API_KEY
 ```
 
 **Tout est configuré ! 🎉**
