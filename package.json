@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "SaaS de gestion intelligente de candidatures",
   "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "workspaces": [
     "backend",
     "frontend"
