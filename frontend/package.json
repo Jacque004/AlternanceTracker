@@ -20,7 +20,7 @@
     "follow-redirects": "^1.16.0",
     "pdfjs-dist": "^6.3.289",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react-dom": "^19.3.0",
     "react-hot-toast": "^2.4.1",
     "react-router-dom": "^7.18.3",
     "recharts": "^2.10.3"
@@ -29,7 +29,7 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@types/react": "^18.2.43",
-    "@types/react-dom": "^18.2.17",
+    "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
     "cross-env": "^7.0.3",
