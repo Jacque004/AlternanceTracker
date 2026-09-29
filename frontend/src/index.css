@@ -53,7 +53,8 @@
 
 @layer components {
   .page-enter {
-    animation: pageEnter var(--transition-page) ease-out forwards;
+    /* Pas de fill-mode forwards : un transform résiduel empêche les taps iOS d’atteindre les liens. */
+    animation: pageEnter var(--transition-page);
   }
 
   .card-hover {
@@ -126,7 +127,7 @@
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 

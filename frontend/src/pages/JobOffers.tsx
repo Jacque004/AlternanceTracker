@@ -32,16 +32,19 @@ function readParams(searchParams: URLSearchParams): JobOfferListParams {
 
 function OfferCard({ offer }: { offer: JobOffer }) {
   return (
-    <article className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 min-w-0 flex flex-col gap-3">
-      <div className="min-w-0">
-        <h2 className="text-lg font-semibold text-gray-900 break-words">
-          <Link to={`/offres/${offer.id}`} className="hover:text-primary-700">
-            {offer.title}
-          </Link>
+    <article className="relative group bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 min-w-0 flex flex-col gap-3">
+      <Link
+        to={`/offres/${offer.id}`}
+        className="absolute inset-0 z-0 rounded-xl"
+        aria-label={`${offer.title}, ${offer.companyName}`}
+      />
+      <div className="relative z-[1] min-w-0 pointer-events-none">
+        <h2 className="text-lg font-semibold text-gray-900 break-words group-hover:text-primary-700">
+          {offer.title}
         </h2>
         <p className="mt-1 text-sm text-gray-700">{offer.companyName}</p>
       </div>
-      <ul className="flex flex-wrap gap-2 text-sm text-gray-600">
+      <ul className="relative z-[1] flex flex-wrap gap-2 text-sm text-gray-600 pointer-events-none">
         {offer.location ? <li className="rounded-full bg-gray-100 px-2.5 py-1">{offer.location}</li> : null}
         {offer.contractType ? (
           <li className="rounded-full bg-gray-100 px-2.5 py-1">{offer.contractType}</li>
@@ -52,14 +55,14 @@ function OfferCard({ offer }: { offer: JobOffer }) {
         {offer.remote ? <li className="rounded-full bg-sky-50 text-sky-800 px-2.5 py-1">Télétravail</li> : null}
         {offer.salary ? <li className="rounded-full bg-gray-100 px-2.5 py-1">{offer.salary}</li> : null}
       </ul>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+      <div className="relative z-[1] flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 pointer-events-none">
         <span>{formatPublishedAgo(offer.publishedAt)}</span>
         <span>Source : {sourceLabel(offer.source)}</span>
         {offer.isDemo ? (
           <span className="font-medium text-amber-800">Données de démonstration</span>
         ) : null}
       </div>
-      <div className="mt-auto flex flex-col sm:flex-row gap-2">
+      <div className="relative z-[2] mt-auto flex flex-col sm:flex-row gap-2">
         <OriginalOfferLink
           offer={offer}
           className="inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
