@@ -67,7 +67,7 @@ if (!token) {
 const byId = new Map<string, NormalizedJobOffer>();
 let skipped = 0;
 for (let page = 0; page < PAGE_COUNT; page += 1) {
-  const result = await fetchFranceTravailPage(env, fetch, token, page * 150);
+  const result = await fetchFranceTravailPage(fetch, token, page * 150);
   skipped += result.skippedCount;
   for (const offer of result.offers) byId.set(offer.externalId || offer.sourceUrl, offer);
   console.log(`page ${page + 1} : ${result.offers.length} alternances, ${byId.size} uniques`);

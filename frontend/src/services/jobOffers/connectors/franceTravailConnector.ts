@@ -122,7 +122,6 @@ async function accessToken(env: JobConnectorEnv, fetchImpl: typeof fetch): Promi
 }
 
 export async function fetchFranceTravailPage(
-  env: JobConnectorEnv,
   fetchImpl: typeof fetch,
   token: string,
   start: number
@@ -170,7 +169,7 @@ export const franceTravailConnector: JobConnector = {
   async fetchOffers(env: JobConnectorEnv, fetchImpl: typeof fetch = fetch): Promise<ConnectorFetchResult> {
     if (!this.isEnabled(env)) return { offers: [], skippedCount: 0 };
     const token = await accessToken(env, fetchImpl);
-    const page = await fetchFranceTravailPage(env, fetchImpl, token, 0);
+    const page = await fetchFranceTravailPage(fetchImpl, token, 0);
     return { offers: page.offers, skippedCount: page.skippedCount };
   },
 };
