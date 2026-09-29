@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SupabaseAuthProvider } from './contexts/SupabaseAuthContext';
@@ -28,8 +28,15 @@ const PreparerLayout = lazy(() => import('./pages/PreparerLayout'));
 const PolitiqueConfidentialite = lazy(() => import('./pages/PolitiqueConfidentialite'));
 const CGU = lazy(() => import('./pages/CGU'));
 const HomeRoute = lazy(() => import('./pages/HomeRoute'));
+const JobOffers = lazy(() => import('./pages/JobOffers'));
+const JobOfferDetail = lazy(() => import('./pages/JobOfferDetail'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminRoute = lazy(() => import('./components/AdminRoute'));
+
+function LegacyOffreRedirect() {
+  const { id } = useParams();
+  return <Navigate to={id ? `/offres/${id}` : '/offres'} replace />;
+}
 
 function RouteTitle() {
   const location = useLocation();
@@ -96,6 +103,10 @@ function App() {
                 <Route path="applications" element={<Applications />} />
                 <Route path="applications/new" element={<ApplicationForm />} />
                 <Route path="applications/:id/edit" element={<ApplicationForm />} />
+                <Route path="offres" element={<JobOffers />} />
+                <Route path="offres/:id" element={<JobOfferDetail />} />
+                <Route path="offre" element={<Navigate to="/offres" replace />} />
+                <Route path="offre/:id" element={<LegacyOffreRedirect />} />
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="aide/notifications" element={<Navigate to="/profile#notifications" replace />} />

@@ -10,6 +10,7 @@ function blockedIpv4(host: string): boolean {
   return false;
 }
 
+/** Loopback, lien-local, unique local, multicast, et IPv4 mappée privée. */
 function blockedIpv6(host: string): boolean {
   if (!host.includes(':')) return false;
   if (host === '::' || host === '::1') return true;
@@ -46,7 +47,7 @@ function blockedIpv6(host: string): boolean {
   return false;
 }
 
-/** Réduit les risques SSRF : pas de localhost, de réseau privé ni de lien metadata, en IPv4 ou IPv6. */
+/** Bloque localhost, métadonnées cloud et réseaux privés, en IPv4 et en IPv6. */
 export function blockedHostname(host: string): boolean {
   const h = host.toLowerCase().replace(/\.$/, '').split('%')[0].replace(/^\[|\]$/g, '');
   if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local')) return true;
@@ -55,23 +56,33 @@ export function blockedHostname(host: string): boolean {
   return false;
 }
 
-/** Valide une URL http(s) publique ; sinon retourne un message d’erreur. */
-export function validatePublicJobUrl(rawUrl: string): { ok: true; url: URL } | { ok: false; message: string } {
-  const trimmed = rawUrl.trim();
-  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
-    return { ok: false, message: 'L\'URL doit commencer par http:// ou https://' };
-  }
+/** URL http(s) publique, ou null. */
+export function safePublicHttpUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return null;
   let parsed: URL;
   try {
     parsed = new URL(trimmed);
   } catch {
-    return { ok: false, message: 'URL mal formée' };
+    return null;
   }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    return { ok: false, message: 'Protocole non autorisé' };
-  }
-  if (blockedHostname(parsed.hostname)) {
-    return { ok: false, message: 'Cette adresse ne peut pas être récupérée' };
-  }
-  return { ok: true, url: parsed };
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+  if (parsed.username || parsed.password) return null;
+  if (!parsed.hostname || blockedHostname(parsed.hostname)) return null;
+  return parsed.toString();
+}
+
+/**
+ * Destination du bouton « Voir l'offre ».
+ * Seule l'URL enregistrée sur l'offre est acceptée. Une URL fournie à part est ignorée.
+ */
+export function redirectUrlFromOffer(
+  offer: { sourceUrl: string },
+  requestedUrl?: string
+): string | null {
+  const safe = safePublicHttpUrl(offer.sourceUrl);
+  if (!safe) return null;
+  if (typeof requestedUrl === 'string' && requestedUrl !== safe) return safe;
+  return safe;
 }

@@ -57,6 +57,7 @@ function mapRowToApplication(row: any): Application {
     location: row.location,
     salaryRange: row.salary_range,
     jobUrl: row.job_url,
+    jobOfferId: row.job_offer_id ?? null,
     interviewDate: row.interview_date,
     interviewTime: row.interview_time,
     interviewPlace: row.interview_place,
@@ -171,23 +172,26 @@ export const applicationService = {
     // Vérifier et créer le profil utilisateur si nécessaire
     await ensureUserProfile(user.id, user.email ?? '');
 
+    const row: Record<string, unknown> = {
+      user_id: user.id,
+      company_name: data.companyName,
+      position: data.position,
+      status: data.status || 'pending',
+      application_date: data.applicationDate || null,
+      response_date: data.responseDate || null,
+      notes: data.notes || null,
+      location: data.location || null,
+      salary_range: data.salaryRange || null,
+      job_url: data.jobUrl || null,
+      interview_date: data.interviewDate || null,
+      interview_time: data.interviewTime || null,
+      interview_place: data.interviewPlace || null,
+    };
+    if (data.jobOfferId) row.job_offer_id = data.jobOfferId;
+
     const { data: result, error } = await supabase
       .from('applications')
-      .insert({
-        user_id: user.id,
-        company_name: data.companyName,
-        position: data.position,
-        status: data.status || 'pending',
-        application_date: data.applicationDate || null,
-        response_date: data.responseDate || null,
-        notes: data.notes || null,
-        location: data.location || null,
-        salary_range: data.salaryRange || null,
-        job_url: data.jobUrl || null,
-        interview_date: data.interviewDate || null,
-        interview_time: data.interviewTime || null,
-        interview_place: data.interviewPlace || null,
-      })
+      .insert(row)
       .select()
       .single();
 

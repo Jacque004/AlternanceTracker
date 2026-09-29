@@ -9,6 +9,7 @@ import { ApplicationsStatusChart } from '../components/ApplicationsStatusChart';
 import { SkeletonCharts } from '../components/Skeleton';
 import { userFacingErrorMessage } from '../utils/errorMessage';
 import { formatDisplayDate } from '../utils/dateDisplay';
+import JobOffersAdminPanel from '../components/JobOffersAdminPanel';
 
 function StatCard({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
@@ -161,6 +162,8 @@ const AdminDashboard = () => {
           </ul>
         </section>
       </div>
+
+      <JobOffersAdminPanel />
 
       <section className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-6 min-w-0 overflow-hidden">
         <div className="mb-4 min-w-0">

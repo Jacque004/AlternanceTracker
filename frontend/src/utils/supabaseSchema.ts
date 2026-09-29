@@ -13,6 +13,8 @@ export function isSupabaseSchemaError(error: { code?: string; message?: string; 
     msg.includes('user_notifications') ||
     msg.includes('application_events') ||
     msg.includes('interview_preps') ||
+    msg.includes('job_offers') ||
+    msg.includes('job_offer_id') ||
     (error.status === 400 &&
       (msg.includes('column') || msg.includes('relation') || msg.includes('schema')))
   );

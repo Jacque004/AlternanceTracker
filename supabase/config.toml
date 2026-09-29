@@ -19,3 +19,7 @@ verify_jwt = false
 
 [functions.prepare-interview]
 verify_jwt = false
+
+# Collecte des offres. Appelée par un cron avec CRON_SECRET, pas par le navigateur.
+[functions.collect-job-offers]
+verify_jwt = false

@@ -6,6 +6,8 @@ export function pageTitleFromPath(pathname: string): string {
   if (path === '/applications/new') return 'Nouvelle candidature';
   if (/^\/applications\/[^/]+\/edit$/.test(path)) return 'Modifier la candidature';
   if (path.startsWith('/applications')) return 'Candidatures';
+  if (path === '/offres' || path === '/offre') return 'Offres d’emploi';
+  if (path.startsWith('/offres/') || path.startsWith('/offre/')) return 'Offre d’emploi';
   if (path.startsWith('/calendar')) return 'Calendrier';
   if (path.startsWith('/preparer/cv')) return 'Mon CV';
   if (path.startsWith('/preparer/lettres')) return 'Lettres de motivation';

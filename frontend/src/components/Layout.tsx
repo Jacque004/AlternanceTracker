@@ -13,6 +13,7 @@ import { useFocusTrap } from '../hooks/useFocusTrap';
 const navItems = [
   { to: '/', label: 'Accueil', match: (path: string) => path === '/' },
   { to: '/applications', label: 'Candidatures', match: (path: string) => path.startsWith('/applications') },
+  { to: '/offres', label: 'Offres d’emploi', match: (path: string) => path.startsWith('/offres') },
   { to: '/calendar', label: 'Calendrier', match: (path: string) => path.startsWith('/calendar') },
   { to: '/preparer', label: 'Préparer', match: (path: string) => path.startsWith('/preparer') },
   { to: '/a-propos', label: 'À propos', match: (path: string) => path === '/a-propos' },
@@ -116,7 +117,7 @@ const Layout = () => {
                         key={to}
                         to={to}
                         aria-current={active ? 'page' : undefined}
-                        className={`px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                        className={`px-2.5 xl:px-3 py-2.5 text-sm font-medium rounded-lg whitespace-nowrap transition-all duration-200 ${
                           active
                             ? 'bg-primary-100 text-primary-700'
                             : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'

@@ -96,6 +96,8 @@ export interface Application {
   location?: string;
   salaryRange?: string;
   jobUrl?: string;
+  /** Offre d'origine (table job_offers), si la candidature vient de /offres. */
+  jobOfferId?: string | null;
   /** Date d'entretien (statut Entretien) */
   interviewDate?: string;
   /** Heure d'entretien (optionnel) */

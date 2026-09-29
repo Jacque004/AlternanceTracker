@@ -22,6 +22,17 @@ const tabs = [
     ),
   },
   {
+    to: '/offres',
+    label: 'Offres',
+    match: (path: string) => path.startsWith('/offres'),
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.5V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 19l2 2 4-4" />
+      </svg>
+    ),
+  },
+  {
     to: '/calendar',
     label: 'Agenda',
     match: (path: string) => path.startsWith('/calendar'),
@@ -51,7 +62,7 @@ export default function MobileBottomNav() {
       className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom,0px)]"
       aria-label="Navigation mobile"
     >
-      <ul className="grid grid-cols-4 max-w-lg mx-auto">
+      <ul className="grid grid-cols-5 max-w-lg mx-auto">
         {tabs.map(({ to, label, match, icon }) => {
           const active = match(location.pathname);
           return (

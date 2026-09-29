@@ -1,4 +1,5 @@
 import type { ApplicationListParams } from '../types';
+import type { JobOfferListParams } from '../services/jobOffers/types';
 
 export const queryKeys = {
   applications: {
@@ -8,6 +9,12 @@ export const queryKeys = {
     events: (id: number) => ['applications', 'events', id] as const,
     interviewPrep: (id: number) => ['applications', 'interview-prep', id] as const,
     interviewPreps: (ids: number[]) => ['applications', 'interview-preps', ids] as const,
+  },
+  jobOffers: {
+    all: ['job-offers'] as const,
+    list: (params: JobOfferListParams) => ['job-offers', 'list', params] as const,
+    detail: (id: string) => ['job-offers', 'detail', id] as const,
+    facets: ['job-offers', 'facets'] as const,
   },
   dashboard: {
     stats: ['dashboard', 'stats'] as const,
