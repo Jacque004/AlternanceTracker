@@ -48,7 +48,7 @@ const tabs = [
     match: (path: string) => path.startsWith('/preparer'),
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.5v11M8 8.5h5.5a2.5 2.5 0 0 1 0 5H8V8.5z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
       </svg>
     ),
   },

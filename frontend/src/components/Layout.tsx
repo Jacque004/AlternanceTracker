@@ -6,6 +6,7 @@ import Footer from './Footer';
 import OnboardingTour, { shouldShowOnboarding, markOnboardingDone } from './OnboardingTour';
 import NotificationBell from './NotificationBell';
 import HeaderUserBadge from './HeaderUserBadge';
+import Logo from './Logo';
 import MobileBottomNav from './MobileBottomNav';
 import { NotificationsProvider } from '../contexts/NotificationsContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -103,10 +104,10 @@ const Layout = () => {
           <div className="flex items-center justify-between gap-2 min-w-0 w-full h-14 sm:h-16">
             <Link
               to="/"
-              className="shrink-0 text-base sm:text-xl font-bold tracking-tight text-primary-600 hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-lg transition-colors duration-200 min-h-[44px] flex items-center px-1"
+              aria-label="AlternanceTracker, accueil"
+              className="shrink-0 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-lg min-h-[44px] flex items-center px-1"
             >
-              <span className="sm:hidden">AT</span>
-              <span className="hidden sm:inline">AlternanceTracker</span>
+              <Logo className="h-10 w-auto sm:h-11" />
             </Link>
               {user ? (
                 <nav className="hidden lg:flex lg:gap-0.5 lg:flex-1 lg:justify-center lg:px-2 min-w-0" aria-label="Navigation principale">

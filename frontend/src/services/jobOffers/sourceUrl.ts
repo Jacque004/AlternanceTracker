@@ -77,6 +77,25 @@ export function safePublicHttpUrl(raw: string | null | undefined): string | null
  * Destination du bouton « Voir l'offre ».
  * Seule l'URL enregistrée sur l'offre est acceptée. Une URL fournie à part est ignorée.
  */
+const preconnectedOrigins = new Set<string>();
+
+/** Ouvre la connexion TCP/TLS vers le site de l’annonce avant le clic. */
+export function preconnectOrigin(rawUrl: string | null | undefined) {
+  if (!rawUrl || typeof document === 'undefined' || preconnectedOrigins.size >= 4) return;
+  let origin: string;
+  try {
+    origin = new URL(rawUrl).origin;
+  } catch {
+    return;
+  }
+  if (origin === 'null' || preconnectedOrigins.has(origin)) return;
+  preconnectedOrigins.add(origin);
+  const link = document.createElement('link');
+  link.rel = 'preconnect';
+  link.href = origin;
+  document.head.appendChild(link);
+}
+
 export function redirectUrlFromOffer(
   offer: { sourceUrl: string },
   requestedUrl?: string

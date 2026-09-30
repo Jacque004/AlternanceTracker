@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import EmptyState from '../components/EmptyState';
@@ -8,7 +8,7 @@ import { useJobOffer } from '../hooks/useJobOffers';
 import { invalidateApplicationCaches } from '../query/client';
 import { jobOfferService } from '../services/jobOfferService';
 import { formatPublishedAgo } from '../services/jobOffers/display';
-import { redirectUrlFromOffer } from '../services/jobOffers/sourceUrl';
+import { preconnectOrigin, redirectUrlFromOffer } from '../services/jobOffers/sourceUrl';
 import { sourceLabel } from '../services/jobOffers/types';
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -61,6 +61,10 @@ export default function JobOfferDetailPage() {
   const offerQuery = useJobOffer(id);
   const [adding, setAdding] = useState(false);
   const offer = offerQuery.data;
+
+  useEffect(() => {
+    preconnectOrigin(offer ? redirectUrlFromOffer(offer) : null);
+  }, [offer]);
 
   const addToApplications = async () => {
     if (!offer) return;

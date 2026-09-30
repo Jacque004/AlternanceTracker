@@ -21,7 +21,6 @@ export default function OriginalOfferLink({ offer, className, children }: Origin
       className={className}
       onClick={(event) => {
         void jobOfferService.recordClick(offer.id);
-        // Sur mobile, un nouvel onglet reste en arrière-plan : la page ne bouge pas.
         if (window.matchMedia('(max-width: 1023px)').matches) {
           event.currentTarget.target = '_self';
         }

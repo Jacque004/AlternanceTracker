@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
+import Logo from '../components/Logo';
 
 export default function Landing() {
   return (
     <div className="max-w-3xl mx-auto stack-page page-shell">
       <section className="space-y-3 sm:space-y-4">
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">
-          AlternanceTracker
-          <span className="text-primary-600">.</span>
+        <h1>
+          <Logo className="h-16 w-auto sm:h-20" />
         </h1>
 
         <p className="text-base sm:text-lg text-gray-600">

@@ -5,6 +5,7 @@ import OriginalOfferLink from '../components/OriginalOfferLink';
 import { SkeletonList } from '../components/Skeleton';
 import { useJobOfferFacets, useJobOffers } from '../hooks/useJobOffers';
 import { formatPublishedAgo } from '../services/jobOffers/display';
+import { preconnectOrigin } from '../services/jobOffers/sourceUrl';
 import { sourceLabel, type JobOffer, type JobOfferListParams } from '../services/jobOffers/types';
 
 const fieldClass =
@@ -88,6 +89,13 @@ export default function JobOffersPage() {
   const [draftCompany, setDraftCompany] = useState(params.company ?? '');
   const offersQuery = useJobOffers(params);
   const facetsQuery = useJobOfferFacets();
+
+  useEffect(() => {
+    preconnectOrigin('https://candidat.francetravail.fr');
+    for (const offer of offersQuery.data?.data ?? []) {
+      preconnectOrigin(offer.sourceUrl);
+    }
+  }, [offersQuery.data]);
 
   useEffect(() => {
     setDraftSearch(params.search ?? '');
