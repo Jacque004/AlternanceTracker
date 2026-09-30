@@ -9,6 +9,10 @@ export default {
       fontFamily: {
         sans: ['IBM Plex Sans', 'Segoe UI', 'system-ui', '-apple-system', 'sans-serif'],
       },
+      fontWeight: {
+        medium: '600',
+        bold: '600',
+      },
       colors: {
         primary: {
           50: '#f0f9ff',
