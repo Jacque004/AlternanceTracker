@@ -19,6 +19,8 @@ interface WeeklyEffortCardProps {
   lettersTarget: number;
   streak: number;
   toRelanceWaiting?: number;
+  /** La série dépend de toute la liste : on l’affiche quand ce calcul est terminé. */
+  showStreak?: boolean;
 }
 
 function TaskRow({ task }: { task: WeeklyTask }) {
@@ -74,6 +76,7 @@ export function WeeklyEffortCard({
   lettersTarget,
   streak,
   toRelanceWaiting = 0,
+  showStreak = true,
 }: WeeklyEffortCardProps) {
   const tasks: WeeklyTask[] = [
     {
@@ -130,10 +133,14 @@ export function WeeklyEffortCard({
         ))}
       </ul>
 
-      <p className="mt-4 text-sm text-gray-700">
-        {allDone ? 'Semaine tenue. ' : null}
-        {streakLabel(streak)}
-      </p>
+      {showStreak ? (
+        <p className="mt-4 text-sm text-gray-700">
+          {allDone ? 'Semaine tenue. ' : null}
+          {streakLabel(streak)}
+        </p>
+      ) : (
+        <div className="mt-4 h-4 w-64 max-w-full skeleton rounded" aria-hidden />
+      )}
     </section>
   );
 }

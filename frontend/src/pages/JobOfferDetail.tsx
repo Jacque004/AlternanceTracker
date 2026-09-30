@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import EmptyState from '../components/EmptyState';
 import OriginalOfferLink from '../components/OriginalOfferLink';
 import Skeleton from '../components/Skeleton';
-import { useJobOffer } from '../hooks/useJobOffers';
+import { useJobOffer, useTrackedOfferApplications } from '../hooks/useJobOffers';
 import { invalidateApplicationCaches } from '../query/client';
 import { jobOfferService } from '../services/jobOfferService';
 import { formatPublishedAgo } from '../services/jobOffers/display';
@@ -59,8 +59,10 @@ export default function JobOfferDetailPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const offerQuery = useJobOffer(id);
+  const trackedQuery = useTrackedOfferApplications();
   const [adding, setAdding] = useState(false);
   const offer = offerQuery.data;
+  const applicationId = offer ? trackedQuery.data?.get(offer.id) : undefined;
 
   useEffect(() => {
     preconnectOrigin(offer ? redirectUrlFromOffer(offer) : null);
@@ -143,6 +145,11 @@ export default function JobOfferDetailPage() {
       <header className="min-w-0">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight break-words">{offer.title}</h1>
         <p className="mt-2 text-base text-gray-700">{offer.companyName}</p>
+        {applicationId ? (
+          <p className="mt-3 inline-flex items-center rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-800">
+            Déjà dans mes candidatures
+          </p>
+        ) : null}
       </header>
 
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5">
@@ -163,14 +170,23 @@ export default function JobOfferDetailPage() {
         >
           Voir l’offre originale →
         </OriginalOfferLink>
-        <button
-          type="button"
-          onClick={addToApplications}
-          disabled={adding || offer.status === 'expired'}
-          className="inline-flex items-center justify-center px-5 py-3 min-h-[48px] rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
-        >
-          {adding ? 'Ajout…' : 'Ajouter à mes candidatures'}
-        </button>
+        {applicationId ? (
+          <Link
+            to={`/applications/${applicationId}/edit`}
+            className="inline-flex items-center justify-center px-5 py-3 min-h-[48px] rounded-lg border border-primary-200 bg-primary-50 text-sm font-semibold text-primary-800 hover:bg-primary-100"
+          >
+            Déjà dans mes candidatures
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={addToApplications}
+            disabled={adding || offer.status === 'expired' || trackedQuery.isPending}
+            className="inline-flex items-center justify-center px-5 py-3 min-h-[48px] rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {adding ? 'Ajout…' : 'Ajouter à mes candidatures'}
+          </button>
+        )}
       </div>
       {redirectUrlFromOffer(offer) ? null : (
         <p className="text-sm text-gray-500">Le lien d’origine de cette offre n’est pas une adresse web utilisable.</p>

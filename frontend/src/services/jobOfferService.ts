@@ -75,8 +75,6 @@ export const jobOfferService = {
     }
     const location = sanitizeIlikeTerm(params.location);
     if (location) query = query.ilike('location', `%${location}%`);
-    const company = sanitizeIlikeTerm(params.company);
-    if (company) query = query.ilike('company_name', `%${company}%`);
     if (params.domain) query = query.eq('domain', params.domain);
     if (params.educationLevel) query = query.eq('education_level', params.educationLevel);
     if (params.source) query = query.eq('source', params.source);
@@ -161,6 +159,32 @@ export const jobOfferService = {
     } catch {
       /* le suivi du clic ne doit pas empêcher d’ouvrir l’offre */
     }
+  },
+
+  async trackedApplicationIds(): Promise<Map<string, number>> {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return new Map();
+
+    const { data, error } = await supabase
+      .from('applications')
+      .select('id, job_offer_id')
+      .eq('user_id', user.id)
+      .not('job_offer_id', 'is', null);
+
+    if (error) {
+      if (isSupabaseSchemaError(error)) return new Map();
+      return new Map();
+    }
+
+    const tracked = new Map<string, number>();
+    for (const row of data ?? []) {
+      if (!row.job_offer_id || row.id == null) continue;
+      const id = Number(row.id);
+      if (Number.isFinite(id)) tracked.set(String(row.job_offer_id), id);
+    }
+    return tracked;
   },
 
   async findApplicationId(jobOfferId: string): Promise<number | null> {

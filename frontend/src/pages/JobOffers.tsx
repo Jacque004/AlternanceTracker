@@ -1,12 +1,14 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import EmptyState from '../components/EmptyState';
 import OriginalOfferLink from '../components/OriginalOfferLink';
 import { SkeletonList } from '../components/Skeleton';
-import { useJobOfferFacets, useJobOffers } from '../hooks/useJobOffers';
+import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import { useJobOfferFacets, useJobOffers, useTrackedOfferApplications } from '../hooks/useJobOffers';
 import { formatPublishedAgo } from '../services/jobOffers/display';
 import { preconnectOrigin } from '../services/jobOffers/sourceUrl';
 import { sourceLabel, type JobOffer, type JobOfferListParams } from '../services/jobOffers/types';
+import { offerFiltersFromProfile } from '../utils/offerProfileFilters';
 
 const fieldClass =
   'w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 text-sm py-2.5 min-h-[44px] focus:border-primary-500 focus:ring-2 focus:ring-primary-500';
@@ -19,7 +21,6 @@ function readParams(searchParams: URLSearchParams): JobOfferListParams {
     search: searchParams.get('q') || '',
     location: searchParams.get('location') || '',
     domain: searchParams.get('domain') || '',
-    company: searchParams.get('company') || '',
     educationLevel: searchParams.get('education') || '',
     remote: remote === 'yes' || remote === 'no' ? remote : '',
     contract: searchParams.get('contrat') === 'stage' || searchParams.get('contrat') === 'alternance'
@@ -31,7 +32,7 @@ function readParams(searchParams: URLSearchParams): JobOfferListParams {
   };
 }
 
-function OfferCard({ offer }: { offer: JobOffer }) {
+function OfferCard({ offer, applicationId }: { offer: JobOffer; applicationId?: number }) {
   return (
     <article className="relative group bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 min-w-0 flex flex-col gap-3">
       <Link
@@ -44,6 +45,14 @@ function OfferCard({ offer }: { offer: JobOffer }) {
           {offer.title}
         </h2>
         <p className="mt-1 text-sm text-gray-700">{offer.companyName}</p>
+        {applicationId ? (
+          <Link
+            to={`/applications/${applicationId}/edit`}
+            className="pointer-events-auto relative z-[2] mt-2 inline-flex items-center rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-800 hover:bg-primary-100"
+          >
+            Déjà dans mes candidatures
+          </Link>
+        ) : null}
       </div>
       <ul className="relative z-[1] flex flex-wrap gap-2 text-sm text-gray-600 pointer-events-none">
         {offer.location ? <li className="rounded-full bg-gray-100 px-2.5 py-1">{offer.location}</li> : null}
@@ -86,9 +95,36 @@ export default function JobOffersPage() {
   const params = useMemo(() => readParams(searchParams), [searchParams]);
   const [draftSearch, setDraftSearch] = useState(params.search ?? '');
   const [draftLocation, setDraftLocation] = useState(params.location ?? '');
-  const [draftCompany, setDraftCompany] = useState(params.company ?? '');
-  const offersQuery = useJobOffers(params);
+  const [fromProfile, setFromProfile] = useState(false);
+  const [profileReady, setProfileReady] = useState(() => searchParams.toString() !== '');
+  const profileFiltersApplied = useRef(false);
+  const { user } = useSupabaseAuth();
+  const offersQuery = useJobOffers(params, profileReady);
   const facetsQuery = useJobOfferFacets();
+  const trackedQuery = useTrackedOfferApplications();
+
+  useEffect(() => {
+    if (profileFiltersApplied.current) return;
+    if (searchParams.toString() !== '') {
+      profileFiltersApplied.current = true;
+      setProfileReady(true);
+      return;
+    }
+    if (!user || facetsQuery.isPending) return;
+    const filters = offerFiltersFromProfile(user, {
+      domains: facetsQuery.data?.domains ?? [],
+      educationLevels: facetsQuery.data?.educationLevels ?? [],
+    });
+    profileFiltersApplied.current = true;
+    setProfileReady(true);
+    if (!filters.location && !filters.domain && !filters.educationLevel) return;
+    const next = new URLSearchParams();
+    if (filters.location) next.set('location', filters.location);
+    if (filters.domain) next.set('domain', filters.domain);
+    if (filters.educationLevel) next.set('education', filters.educationLevel);
+    setFromProfile(true);
+    setSearchParams(next, { replace: true });
+  }, [user, facetsQuery.isPending, facetsQuery.data, searchParams, setSearchParams]);
 
   useEffect(() => {
     preconnectOrigin('https://candidat.francetravail.fr');
@@ -100,15 +136,13 @@ export default function JobOffersPage() {
   useEffect(() => {
     setDraftSearch(params.search ?? '');
     setDraftLocation(params.location ?? '');
-    setDraftCompany(params.company ?? '');
-  }, [params.search, params.location, params.company]);
+  }, [params.search, params.location]);
 
   const commit = (patch: Record<string, string | undefined>, resetPage = true) => {
     const next = new URLSearchParams(searchParams);
     const merged: Record<string, string | undefined> = {
       q: draftSearch.trim(),
       location: draftLocation.trim(),
-      company: draftCompany.trim(),
       domain: params.domain,
       education: params.educationLevel,
       remote: params.remote,
@@ -121,8 +155,10 @@ export default function JobOffersPage() {
       if (!value) next.delete(key);
       else next.set(key, value);
     }
-    if (resetPage) next.delete('page');
-    else if (patch.page) next.set('page', patch.page);
+    if (resetPage) {
+      next.delete('page');
+      setFromProfile(false);
+    } else if (patch.page) next.set('page', patch.page);
     setSearchParams(next);
   };
 
@@ -140,7 +176,6 @@ export default function JobOffersPage() {
   const hasFilters = Boolean(
     params.search ||
       params.location ||
-      params.company ||
       params.domain ||
       params.educationLevel ||
       params.remote ||
@@ -166,6 +201,14 @@ export default function JobOffersPage() {
         <p className="mt-1 text-sm sm:text-base text-gray-600">
           Trouve ton alternance parmi plusieurs sources.
         </p>
+        {fromProfile ? (
+          <p className="mt-2 text-sm text-gray-600">
+            Filtres repris de votre profil.{' '}
+            <Link to="/profile" className="font-medium text-primary-700 hover:text-primary-800">
+              Les modifier
+            </Link>
+          </p>
+        ) : null}
       </div>
 
       <form onSubmit={onSearch} className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-4">
@@ -200,16 +243,6 @@ export default function JobOffersPage() {
                 <option key={domain} value={domain}>{domain}</option>
               ))}
             </select>
-          </label>
-          <label className="block text-sm text-gray-600">
-            Entreprise
-            <input
-              type="search"
-              value={draftCompany}
-              onChange={(event) => setDraftCompany(event.target.value)}
-              placeholder="Nom d’entreprise"
-              className={`${fieldClass} mt-1`}
-            />
           </label>
           <label className="block text-sm text-gray-600">
             Niveau d’études
@@ -292,7 +325,11 @@ export default function JobOffersPage() {
           </p>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {offers.map((offer) => (
-              <OfferCard key={offer.id} offer={offer} />
+              <OfferCard
+                key={offer.id}
+                offer={offer}
+                applicationId={trackedQuery.data?.get(offer.id)}
+              />
             ))}
           </div>
           {pageCount > 1 ? (

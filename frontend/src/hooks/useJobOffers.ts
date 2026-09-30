@@ -3,11 +3,12 @@ import { queryKeys } from '../query/keys';
 import { jobOfferService } from '../services/jobOfferService';
 import type { JobOfferListParams } from '../services/jobOffers/types';
 
-export function useJobOffers(params: JobOfferListParams) {
+export function useJobOffers(params: JobOfferListParams, enabled = true) {
   return useQuery({
     queryKey: queryKeys.jobOffers.list(params),
     queryFn: () => jobOfferService.list(params),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 
@@ -16,6 +17,13 @@ export function useJobOffer(id: string) {
     queryKey: queryKeys.jobOffers.detail(id),
     queryFn: () => jobOfferService.getById(id),
     enabled: id.length > 0,
+  });
+}
+
+export function useTrackedOfferApplications() {
+  return useQuery({
+    queryKey: [...queryKeys.applications.all, 'tracked-offers'] as const,
+    queryFn: () => jobOfferService.trackedApplicationIds(),
   });
 }
 

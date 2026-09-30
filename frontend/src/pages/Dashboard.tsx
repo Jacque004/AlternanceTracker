@@ -5,7 +5,7 @@ import { applicationService, dashboardService } from '../services/supabaseServic
 import type { Application } from '../types';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import toast from 'react-hot-toast';
-import { SkeletonCardGrid, SkeletonCharts, SkeletonList } from '../components/Skeleton';
+import { SkeletonCharts, SkeletonList } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { ApplicationsMonthlyChart } from '../components/ApplicationsMonthlyChart';
 import { ApplicationsStatusChart } from '../components/ApplicationsStatusChart';
@@ -40,17 +40,20 @@ const Dashboard = () => {
   const [markingId, setMarkingId] = useState<number | null>(null);
   const [optimisticRelanceIds, setOptimisticRelanceIds] = useState<number[]>([]);
 
-  const statsQuery = useQuery({
-    queryKey: queryKeys.dashboard.stats,
-    queryFn: dashboardService.getStatistics,
-  });
   const recentQuery = useQuery({
     queryKey: queryKeys.dashboard.recent,
     queryFn: () => dashboardService.getRecent(5),
   });
+  const detailsReady = recentQuery.isFetched;
+  const statsQuery = useQuery({
+    queryKey: queryKeys.dashboard.stats,
+    queryFn: dashboardService.getStatistics,
+    enabled: detailsReady,
+  });
   const appsQuery = useQuery({
     queryKey: queryKeys.applications.list({}),
     queryFn: () => applicationService.getAll(),
+    enabled: detailsReady,
   });
   const upcomingQuery = useQuery({
     queryKey: queryKeys.dashboard.upcoming,
@@ -70,10 +73,9 @@ const Dashboard = () => {
     [allApps]
   );
 
-  const loading =
-    (statsQuery.isPending && !statsQuery.data) ||
-    (appsQuery.isPending && !appsQuery.data) ||
-    (recentQuery.isPending && !recentQuery.data);
+  const recentLoading = recentQuery.isPending && recentQuery.data === undefined;
+  const statsLoading = statsQuery.isPending && statsQuery.data === undefined && !statsQuery.isError;
+  const appsLoading = appsQuery.isPending && appsQuery.data === undefined && !appsQuery.isError;
 
   useEffect(() => {
     const err =
@@ -105,23 +107,6 @@ const Dashboard = () => {
       setMarkingId(null);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="max-w-5xl mx-auto stack-page page-shell">
-        <div>
-          <div className="h-9 w-48 skeleton rounded-lg" />
-          <div className="h-4 w-72 skeleton rounded mt-2" />
-        </div>
-        <SkeletonCardGrid count={6} />
-        <SkeletonCharts count={2} />
-        <div className="bg-white rounded-xl border border-gray-200 shadow-card p-6">
-          <div className="h-5 w-40 skeleton rounded mb-4" />
-          <SkeletonList lines={5} />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-5xl mx-auto stack-page page-shell">
@@ -176,8 +161,68 @@ const Dashboard = () => {
         </Link>
       </div>
 
+      <div className="bg-white rounded-xl shadow-card border border-gray-200 overflow-hidden">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-gray-900">Dernières candidatures</h2>
+          <Link to="/applications" className="text-sm font-medium text-primary-600 hover:text-primary-700">
+            Voir tout
+          </Link>
+        </div>
+        <div className="p-4 sm:p-6">
+          {recentLoading ? (
+            <SkeletonList lines={5} />
+          ) : recentQuery.isError ? (
+            <p className="text-sm text-gray-600">Impossible de charger les dernières candidatures.</p>
+          ) : recent.length === 0 ? (
+            <EmptyState
+              compact
+              title="Aucune candidature récente"
+              description="Ajoutez une candidature pour la voir apparaître ici avec son statut."
+              icon="📭"
+              className="border-gray-100 bg-white"
+            >
+              <Link
+                to="/applications/new"
+                className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 min-h-[44px]"
+              >
+                Ajouter une candidature
+              </Link>
+            </EmptyState>
+          ) : (
+            <ul className="divide-y divide-gray-200">
+              {recent.map((app) => (
+                <li key={app.id}>
+                  <Link
+                    to={`/applications/${app.id}/edit`}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 hover:bg-gray-50 -mx-2 px-2 rounded"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900">{app.companyName}</p>
+                      <p className="text-sm text-gray-500 break-words">{app.position}</p>
+                    </div>
+                    <span className={`text-sm font-medium px-2 py-0.5 rounded ${applicationStatusBadgeClass(app.status)}`}>
+                      {applicationStatusLabel(app.status)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
       {/* À faire cette semaine */}
-      {stats && (
+      {detailsReady && statsLoading ? (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5" aria-busy="true">
+          <div className="h-5 w-48 skeleton rounded" />
+          <div className="mt-2 h-4 w-72 max-w-full skeleton rounded" />
+          <div className="mt-4 space-y-2.5">
+            <div className="h-16 skeleton rounded-xl" />
+            <div className="h-16 skeleton rounded-xl" />
+            <div className="h-16 skeleton rounded-xl" />
+          </div>
+        </div>
+      ) : stats ? (
         <WeeklyEffortCard
           applicationsCurrent={stats.applicationsThisWeek ?? 0}
           applicationsTarget={applicationsWeeklyTarget(user?.applicationsGoal)}
@@ -185,16 +230,23 @@ const Dashboard = () => {
           relancesTarget={WEEKLY_RELANCES_TARGET}
           lettersCurrent={stats.lettersThisWeek ?? 0}
           lettersTarget={WEEKLY_LETTERS_TARGET}
-          streak={computeApplicationStreak(
-            createdAtList,
-            applicationsWeeklyTarget(user?.applicationsGoal)
-          )}
-          toRelanceWaiting={toRelance.length}
+          streak={
+            appsLoading
+              ? 0
+              : computeApplicationStreak(
+                  createdAtList,
+                  applicationsWeeklyTarget(user?.applicationsGoal)
+                )
+          }
+          showStreak={!appsLoading}
+          toRelanceWaiting={appsLoading ? 0 : toRelance.length}
         />
-      )}
+      ) : null}
 
       {/* Statistiques */}
-      {stats && (
+      {detailsReady && statsLoading ? (
+        <SkeletonCharts count={2} />
+      ) : stats ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <ApplicationsStatusChart
             counts={stats.statusDistribution}
@@ -204,7 +256,7 @@ const Dashboard = () => {
             <ApplicationsMonthlyChart monthlyData={stats.monthlyData} />
           ) : null}
         </div>
-      )}
+      ) : null}
 
       {/* Entretiens à venir */}
       {upcomingInterviews.length > 0 && (
@@ -239,7 +291,17 @@ const Dashboard = () => {
       )}
 
       {/* À relancer */}
-      {toRelance.length > 0 && (
+      {detailsReady && appsLoading ? (
+        <div
+          className="rounded-2xl border border-amber-200/90 bg-amber-50 p-4 sm:p-6"
+          aria-busy="true"
+          aria-label="Chargement des candidatures à relancer"
+        >
+          <div className="h-5 w-56 skeleton rounded" />
+          <div className="mt-3 h-4 w-full max-w-md skeleton rounded" />
+          <div className="mt-4 h-20 skeleton rounded-xl" />
+        </div>
+      ) : toRelance.length > 0 ? (
         <div className="rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50 via-amber-50/95 to-orange-50/40 shadow-card overflow-hidden">
           <div className="px-4 py-4 sm:px-6 sm:py-5 border-b border-amber-200/60 bg-amber-100/30">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -323,54 +385,7 @@ const Dashboard = () => {
             </Link>
           </div>
         </div>
-      )}
-
-      {/* Dernières candidatures */}
-        <div className="bg-white rounded-xl shadow-card border border-gray-200 overflow-hidden">
-        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-gray-900">Dernières candidatures</h2>
-          <Link to="/applications" className="text-sm font-medium text-primary-600 hover:text-primary-700">
-            Voir tout
-          </Link>
-        </div>
-        <div className="p-4 sm:p-6">
-          {recent.length === 0 ? (
-            <EmptyState
-              compact
-              title="Aucune candidature récente"
-              description="Ajoutez une candidature pour la voir apparaître ici avec son statut."
-              icon="📭"
-              className="border-gray-100 bg-white"
-            >
-              <Link
-                to="/applications/new"
-                className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 min-h-[44px]"
-              >
-                Ajouter une candidature
-              </Link>
-            </EmptyState>
-          ) : (
-            <ul className="divide-y divide-gray-200">
-              {recent.map((app) => (
-                <li key={app.id}>
-                  <Link
-                    to={`/applications/${app.id}/edit`}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 hover:bg-gray-50 -mx-2 px-2 rounded"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium text-gray-900">{app.companyName}</p>
-                      <p className="text-sm text-gray-500 break-words">{app.position}</p>
-                    </div>
-                    <span className={`text-sm font-medium px-2 py-0.5 rounded ${applicationStatusBadgeClass(app.status)}`}>
-                      {applicationStatusLabel(app.status)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 };

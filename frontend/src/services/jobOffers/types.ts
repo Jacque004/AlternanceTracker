@@ -44,7 +44,6 @@ export interface JobOfferListParams {
   search?: string;
   location?: string;
   domain?: string;
-  company?: string;
   educationLevel?: string;
   remote?: '' | 'yes' | 'no';
   /** Vide = stage et alternance. */

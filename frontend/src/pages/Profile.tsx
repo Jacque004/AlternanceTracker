@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import { useJobOfferFacets } from '../hooks/useJobOffers';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { userFacingErrorMessage } from '../utils/errorMessage';
@@ -55,6 +56,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, session, updateProfile, signOut } = useSupabaseAuth();
+  const facetsQuery = useJobOfferFacets();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarRev, setAvatarRev] = useState(0);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -69,6 +71,9 @@ const Profile = () => {
     school: '',
     formation: '',
     studyYear: '',
+    preferredLocation: '',
+    preferredDomain: '',
+    preferredEducationLevel: '',
     alternanceRhythm: '',
     desiredStartDate: '',
     linkedinUrl: '',
@@ -93,6 +98,9 @@ const Profile = () => {
         school: user.school || '',
         formation: user.formation || '',
         studyYear: user.studyYear || '',
+        preferredLocation: user.preferredLocation || '',
+        preferredDomain: user.preferredDomain || '',
+        preferredEducationLevel: user.preferredEducationLevel || '',
         alternanceRhythm: user.alternanceRhythm || '',
         desiredStartDate: formatDateForInput(user.desiredStartDate) || '',
         linkedinUrl: user.linkedinUrl || '',
@@ -104,7 +112,7 @@ const Profile = () => {
     }
   }, [user]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -173,6 +181,9 @@ const Profile = () => {
         school: formData.school || undefined,
         formation: formData.formation || undefined,
         studyYear: formData.studyYear || undefined,
+        preferredLocation: formData.preferredLocation,
+        preferredDomain: formData.preferredDomain,
+        preferredEducationLevel: formData.preferredEducationLevel,
         alternanceRhythm: formData.alternanceRhythm || undefined,
         desiredStartDate: formData.desiredStartDate || undefined,
         linkedinUrl: formData.linkedinUrl || undefined,
@@ -363,7 +374,7 @@ const Profile = () => {
 
         <ProfileSection
           title="Parcours & alternance"
-          description="Ces informations nous aident à adapter les conseils (CV, lettres, objectifs)."
+          description="La ville, le domaine et le niveau ouvrent le catalogue d’offres déjà filtré. La formation et l’année servent aussi si le domaine ou le niveau ne sont pas précisés."
         >
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div className="sm:col-span-2">
@@ -407,6 +418,62 @@ const Profile = () => {
                 className={inputClass}
                 placeholder="Ex. L2, M1"
               />
+            </div>
+            <div>
+              <label htmlFor="preferredLocation" className={labelClass}>
+                Ville recherchée
+              </label>
+              <input
+                type="text"
+                id="preferredLocation"
+                name="preferredLocation"
+                value={formData.preferredLocation}
+                onChange={handleChange}
+                className={inputClass}
+                placeholder="Ex. Lyon"
+              />
+            </div>
+            <div>
+              <label htmlFor="preferredDomain" className={labelClass}>
+                Domaine des offres
+              </label>
+              <select
+                id="preferredDomain"
+                name="preferredDomain"
+                value={formData.preferredDomain}
+                onChange={handleChange}
+                className={inputClass}
+              >
+                <option value="">Depuis la formation</option>
+                {formData.preferredDomain &&
+                !(facetsQuery.data?.domains ?? []).includes(formData.preferredDomain) ? (
+                  <option value={formData.preferredDomain}>{formData.preferredDomain}</option>
+                ) : null}
+                {(facetsQuery.data?.domains ?? []).map((domain) => (
+                  <option key={domain} value={domain}>{domain}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="preferredEducationLevel" className={labelClass}>
+                Niveau des offres
+              </label>
+              <select
+                id="preferredEducationLevel"
+                name="preferredEducationLevel"
+                value={formData.preferredEducationLevel}
+                onChange={handleChange}
+                className={inputClass}
+              >
+                <option value="">Depuis l’année</option>
+                {formData.preferredEducationLevel &&
+                !(facetsQuery.data?.educationLevels ?? []).includes(formData.preferredEducationLevel) ? (
+                  <option value={formData.preferredEducationLevel}>{formData.preferredEducationLevel}</option>
+                ) : null}
+                {(facetsQuery.data?.educationLevels ?? []).map((level) => (
+                  <option key={level} value={level}>{level}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label htmlFor="alternanceRhythm" className={labelClass}>

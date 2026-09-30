@@ -16,8 +16,11 @@ import { getOAuthAvatarUrl, getOAuthFirstName, getOAuthLastName } from '../utils
 
 const OAUTH_CONSENT_STORAGE_KEY = 'alternancetracker_oauth_consent';
 
-const USER_PROFILE_SELECT =
+const USER_PROFILE_SELECT_BASE =
   'id, email, first_name, last_name, created_at, school, formation, study_year, alternance_rhythm, desired_start_date, linkedin_url, avatar_url, weekly_summary_enabled, reminder_emails_enabled, applications_goal, privacy_policy_accepted_at, terms_accepted_at, marketing_emails_consent';
+
+const USER_PROFILE_SELECT =
+  `${USER_PROFILE_SELECT_BASE}, preferred_location, preferred_domain, preferred_education_level`;
 
 export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AppUser | null>(null);
@@ -147,11 +150,19 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
 
       await applyPendingOAuthConsent(authUser.id);
 
-      const profileQuery = await supabase
+      let profileQuery = await supabase
         .from('users')
         .select(USER_PROFILE_SELECT)
         .eq('id', authUser.id)
         .single();
+
+      if (profileQuery.error && isSupabaseSchemaError(profileQuery.error)) {
+        profileQuery = await supabase
+          .from('users')
+          .select(USER_PROFILE_SELECT_BASE)
+          .eq('id', authUser.id)
+          .single();
+      }
 
       const profileRow: Record<string, unknown> | null = profileQuery.data;
       const error = profileQuery.error;
@@ -194,6 +205,9 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         school: profileRow.school as string | undefined,
         formation: profileRow.formation as string | undefined,
         studyYear: profileRow.study_year as string | undefined,
+        preferredLocation: (profileRow.preferred_location as string | null) ?? undefined,
+        preferredDomain: (profileRow.preferred_domain as string | null) ?? undefined,
+        preferredEducationLevel: (profileRow.preferred_education_level as string | null) ?? undefined,
         alternanceRhythm: profileRow.alternance_rhythm as string | undefined,
         desiredStartDate: profileRow.desired_start_date as string | undefined,
         linkedinUrl: profileRow.linkedin_url as string | undefined,
@@ -371,6 +385,9 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     school?: string;
     formation?: string;
     studyYear?: string;
+    preferredLocation?: string | null;
+    preferredDomain?: string | null;
+    preferredEducationLevel?: string | null;
     alternanceRhythm?: string;
     desiredStartDate?: string;
     linkedinUrl?: string;
@@ -389,6 +406,11 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     if (data.school !== undefined) updates.school = data.school;
     if (data.formation !== undefined) updates.formation = data.formation;
     if (data.studyYear !== undefined) updates.study_year = data.studyYear;
+    if (data.preferredLocation !== undefined) updates.preferred_location = data.preferredLocation?.trim() || null;
+    if (data.preferredDomain !== undefined) updates.preferred_domain = data.preferredDomain?.trim() || null;
+    if (data.preferredEducationLevel !== undefined) {
+      updates.preferred_education_level = data.preferredEducationLevel?.trim() || null;
+    }
     if (data.alternanceRhythm !== undefined) updates.alternance_rhythm = data.alternanceRhythm;
     if (data.desiredStartDate !== undefined) updates.desired_start_date = data.desiredStartDate || null;
     if (data.linkedinUrl !== undefined) updates.linkedin_url = data.linkedinUrl;
@@ -401,14 +423,19 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
 
     let { error } = await supabase.from('users').update(updates).eq('id', session.user.id);
 
-    if (error && isSupabaseSchemaError(error) && updates.in_app_notifications_enabled !== undefined) {
-      markInAppNotificationsColumnMissing();
-      const { in_app_notifications_enabled: _removed, ...updatesWithoutInApp } = updates;
-      if (Object.keys(updatesWithoutInApp).length > 0) {
-        const retry = await supabase.from('users').update(updatesWithoutInApp).eq('id', session.user.id);
+    if (error && isSupabaseSchemaError(error)) {
+      const message = (error.message ?? '').toLowerCase();
+      const retryUpdates = { ...updates };
+      for (const key of Object.keys(retryUpdates)) {
+        if (message.includes(key)) delete retryUpdates[key];
+      }
+      if (message.includes('in_app_notifications')) {
+        markInAppNotificationsColumnMissing();
+        delete retryUpdates.in_app_notifications_enabled;
+      }
+      if (Object.keys(retryUpdates).length > 0 && Object.keys(retryUpdates).length < Object.keys(updates).length) {
+        const retry = await supabase.from('users').update(retryUpdates).eq('id', session.user.id);
         error = retry.error;
-      } else {
-        error = null;
       }
     }
 

@@ -7,6 +7,12 @@ export interface User {
   school?: string;
   formation?: string;
   studyYear?: string;
+  /** Ville utilisée pour filtrer le catalogue d’offres */
+  preferredLocation?: string;
+  /** Domaine du catalogue d’offres */
+  preferredDomain?: string;
+  /** Niveau d’études du catalogue d’offres */
+  preferredEducationLevel?: string;
   alternanceRhythm?: string;
   desiredStartDate?: string;
   linkedinUrl?: string;

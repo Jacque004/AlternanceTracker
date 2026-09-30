@@ -27,6 +27,9 @@ export interface SupabaseAuthContextType {
     school?: string;
     formation?: string;
     studyYear?: string;
+    preferredLocation?: string | null;
+    preferredDomain?: string | null;
+    preferredEducationLevel?: string | null;
     alternanceRhythm?: string;
     desiredStartDate?: string;
     linkedinUrl?: string;

@@ -1,4 +1,4 @@
-import { format, isValid, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { supabase, isInvalidRefreshTokenError } from '../lib/supabase';
 import { notificationService } from './notificationService';
 import { normalizeJobOfferUrl } from '../utils/jobOfferUrl';
@@ -128,6 +128,25 @@ export const applicationService = {
     const list = (data || []).map(mapRowToApplication);
     const total = usePagination ? (count ?? list.length) : list.length;
     return { data: list, total };
+  },
+
+  /** Nombre de candidatures dans les statuts donnés, sans télécharger les lignes. */
+  countByStatuses: async (statuses: string[]): Promise<number> => {
+    if (statuses.length === 0) return 0;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { count, error } = await supabase
+      .from('applications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .in('status', statuses);
+
+    if (error) throw error;
+    return count ?? 0;
   },
 
   /**
@@ -324,102 +343,69 @@ export const applicationService = {
   },
 };
 
+function asCount(value: unknown): number {
+  const count = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(count) ? count : 0;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function mapDashboardStatistics(raw: unknown): DashboardStatistics {
+  const row = asRecord(raw);
+  const distribution = asRecord(row.statusDistribution);
+  const statusDistribution: DashboardStatistics['statusDistribution'] = {};
+  for (const [status, count] of Object.entries(distribution)) {
+    statusDistribution[status] = asCount(count);
+  }
+
+  const monthlyData = Array.isArray(row.monthlyData)
+    ? row.monthlyData.flatMap((item) => {
+        const entry = asRecord(item);
+        const month = typeof entry.month === 'string' ? entry.month : '';
+        if (!month) return [];
+        return [{ month, count: asCount(entry.count) }];
+      })
+    : [];
+
+  return {
+    total: asCount(row.total),
+    statusDistribution,
+    monthlyData,
+    responseRate: asCount(row.responseRate),
+    responded: asCount(row.responded),
+    toApply: asCount(row.toApply),
+    pending: asCount(row.pending),
+    followedUp: asCount(row.followedUp),
+    interview: asCount(row.interview),
+    accepted: asCount(row.accepted),
+    rejected: asCount(row.rejected),
+    applicationsThisWeek: asCount(row.applicationsThisWeek),
+    relancesThisWeek: asCount(row.relancesThisWeek),
+    lettersThisWeek: asCount(row.lettersThisWeek),
+  };
+}
+
 export const dashboardService = {
   getStatistics: async (): Promise<DashboardStatistics> => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) throw new Error('User not authenticated');
-
-    // Total
-    const { count: total } = await supabase
-      .from('applications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
-
-    // Par statut
-    const { data: statusData } = await supabase
-      .from('applications')
-      .select('status')
-      .eq('user_id', user.id);
-
-    const statusDistribution: any = {};
-    statusData?.forEach((row) => {
-      statusDistribution[row.status] = (statusDistribution[row.status] || 0) + 1;
+    const { data, error } = await supabase.rpc('dashboard_statistics', {
+      p_week_start: weekStartIso(),
     });
 
-    // Par mois
-    const { data: monthlyData } = await supabase
-      .from('applications')
-      .select('application_date')
-      .eq('user_id', user.id)
-      .not('application_date', 'is', null);
-
-    const monthlyMap: Record<string, number> = {};
-    monthlyData?.forEach((row) => {
-      if (row.application_date) {
-        const parsed = parseISO(row.application_date);
-        if (!isValid(parsed)) return;
-        const month = format(parsed, 'yyyy-MM');
-        monthlyMap[month] = (monthlyMap[month] || 0) + 1;
+    if (error) {
+      const message = (error.message ?? '').toLowerCase();
+      if (error.code === 'PGRST202' || message.includes('dashboard_statistics')) {
+        throw new Error(
+          'Les statistiques ne sont pas encore disponibles. Appliquez la migration dashboard_statistics dans Supabase.'
+        );
       }
-    });
-
-    const monthly = Object.entries(monthlyMap).map(([month, count]) => ({ month, count }));
-
-    const weekStart = weekStartIso();
-    const { count: applicationsThisWeek } = await supabase
-      .from('applications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('created_at', weekStart);
-
-    const { count: relancesThisWeek } = await supabase
-      .from('applications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('last_relance_at', weekStart);
-
-    let lettersThisWeek = 0;
-    const { count: lettersCount, error: lettersError } = await supabase
-      .from('generated_letters')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('created_at', weekStart);
-    if (lettersError) {
-      if (!isSupabaseSchemaError(lettersError)) {
-        console.warn('Lettres cette semaine:', lettersError.message);
-      }
-    } else {
-      lettersThisWeek = lettersCount ?? 0;
+      throw error;
     }
 
-    // Taux de réponse
-    const { count: responded } = await supabase
-      .from('applications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .not('response_date', 'is', null);
-
-    const responseRate = total && total > 0 ? ((responded || 0) / total) * 100 : 0;
-
-    return {
-      total: total || 0,
-      statusDistribution,
-      monthlyData: monthly,
-      responseRate: Math.round(responseRate * 100) / 100,
-      responded: responded || 0,
-      toApply: statusDistribution.to_apply || 0,
-      pending: statusDistribution.pending || 0,
-      followedUp: statusDistribution.followed_up || 0,
-      interview: statusDistribution.interview || 0,
-      accepted: statusDistribution.accepted || 0,
-      rejected: statusDistribution.rejected || 0,
-      applicationsThisWeek: applicationsThisWeek ?? 0,
-      relancesThisWeek: relancesThisWeek ?? 0,
-      lettersThisWeek,
-    };
+    return mapDashboardStatistics(data);
   },
 
   getRecent: async (limit: number = 5): Promise<Application[]> => {

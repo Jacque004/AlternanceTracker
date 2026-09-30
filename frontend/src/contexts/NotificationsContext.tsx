@@ -67,10 +67,11 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
 
     try {
       await notificationService.ensureWelcome(user.firstName);
-      const { data: apps } = await applicationService.getAll();
-      const pendingCount = (apps ?? []).filter((a) =>
-        a.status === 'pending' || a.status === 'followed_up' || a.status === 'to_apply'
-      ).length;
+      const pendingCount = await applicationService.countByStatuses([
+        'pending',
+        'followed_up',
+        'to_apply',
+      ]);
       await notificationService.ensureWeeklyFollowUp(pendingCount);
     } catch (e) {
       console.warn('Bootstrap notifications:', e);
