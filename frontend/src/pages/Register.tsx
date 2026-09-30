@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import GoogleSignInButton from '../components/GoogleSignInButton';
-import toast from 'react-hot-toast';
+import toast from '../components/toast';
 import { validateRegisterForm } from '../utils/validation';
 
 const AuthDivider = () => (

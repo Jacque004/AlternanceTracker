@@ -29,6 +29,15 @@ const NotificationsContext = createContext<NotificationsContextType | undefined>
 /** Évite deux bootstraps parallèles (React Strict Mode / re-renders). */
 let bootstrapInFlight: string | null = null;
 
+/** File d'attente partagée pour ne pas couper un abonnement tout juste recréé. */
+let notificationsRealtimeQueue = Promise.resolve();
+
+function enqueueNotificationsRealtime(task: () => Promise<void> | void) {
+  notificationsRealtimeQueue = notificationsRealtimeQueue.then(task).catch((error) => {
+    console.warn('Notifications realtime:', error);
+  });
+}
+
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useSupabaseAuth();
   const enabled = user?.inAppNotificationsEnabled !== false;
@@ -36,6 +45,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const bootstrapDoneRef = useRef<string | null>(null);
+  const userId = user ? String(user.id) : null;
 
   const refresh = useCallback(async () => {
     if (!user || !enabled) {
@@ -57,6 +67,9 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       setLoading(false);
     }
   }, [user, enabled]);
+
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
 
   const runBootstrap = useCallback(async () => {
     if (!user || !enabled) return;
@@ -107,28 +120,94 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   }, [user, enabled, runBootstrap, refresh]);
 
   useEffect(() => {
-    if (!user || !enabled) return;
+    if (!userId || !enabled) return;
 
-    const channel = supabase
-      .channel(`user_notifications:${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          void refresh();
+    let stopped = false;
+    let paused = false;
+    let generation = 0;
+
+    const subscribe = () => {
+      const id = ++generation;
+      supabase
+        .channel(`user_notifications:${userId}:${id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'user_notifications',
+            filter: `user_id=eq.${userId}`,
+          },
+          () => {
+            void refreshRef.current();
+          }
+        )
+        .subscribe();
+    };
+
+    // Chrome gèle la page (cache arrière) ou le réseau tombe : le client Realtime
+    // rouvrirait le WebSocket en boucle. On coupe tout de suite, puis on réabonne au retour.
+    const pause = () => {
+      if (paused) return;
+      paused = true;
+      supabase.realtime.disconnect();
+      enqueueNotificationsRealtime(async () => {
+        await supabase.removeAllChannels();
+      });
+    };
+
+    const resume = () => {
+      if (!paused || stopped) return;
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      paused = false;
+      enqueueNotificationsRealtime(() => {
+        if (paused || stopped) return;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          paused = true;
+          return;
         }
-      )
-      .subscribe();
+        subscribe();
+      });
+    };
+
+    const onPageHide = (event: PageTransitionEvent) => {
+      if (event.persisted) pause();
+    };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) resume();
+    };
+
+    const listen = (type: string, listener: EventListener) => {
+      window.addEventListener(type, listener);
+      return () => window.removeEventListener(type, listener);
+    };
+
+    enqueueNotificationsRealtime(() => {
+      if (!paused && !stopped) subscribe();
+    });
+
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('pageshow', onPageShow);
+    const removeFreeze = listen('freeze', pause);
+    const removeResume = listen('resume', resume);
+    window.addEventListener('offline', pause);
+    window.addEventListener('online', resume);
 
     return () => {
-      void supabase.removeChannel(channel);
+      stopped = true;
+      paused = true;
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('pageshow', onPageShow);
+      removeFreeze();
+      removeResume();
+      window.removeEventListener('offline', pause);
+      window.removeEventListener('online', resume);
+      enqueueNotificationsRealtime(async () => {
+        supabase.realtime.disconnect();
+        await supabase.removeAllChannels();
+      });
     };
-  }, [user, enabled, refresh]);
+  }, [userId, enabled]);
 
   const markAsRead = useCallback(
     async (id: string) => {

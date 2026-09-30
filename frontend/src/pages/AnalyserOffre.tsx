@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { aiService } from '../services/supabaseService';
-import toast from 'react-hot-toast';
+import toast from '../components/toast';
 import { userFacingErrorMessage } from '../utils/errorMessage';
 import { normalizeJobOfferUrl } from '../utils/jobOfferUrl';
 import { offerTextFromMetadata } from '../utils/jobOfferImport';

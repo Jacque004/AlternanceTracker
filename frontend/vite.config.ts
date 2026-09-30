@@ -8,6 +8,7 @@ const FRONTEND_CSP = [
   "script-src 'self'",
   "script-src-attr 'none'",
   "style-src 'self' https://fonts.googleapis.com",
+  /* Attributs style dynamiques (largeur de barre). Les balises <style> restent interdites. */
   "style-src-attr 'unsafe-inline'",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https:",

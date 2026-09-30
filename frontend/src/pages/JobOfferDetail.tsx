@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import toast from '../components/toast';
 import EmptyState from '../components/EmptyState';
 import OriginalOfferLink from '../components/OriginalOfferLink';
 import Skeleton from '../components/Skeleton';

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { applicationService, dashboardService } from '../services/supabaseService';
 import type { Application } from '../types';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
-import toast from 'react-hot-toast';
+import toast from '../components/toast';
 import { SkeletonCharts, SkeletonList } from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { ApplicationsMonthlyChart } from '../components/ApplicationsMonthlyChart';

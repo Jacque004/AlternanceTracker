@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import GoogleSignInButton from '../components/GoogleSignInButton';
-import toast from 'react-hot-toast';
+import toast from '../components/toast';
 
 const AuthDivider = () => (
   <div className="relative my-6">

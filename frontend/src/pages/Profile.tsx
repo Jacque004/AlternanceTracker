@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { useJobOfferFacets } from '../hooks/useJobOffers';
 import { supabase } from '../lib/supabase';
-import toast from 'react-hot-toast';
+import toast from '../components/toast';
 import { userFacingErrorMessage } from '../utils/errorMessage';
 import { rgpdService } from '../services/supabaseService';
 import { formatDateForInput, formatDisplayDate, formatLocalDateIso } from '../utils/dateDisplay';

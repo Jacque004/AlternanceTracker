@@ -5,7 +5,7 @@ import { applicationService, aiService, interviewPrepService } from '../services
 import { formatDateForInput, formatTimeForInput } from '../utils/dateDisplay';
 import { normalizeJobOfferUrl } from '../utils/jobOfferUrl';
 import { looksLikeReaderOrErrorDump } from '../utils/jobOfferImport';
-import toast from 'react-hot-toast';
+import toast from '../components/toast';
 import type { Application } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { ApplicationHistory } from '../components/ApplicationHistory';

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import toast from '../components/toast';
 import { adminService } from '../services/adminService';
 import { AdminRecentUser, AdminStats } from '../types';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';

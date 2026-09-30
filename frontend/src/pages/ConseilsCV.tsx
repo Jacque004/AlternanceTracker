@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { cvService, aiService, cvAnalysisService } from '../services/supabaseService';
 import type { CVContent, CVSectionKey, CVAnalysis, ATSAnalysisResult } from '../types';
-import toast from 'react-hot-toast';
+import toast from '../components/toast';
 import { userFacingErrorMessage } from '../utils/errorMessage';
 import { pdf } from '@react-pdf/renderer';
 import { CvPdfDocument, CV_PDF_TEMPLATES, type CvPdfTemplateId } from '../components/CvPdfDocument';

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from './components/toast';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SupabaseAuthProvider } from './contexts/SupabaseAuthContext';
 import SupabaseConfigCheck from './components/SupabaseConfigCheck';
@@ -55,21 +55,7 @@ function App() {
       <SupabaseAuthProvider>
         <Router basename={import.meta.env.BASE_URL}>
           <RouteTitle />
-          <Toaster
-            position="top-center"
-            containerStyle={{
-              top: 'max(0.75rem, env(safe-area-inset-top, 0px))',
-            }}
-            toastOptions={{
-              duration: 4200,
-              className: '!rounded-xl !shadow-card-hover !border !border-gray-200 !text-sm',
-              style: {
-                maxWidth: 'min(calc(100dvw - 1.5rem), 22rem)',
-              },
-              success: { iconTheme: { primary: '#0284c7', secondary: '#ffffff' } },
-              error: { iconTheme: { primary: '#dc2626', secondary: '#ffffff' }, duration: 5500 },
-            }}
-          />
+          <Toaster />
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/login" element={<Login />} />

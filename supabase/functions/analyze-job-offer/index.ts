@@ -64,7 +64,7 @@ function buildPromptSuffix(opts: { resume?: boolean; cv?: boolean; lettre?: bool
   const all = opts.resume !== false && opts.cv !== false && opts.lettre !== false && opts.entretien !== false;
   if (all) {
     return `---
-Réponds UNIQUEMENT avec l'analyse ci-dessous, en français. Pas d'introduction ni de conclusion. Pour chaque section, remplis les sous-points en t'appuyant sur le TEXTE de l'offre : utilise les mêmes termes que l'offre (entreprise, poste, compétences, lieu).
+Réponds UNIQUEMENT avec l'analyse ci-dessous, en français. Pas d'introduction ni de conclusion. Pour chaque section, remplis les sous-points en t'appuyant sur le TEXTE de l'offre : utilise les mêmes termes que l'offre (entreprise, poste, compétences, lieu). Chaque puce tient en une ou deux phrases. Termine toutes les sections, y compris la dernière : n'interromps pas une phrase.
 
 ## Résumé de l'offre
 - **Poste et entreprise :** intitulé exact du poste tel que dans l'offre, nom de l'entreprise ou structure, ville/région si indiqué.
@@ -108,9 +108,58 @@ Réponds UNIQUEMENT avec l'analyse ci-dessous, en français. Pas d'introduction 
 - **Sujets à préparer :** ce qu'il faut savoir sur l'entreprise/secteur d'après l'offre ; points pratiques (dates, pièces, relance).`);
   }
   return `---
-Réponds UNIQUEMENT avec l'analyse ci-dessous, en français. Pas d'introduction ni de conclusion. Remplis chaque section en t'appuyant sur le TEXTE de l'offre ; utilise les mêmes termes que l'offre.
+Réponds UNIQUEMENT avec l'analyse ci-dessous, en français. Pas d'introduction ni de conclusion. Remplis chaque section en t'appuyant sur le TEXTE de l'offre ; utilise les mêmes termes que l'offre. Chaque puce tient en une ou deux phrases. Termine toutes les sections demandées : n'interromps pas une phrase.
 
 ${parts.join('\n\n')}`;
+}
+
+type GeminiPart = { text?: string; thought?: boolean };
+
+function geminiGenerationConfig(model: string): Record<string, unknown> {
+  const config: Record<string, unknown> = {
+    maxOutputTokens: 8192,
+    temperature: 0.35,
+  };
+  // Sur Gemini 2.5, le raisonnement interne est décompté dans maxOutputTokens et coupe la réponse visible.
+  if (/2\.5|flash-latest|gemini-3/i.test(model)) {
+    config.thinkingConfig = { thinkingBudget: 0 };
+  }
+  return config;
+}
+
+function textFromGemini(data: {
+  candidates?: Array<{ finishReason?: string; content?: { parts?: GeminiPart[] } }>;
+}): { text: string; truncated: boolean } {
+  const candidate = data?.candidates?.[0];
+  const parts = Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
+  const text = parts
+    .filter((part) => typeof part?.text === 'string' && !part.thought)
+    .map((part) => part.text as string)
+    .join('')
+    .trim();
+  return { text, truncated: candidate?.finishReason === 'MAX_TOKENS' };
+}
+
+async function generateGemini(
+  model: string,
+  prompt: string,
+): Promise<{ text: string; truncated: boolean } | { error: string }> {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: geminiGenerationConfig(model),
+      }),
+    },
+  );
+  if (!res.ok) return { error: await res.text() };
+  const data = await res.json();
+  const result = textFromGemini(data);
+  if (!result.text) return { error: 'Réponse vide' };
+  return result;
 }
 
 async function callGemini(offerText: string, promptSuffix: string): Promise<string> {
@@ -118,27 +167,20 @@ async function callGemini(offerText: string, promptSuffix: string): Promise<stri
   const modelsToTry = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash'];
   let lastError = '';
   for (const model of modelsToTry) {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: fullPrompt }] }],
-          generationConfig: {
-            maxOutputTokens: 3000,
-            temperature: 0.35,
-          },
-        }),
-      }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-      if (text) return text;
-    } else {
-      lastError = await res.text();
+    const first = await generateGemini(model, fullPrompt);
+    if ('error' in first) {
+      lastError = first.error;
+      continue;
     }
+    if (!first.truncated) return first.text;
+
+    const tail = first.text.slice(-1200);
+    const second = await generateGemini(
+      model,
+      `La réponse suivante a été coupée. Continue exactement après le dernier mot, sans répéter le début, jusqu'à terminer toutes les sections.\n\n${tail}`,
+    );
+    if ('error' in second) return first.text;
+    return `${first.text}\n${second.text}`.trim();
   }
   throw new Error(lastError || 'Erreur API Gemini');
 }
@@ -158,7 +200,7 @@ async function callOpenAI(offerText: string, promptSuffix: string): Promise<stri
         { role: 'user', content: prompt },
       ],
       temperature: 0.35,
-      max_tokens: 3000,
+      max_tokens: 4096,
     }),
   });
   if (!res.ok) {
@@ -173,7 +215,33 @@ async function callOpenAI(offerText: string, promptSuffix: string): Promise<stri
     throw new Error(msg);
   }
   const data = await res.json();
-  return data.choices[0]?.message?.content || '';
+  const choice = data.choices?.[0];
+  const content = choice?.message?.content || '';
+  if (choice?.finish_reason !== 'length' || !content) return content;
+
+  const follow = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        { role: 'system', content: 'Tu continues une analyse RH en français, sans répéter le début.' },
+        {
+          role: 'user',
+          content: `La réponse suivante a été coupée. Continue exactement après le dernier mot, jusqu'à terminer toutes les sections.\n\n${content.slice(-1200)}`,
+        },
+      ],
+      temperature: 0.35,
+      max_tokens: 1500,
+    }),
+  });
+  if (!follow.ok) return content;
+  const more = await follow.json();
+  const rest = more.choices?.[0]?.message?.content || '';
+  return rest ? `${content}\n${rest}`.trim() : content;
 }
 
 serve(async (req) => {
@@ -256,26 +324,23 @@ serve(async (req) => {
       lettre: body.focusLettre !== false,
       entretien: body.focusEntretien !== false,
     };
-    const promptSuffix = buildPromptSuffix(opts);
+    const groups = [
+      { resume: opts.resume, cv: opts.cv, lettre: false, entretien: false },
+      { resume: false, cv: false, lettre: opts.lettre, entretien: opts.entretien },
+    ].filter((group) => group.resume || group.cv || group.lettre || group.entretien);
+    const generate = GEMINI_API_KEY ? callGemini : callOpenAI;
     let advice: string;
-    if (GEMINI_API_KEY) {
-      try {
-        advice = await callGemini(limited, promptSuffix);
-      } catch (e) {
-        return new Response(
-          JSON.stringify({ error: e?.message || 'Erreur API Gemini' }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+    try {
+      const parts: string[] = [];
+      for (const group of groups) {
+        parts.push(await generate(limited, buildPromptSuffix(group)));
       }
-    } else {
-      try {
-        advice = await callOpenAI(limited, promptSuffix);
-      } catch (e) {
-        return new Response(
-          JSON.stringify({ error: e?.message || 'Erreur API OpenAI' }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      advice = parts.filter((part) => part.trim()).join('\n\n');
+    } catch (e) {
+      return new Response(
+        JSON.stringify({ error: e?.message || 'Erreur lors de l\'analyse' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     return new Response(

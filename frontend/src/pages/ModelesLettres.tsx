@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import toast from '../components/toast';
 import { aiService, letterService } from '../services/supabaseService';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import type { GeneratedLetter } from '../types';

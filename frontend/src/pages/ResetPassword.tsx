@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import toast from '../components/toast';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 
 export default function ResetPassword() {
