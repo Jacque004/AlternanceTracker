@@ -8,6 +8,7 @@ import { useJobOffer, useTrackedOfferApplications } from '../hooks/useJobOffers'
 import { invalidateApplicationCaches } from '../query/client';
 import { jobOfferService } from '../services/jobOfferService';
 import { formatPublishedAgo } from '../services/jobOffers/display';
+import { parseOfferDescription, type OfferDescriptionSection } from '../services/jobOffers/formatOfferDescription';
 import { preconnectOrigin, redirectUrlFromOffer } from '../services/jobOffers/sourceUrl';
 import { sourceLabel } from '../services/jobOffers/types';
 
@@ -20,37 +21,61 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-const DESCRIPTION_PREVIEW = 700;
+function TextLines({ lines, className }: { lines: string[]; className?: string }) {
+  if (lines.length === 0) return null;
+  return (
+    <div className={className}>
+      {lines.map((line, index) => (
+        <p key={`${index}-${line.slice(0, 24)}`} className="text-sm sm:text-[15px] leading-7 text-gray-700 break-words">
+          {line}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function OfferBlock({ section }: { section: OfferDescriptionSection }) {
+  return (
+    <div>
+      {section.title ? <h3 className="text-sm sm:text-[15px] font-semibold text-gray-900">{section.title}</h3> : null}
+      <TextLines lines={section.paragraphs} className={`${section.title ? 'mt-2' : ''} space-y-3`} />
+      {section.groups.length > 0 ? (
+        <div className={`${section.title || section.paragraphs.length > 0 ? 'mt-4' : ''} space-y-4`}>
+          {section.groups.map((group) => (
+            <div key={group.title}>
+              <h4 className="text-sm sm:text-[15px] font-semibold text-gray-900">{group.title}</h4>
+              <TextLines lines={group.items} className="mt-2 space-y-2" />
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {section.items.length > 0 ? (
+        <ul className={`${section.title || section.paragraphs.length > 0 || section.groups.length > 0 ? 'mt-3' : ''} space-y-2.5`}>
+          {section.items.map((item, index) => (
+            <li key={`${index}-${item.slice(0, 24)}`} className="flex gap-3 text-sm sm:text-[15px] leading-7 text-gray-700">
+              <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary-500" aria-hidden />
+              <span className="min-w-0 break-words">{item}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
 
 function OfferDescription({ text }: { text: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const long = text.length > DESCRIPTION_PREVIEW;
+  const sections = parseOfferDescription(text);
+  if (sections.length === 0) return null;
+  const titled = sections.some((section) => section.title);
 
   return (
     <section className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-6">
-      <h2 className="text-base font-semibold text-gray-900">Description de l’offre</h2>
-      <div className="relative mt-3">
-        <p
-          className={`text-sm sm:text-[15px] leading-7 text-gray-700 whitespace-pre-wrap break-words ${
-            long && !expanded ? 'max-h-64 overflow-hidden' : ''
-          }`}
-        >
-          {text}
-        </p>
-        {long && !expanded ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent" aria-hidden />
-        ) : null}
+      <h2 className="text-base font-semibold text-gray-900">Description du poste</h2>
+      <div className={`${titled ? 'mt-5 space-y-6' : 'mt-3 space-y-3'}`}>
+        {sections.map((section, index) => (
+          <OfferBlock key={`${section.title ?? 'description'}-${index}`} section={section} />
+        ))}
       </div>
-      {long ? (
-        <button
-          type="button"
-          onClick={() => setExpanded((open) => !open)}
-          aria-expanded={expanded}
-          className="mt-2 inline-flex items-center min-h-[44px] text-sm font-medium text-primary-700 hover:text-primary-800"
-        >
-          {expanded ? 'Réduire la description' : 'Lire toute la description'}
-        </button>
-      ) : null}
     </section>
   );
 }
@@ -152,16 +177,19 @@ export default function JobOfferDetailPage() {
         ) : null}
       </header>
 
-      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5">
-        <Row label="Localisation" value={offer.location || 'Non précisée'} />
-        <Row label="Contrat" value={offer.contractType || 'Non précisé'} />
-        <Row label="Niveau" value={offer.educationLevel || 'Non précisé'} />
-        <Row label="Salaire" value={offer.salary || 'Non précisé'} />
-        <Row label="Télétravail" value={offer.remote == null ? 'Non précisé' : offer.remote ? 'Oui' : 'Non'} />
-        <Row label="Date" value={formatPublishedAgo(offer.publishedAt)} />
-        <Row label="Source" value={sourceLabel(offer.source)} />
-        {offer.domain ? <Row label="Domaine" value={offer.domain} /> : null}
-      </dl>
+      <section className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-6">
+        <h2 className="text-base font-semibold text-gray-900">Le poste</h2>
+        <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+          <Row label="Localisation" value={offer.location || 'Non précisée'} />
+          <Row label="Contrat" value={offer.contractType || 'Non précisé'} />
+          <Row label="Niveau" value={offer.educationLevel || 'Non précisé'} />
+          <Row label="Salaire" value={offer.salary || 'Non précisé'} />
+          <Row label="Télétravail" value={offer.remote == null ? 'Non précisé' : offer.remote ? 'Oui' : 'Non'} />
+          <Row label="Date" value={formatPublishedAgo(offer.publishedAt)} />
+          <Row label="Source" value={sourceLabel(offer.source)} />
+          {offer.domain ? <Row label="Domaine" value={offer.domain} /> : null}
+        </dl>
+      </section>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <OriginalOfferLink

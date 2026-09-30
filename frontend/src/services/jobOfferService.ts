@@ -151,10 +151,13 @@ export const jobOfferService = {
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (userError || !userData.user) return;
       await supabase.rpc('ensure_user_profile');
-      const { error } = await supabase.from('job_offer_clicks').insert({
-        job_offer_id: jobOfferId,
-        user_id: userData.user.id,
-      });
+      const { error } = await supabase.from('job_offer_clicks').upsert(
+        {
+          job_offer_id: jobOfferId,
+          user_id: userData.user.id,
+        },
+        { onConflict: 'user_id,job_offer_id', ignoreDuplicates: true }
+      );
       if (error) return;
     } catch {
       /* le suivi du clic ne doit pas empêcher d’ouvrir l’offre */
