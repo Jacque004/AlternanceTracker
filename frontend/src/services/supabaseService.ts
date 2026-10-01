@@ -578,7 +578,7 @@ export const aiService = {
     focusCV?: boolean;
     focusLettre?: boolean;
     focusEntretien?: boolean;
-  }): Promise<string> => {
+  }): Promise<{ advice: string; offerText: string }> => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '') || '';
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
     if (!supabaseUrl || !supabaseAnonKey) {
@@ -614,7 +614,8 @@ export const aiService = {
     if (!advice.trim()) {
       throw new Error('L’analyse n’a retourné aucun conseil. Réessayez ou collez plus de texte.');
     }
-    return advice;
+    const offerText = typeof body?.offerText === 'string' ? body.offerText.trim() : '';
+    return { advice, offerText };
   },
 
   /**

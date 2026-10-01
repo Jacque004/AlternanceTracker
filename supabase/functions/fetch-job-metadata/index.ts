@@ -2,6 +2,8 @@
 // Authentification : JWT utilisateur Supabase (évite les abus en open bar).
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { resolveOfferText } from '../_shared/fetchOfferBody.ts';
+import { isUsableOfferText } from '../_shared/offerPageText.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -796,6 +798,14 @@ serve(async (req) => {
 
   const pageTitle = rawTitle || ld?.position || titleTag || null;
 
+  let offerText: string | null = null;
+  try {
+    const full = await resolveOfferText(rawUrl, { html, jinaPlain });
+    offerText = isUsableOfferText(full) ? full : null;
+  } catch {
+    offerText = null;
+  }
+
   const companyOut = scrubMetaField(companyName);
   const positionOut = scrubMetaField(position);
   const descOut = scrubMetaField(descriptionSnippet);
@@ -808,6 +818,7 @@ serve(async (req) => {
       companyName: companyOut,
       position: positionOut,
       descriptionSnippet: descOut,
+      offerText,
       pageTitle: pageTitleOut,
       jobUrl: rawUrl,
       location: locationOut,

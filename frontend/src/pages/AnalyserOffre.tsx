@@ -141,12 +141,16 @@ const AnalyserOffre = () => {
         return;
       }
       setOfferText((prev) => {
-        if (!prev.trim()) return extracted;
+        if (!prev.trim() || extracted.length > prev.trim().length + 40) return extracted;
         const marker = extracted.slice(0, Math.min(60, extracted.length));
         if (prev.includes(marker)) return prev;
-        return `${prev.trim()}\n\n---\n${extracted}`;
+        return `${extracted}\n\n---\n${prev.trim()}`;
       });
-      toast.success('Texte de l’offre chargé depuis l’URL. Vérifiez-le puis lancez l’analyse.');
+      toast.success(
+        extracted.length > 400
+          ? 'Offre complète récupérée depuis le lien. Vérifiez-la puis lancez l’analyse.'
+          : 'Texte de l’offre chargé depuis l’URL. Vérifiez-le puis lancez l’analyse.'
+      );
     } catch (e: unknown) {
       toast.error(userFacingErrorMessage(e, 'Impossible de charger le texte depuis cette URL.'));
     } finally {
@@ -174,10 +178,13 @@ const AnalyserOffre = () => {
         focusLettre: options.lettre,
         focusEntretien: options.entretien,
       });
-      if (!result.trim()) {
+      if (!result.advice.trim()) {
         throw new Error('L’analyse n’a retourné aucun conseil. Réessayez ou collez plus de texte.');
       }
-      setAdvice(result);
+      if (result.offerText.length > offerText.trim().length) {
+        setOfferText(result.offerText);
+      }
+      setAdvice(result.advice);
       toast.success('Analyse terminée');
     } catch (error: unknown) {
       toast.error(userFacingErrorMessage(error, 'Impossible d’analyser l’offre.'));
@@ -193,7 +200,7 @@ const AnalyserOffre = () => {
           Analyser une offre d'emploi
         </h1>
         <p className="mt-2 text-sm sm:text-base text-gray-600">
-          Collez le texte de l'offre (recommandé) ou chargez-le depuis l'URL, puis choisissez les conseils souhaités.
+          Indiquez le lien : l’offre complète (missions, profil, compétences) est récupérée pour l’analyse. Vous pouvez aussi coller le texte.
         </p>
       </div>
 
@@ -206,7 +213,7 @@ const AnalyserOffre = () => {
         <div className="p-6 space-y-5">
           <div>
             <label htmlFor="job-offer-url" className="block text-sm font-medium text-gray-700 mb-1">
-              Lien de l'offre (optionnel)
+              Lien de l'offre
             </label>
             <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
               <input
@@ -230,7 +237,7 @@ const AnalyserOffre = () => {
               </button>
             </div>
             <p className="mt-1 text-xs text-gray-500">
-              LinkedIn, Indeed… bloquent souvent l'accès automatique. Si le chargement échoue, copiez-collez le texte de l'offre ci-dessous.
+              L’analyse s’appuie sur le texte complet trouvé via ce lien. Si le site bloque la lecture automatique, collez l’offre ci-dessous.
             </p>
           </div>
           <div>
@@ -239,7 +246,7 @@ const AnalyserOffre = () => {
             </label>
             <textarea
               id="offer-text"
-              rows={6}
+              rows={12}
               value={offerText}
               onChange={(e) => setOfferText(e.target.value)}
               placeholder="Collez ici le contenu de l'offre : titre du poste, mission, profil recherché, compétences, lieu..."

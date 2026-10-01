@@ -13,19 +13,38 @@ export function looksLikeReaderOrErrorDump(text: string | null | undefined): boo
   );
 }
 
-/** Construit un texte d’offre exploitable à partir des métadonnées extraites d’une URL. */
-export function offerTextFromMetadata(meta: JobMetadataFromUrl): string {
-  const parts: string[] = [];
+function headerLines(meta: JobMetadataFromUrl, body: string): string[] {
+  const lines: string[] = [];
+  const bodyLower = body.toLowerCase();
   const position = meta.position?.trim();
   const company = meta.companyName?.trim();
   const location = meta.location?.trim();
   const salary = meta.salaryRange?.trim();
-  const snippet = meta.descriptionSnippet?.trim();
+  if (position && !looksLikeReaderOrErrorDump(position) && !bodyLower.includes(position.toLowerCase())) {
+    lines.push(`Poste : ${position}`);
+  }
+  if (company && !looksLikeReaderOrErrorDump(company) && !bodyLower.includes(company.toLowerCase())) {
+    lines.push(`Entreprise : ${company}`);
+  }
+  if (location && !looksLikeReaderOrErrorDump(location) && !bodyLower.includes(location.toLowerCase())) {
+    lines.push(`Lieu : ${location}`);
+  }
+  if (salary && !looksLikeReaderOrErrorDump(salary) && !bodyLower.includes(salary.toLowerCase())) {
+    lines.push(`Salaire : ${salary}`);
+  }
+  return lines;
+}
 
-  if (position && !looksLikeReaderOrErrorDump(position)) parts.push(`Poste : ${position}`);
-  if (company && !looksLikeReaderOrErrorDump(company)) parts.push(`Entreprise : ${company}`);
-  if (location && !looksLikeReaderOrErrorDump(location)) parts.push(`Lieu : ${location}`);
-  if (salary && !looksLikeReaderOrErrorDump(salary)) parts.push(`Salaire : ${salary}`);
+/** Construit un texte d’offre exploitable à partir des métadonnées extraites d’une URL. */
+export function offerTextFromMetadata(meta: JobMetadataFromUrl): string {
+  const full = meta.offerText?.trim();
+  if (full && full.length >= 80 && !looksLikeReaderOrErrorDump(full)) {
+    const header = headerLines(meta, full);
+    return header.length ? `${header.join('\n')}\n\n${full}` : full;
+  }
+
+  const parts = headerLines(meta, '');
+  const snippet = meta.descriptionSnippet?.trim();
   if (snippet && !looksLikeReaderOrErrorDump(snippet)) {
     if (parts.length > 0) parts.push('');
     parts.push(snippet);

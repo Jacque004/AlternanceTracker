@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import toast from '../components/toast';
+import type { NextLocation } from '../utils/safeNextPath';
+import { POST_LOGIN_PATH_KEY, safeNextPath, safeNextPathFromString } from '../utils/safeNextPath';
 
 const AuthDivider = () => (
   <div className="relative my-6">
@@ -21,8 +23,22 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const { signIn, signInWithGoogle } = useSupabaseAuth();
+  const { signIn, signInWithGoogle, session, loading: authLoading } = useSupabaseAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (authLoading || !session) return;
+    const from = (location.state as { from?: NextLocation } | null)?.from;
+    let stored: string | null = null;
+    try {
+      stored = sessionStorage.getItem(POST_LOGIN_PATH_KEY);
+    } catch {
+      stored = null;
+    }
+    const target = from ? safeNextPath(from) : safeNextPathFromString(stored);
+    navigate(target, { replace: true });
+  }, [authLoading, session, location.state, navigate]);
 
   useEffect(() => {
     if (searchParams.get('confirmed') === '1') {
@@ -51,8 +67,6 @@ const Login = () => {
           errorMessage = error.message || errorMessage;
         }
         toast.error(errorMessage);
-      } else {
-        navigate('/');
       }
     } catch {
       toast.error('Une erreur inattendue s\'est produite. Veuillez réessayer.');

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Toaster } from './components/toast';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SupabaseAuthProvider } from './contexts/SupabaseAuthContext';
@@ -11,6 +11,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import { queryClient } from './query/client';
 import { pageTitleFromPath } from './utils/documentTitle';
+import { clearPostLoginPath, POST_LOGIN_PATH_KEY, safeNextPath, safeNextPathFromString } from './utils/safeNextPath';
+import { useSupabaseAuth } from './contexts/SupabaseAuthContext';
 
 const ConfirmSuccess = lazy(() => import('./pages/ConfirmSuccess'));
 const APropos = lazy(() => import('./pages/APropos'));
@@ -32,10 +34,51 @@ const JobOffers = lazy(() => import('./pages/JobOffers'));
 const JobOfferDetail = lazy(() => import('./pages/JobOfferDetail'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminRoute = lazy(() => import('./components/AdminRoute'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 function LegacyOffreRedirect() {
   const { id } = useParams();
   return <Navigate to={id ? `/offres/${id}` : '/offres'} replace />;
+}
+
+function PostLoginRedirect() {
+  const { session, loading } = useSupabaseAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (loading) return;
+    const normalized = location.pathname.replace(/\/+$/, '') || '/';
+    if (!session) {
+      if (normalized === '/') clearPostLoginPath();
+      return;
+    }
+
+    let raw: string | null = null;
+    try {
+      raw = sessionStorage.getItem(POST_LOGIN_PATH_KEY);
+    } catch {
+      raw = null;
+    }
+    if (!raw) return;
+
+    const target = safeNextPathFromString(raw);
+    if (safeNextPath(location) === target) {
+      clearPostLoginPath();
+      return;
+    }
+
+    if (
+      normalized === '/' ||
+      normalized === '/login' ||
+      normalized === '/register' ||
+      normalized === '/forgot-password'
+    ) {
+      navigate(target, { replace: true });
+    }
+  }, [loading, session, location, navigate]);
+
+  return null;
 }
 
 function RouteTitle() {
@@ -55,6 +98,7 @@ function App() {
       <SupabaseAuthProvider>
         <Router basename={import.meta.env.BASE_URL}>
           <RouteTitle />
+          <PostLoginRedirect />
           <Toaster />
           <Suspense fallback={<RouteFallback />}>
             <Routes>
@@ -62,8 +106,6 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/politique-confidentialite" element={<PolitiqueConfidentialite />} />
-              <Route path="/cgu" element={<CGU />} />
               <Route path="/auth/confirm-success" element={<ConfirmSuccess />} />
               <Route
                 path="/"
@@ -97,6 +139,8 @@ function App() {
                 <Route path="profile" element={<Profile />} />
                 <Route path="aide/notifications" element={<Navigate to="/profile#notifications" replace />} />
                 <Route path="a-propos" element={<APropos />} />
+                <Route path="politique-confidentialite" element={<PolitiqueConfidentialite />} />
+                <Route path="cgu" element={<CGU />} />
                 <Route
                   path="admin"
                   element={
@@ -105,6 +149,9 @@ function App() {
                     </AdminRoute>
                   }
                 />
+              </Route>
+              <Route path="*" element={<Layout />}>
+                <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>
           </Suspense>

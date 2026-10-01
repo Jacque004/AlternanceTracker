@@ -84,10 +84,9 @@ const Profile = () => {
   });
 
   useEffect(() => {
-    if (location.hash === '#notifications') {
-      document.getElementById('notifications')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [location.hash]);
+    if (location.hash !== '#notifications' || !user) return;
+    document.getElementById('notifications')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [location.hash, user]);
 
   useEffect(() => {
     if (user) {

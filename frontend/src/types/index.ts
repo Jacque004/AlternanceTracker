@@ -129,6 +129,8 @@ export interface JobMetadataFromUrl {
   companyName: string | null;
   position: string | null;
   descriptionSnippet: string | null;
+  /** Corps complet de l’offre (missions, profil, compétences), quand la page le permet. */
+  offerText?: string | null;
   pageTitle: string | null;
   jobUrl: string;
   /** Lieu si présent (ex. JSON-LD JobPosting) */

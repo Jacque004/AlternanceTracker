@@ -1,6 +1,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { requireSupabaseUser } from '../_shared/requireUser.ts';
 import { validatePublicJobUrl } from '../_shared/publicUrl.ts';
+import { resolveOfferText } from '../_shared/fetchOfferBody.ts';
+import { mergeOfferTexts } from '../_shared/offerPageText.ts';
 import { LLM_TASK_GUARD, PROMPT_LIMITS, sanitizePromptInput, wrapUserData } from '../_shared/promptSanitize.ts';
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
@@ -10,39 +12,6 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const MAX_OFFER_LENGTH = 12000;
-
-/** Extrait du texte lisible depuis du HTML */
-function extractTextFromHtml(html: string): string {
-  let text = html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .trim();
-  return text.slice(0, MAX_OFFER_LENGTH);
-}
-
-/** Tente de récupérer le contenu d'une URL (offre d'emploi) */
-async function fetchOfferFromUrl(url: string): Promise<string> {
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml',
-    },
-    redirect: 'follow',
-  });
-  if (!res.ok) throw new Error(`Impossible de récupérer la page (${res.status})`);
-  const html = await res.text();
-  return extractTextFromHtml(html);
-}
 
 const PROMPT_PREFIX = `Tu es un expert RH et coach carrière spécialisé dans le recrutement en alternance. Tu analyses une offre d'emploi et tu produis des conseils UTILISABLES immédiatement par le candidat.
 
@@ -283,11 +252,9 @@ serve(async (req) => {
       }
       const url = checked.url.href;
       try {
-        const fetched = await fetchOfferFromUrl(url);
-        if (fetched.length >= 100) {
-          textToAnalyze = textToAnalyze ? `${fetched}\n\n---\nTexte complémentaire :\n${textToAnalyze}` : fetched;
-        }
-      } catch (e) {
+        const fetched = await resolveOfferText(url);
+        textToAnalyze = mergeOfferTexts(textToAnalyze, fetched);
+      } catch {
         if (!textToAnalyze) {
           return new Response(
             JSON.stringify({
@@ -344,7 +311,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ advice }),
+      JSON.stringify({ advice, offerText: limited }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

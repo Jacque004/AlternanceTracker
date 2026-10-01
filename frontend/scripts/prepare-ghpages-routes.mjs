@@ -33,8 +33,11 @@ const routes = [
   // App connectée (rechargement F5)
   'applications',
   'applications/new',
+  'offres',
+  'offre',
   'calendar',
   'profile',
+  'aide/notifications',
   'a-propos',
   'admin',
   'preparer',

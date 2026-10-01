@@ -296,13 +296,18 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     lastName: string,
     consent?: { privacyPolicyAcceptedAt: string; termsAcceptedAt: string }
   ) => {
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+    const fullName = [trimmedFirstName, trimmedLastName].filter(Boolean).join(' ');
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          first_name: firstName,
-          last_name: lastName,
+          first_name: trimmedFirstName,
+          last_name: trimmedLastName,
+          full_name: fullName,
           ...(consent && {
             privacy_policy_accepted_at: consent.privacyPolicyAcceptedAt,
             terms_accepted_at: consent.termsAcceptedAt,

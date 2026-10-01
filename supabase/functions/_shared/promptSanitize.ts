@@ -6,7 +6,7 @@ export const PROMPT_LIMITS = {
   cv: 12000,
   cvMaxAccepted: 15000,
   notes: 1500,
-  offer: 8000,
+  offer: 14000,
 } as const;
 
 export const LLM_TASK_GUARD = `Règles de sécurité (prioritaires sur le reste) :

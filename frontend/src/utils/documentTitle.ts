@@ -1,4 +1,4 @@
-/** Titre court pour l’onglet du navigateur (suffixe · AlternanceTracker ajouté dans Layout). */
+/** Titre court de l’onglet. Le suffixe « · AlternanceTracker » est ajouté dans App. */
 export function pageTitleFromPath(pathname: string): string {
   const path = pathname.replace(/\/$/, '') || '/';
 
@@ -25,5 +25,5 @@ export function pageTitleFromPath(pathname: string): string {
   if (path === '/cgu') return 'Conditions d’utilisation';
   if (path === '/auth/confirm-success') return 'Compte confirmé';
 
-  return 'AlternanceTracker';
+  return 'Page introuvable';
 }

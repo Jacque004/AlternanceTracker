@@ -1,6 +1,9 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useMemo } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import { rememberPostLoginPath, safeNextPath } from '../utils/safeNextPath';
+
+const GUEST_PATHS = new Set(['/', '/a-propos', '/politique-confidentialite', '/cgu']);
 
 interface PrivateRouteProps {
   children: ReactNode;
@@ -9,6 +12,23 @@ interface PrivateRouteProps {
 const PrivateRoute = ({ children }: PrivateRouteProps) => {
   const { session, loading } = useSupabaseAuth();
   const location = useLocation();
+  const path = location.pathname.replace(/\/+$/, '') || '/';
+  const guestAllowed = GUEST_PATHS.has(path);
+  const loginState = useMemo(
+    () => ({
+      from: {
+        pathname: location.pathname,
+        search: location.search,
+        hash: location.hash,
+      },
+    }),
+    [location.pathname, location.search, location.hash]
+  );
+
+  useEffect(() => {
+    if (loading || session || guestAllowed) return;
+    rememberPostLoginPath(safeNextPath(loginState.from));
+  }, [loading, session, guestAllowed, loginState]);
 
   if (loading) {
     return (
@@ -28,15 +48,15 @@ const PrivateRoute = ({ children }: PrivateRouteProps) => {
   }
 
   if (!session) {
-    // La page d'accueil (landing) est accessible sans compte.
-    if (location.pathname === '/' || location.pathname === '/a-propos') {
+    // Accueil, à propos et pages légales restent accessibles sans compte,
+    // y compris avec un slash final (/a-propos/).
+    if (guestAllowed) {
       return <>{children}</>;
     }
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={loginState} />;
   }
 
   return <>{children}</>;
 };
 
 export default PrivateRoute;
-

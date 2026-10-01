@@ -2,6 +2,8 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { requireSupabaseUser } from '../_shared/requireUser.ts';
 import { validatePublicJobUrl } from '../_shared/publicUrl.ts';
+import { resolveOfferText } from '../_shared/fetchOfferBody.ts';
+import { isUsableOfferText } from '../_shared/offerPageText.ts';
 import {
   LLM_TASK_GUARD,
   PROMPT_LIMITS,
@@ -17,34 +19,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const MAX_OFFER_LENGTH = 8000;
 const MAX_CV_LENGTH = 6000;
-
-function extractTextFromHtml(html: string): string {
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .trim()
-    .slice(0, MAX_OFFER_LENGTH);
-}
-
-async function fetchOfferFromUrl(url: string): Promise<string> {
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      Accept: 'text/html,application/xhtml+xml',
-    },
-    redirect: 'follow',
-  });
-  if (!res.ok) throw new Error(`Impossible de récupérer la page (${res.status})`);
-  return extractTextFromHtml(await res.text());
-}
 
 function cvJsonToPlain(content: Record<string, unknown> | null): string {
   if (!content) return '';
@@ -247,14 +222,14 @@ serve(async (req) => {
       const checked = validatePublicJobUrl(app.job_url.trim());
       if (checked.ok) {
         try {
-          offerText = await fetchOfferFromUrl(checked.url.href);
+          offerText = await resolveOfferText(checked.url.href);
         } catch {
           offerText = '';
         }
       }
     }
-    if (!offerText && typeof app.notes === 'string') {
-      offerText = app.notes.slice(0, MAX_OFFER_LENGTH);
+    if (!isUsableOfferText(offerText) && typeof app.notes === 'string') {
+      offerText = app.notes;
     }
 
     const prompt = buildPrompt({

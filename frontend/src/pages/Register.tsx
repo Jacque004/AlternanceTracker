@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import { POST_LOGIN_PATH_KEY, safeNextPathFromString } from '../utils/safeNextPath';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import toast from '../components/toast';
 import { validateRegisterForm } from '../utils/validation';
@@ -28,8 +29,19 @@ const Register = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { signUp, signInWithGoogle } = useSupabaseAuth();
+  const { signUp, signInWithGoogle, session, loading: authLoading } = useSupabaseAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (authLoading || !session) return;
+    try {
+      const stored = sessionStorage.getItem(POST_LOGIN_PATH_KEY);
+      if (stored && safeNextPathFromString(stored) !== '/') return;
+    } catch {
+      // on renvoie vers l'accueil
+    }
+    navigate('/', { replace: true });
+  }, [authLoading, session, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;

@@ -45,21 +45,28 @@ Ce dossier contient les **templates HTML** et les **objets des mails** d'auth Su
 
 ## 3. Logo dans l’email
 
-Le template utilise l’URL fixe du site déployé pour que le logo s’affiche correctement :
+Le template utilise un PNG, seul format affiché de façon fiable dans les clients mail (Gmail, Outlook). L’URL est directe, sans redirection :
 
-- **Production (GitHub Pages)** : `https://jacque004.github.io/AlternanceTracker/logo.svg`
-- Le fichier logo est dans `frontend/public/logo.svg` ; il est servi à la racine du site au build.
+- **Production** : `https://alternancetracker.fr/logo.png`
+- Image : le logo du site (pastille dégradée, « A » blanc, coche jaune, texte **Alternance** / **Tracker**), exporté en PNG dans `frontend/public/logo.png`. Le composant source est `frontend/src/components/Logo.tsx`.
 
-Si vous déployez sur un autre domaine, remplacez dans `confirm-signup.html` l’URL de l’image par la vôtre (ex. `https://votredomaine.com/logo.svg`).
+Les clients mail n’affichent pas le SVG. Une URL inconnue comme `/logo.png` est renvoyée vers `404.html`, qui charge l’application : React signale alors « No routes matched location "/logo.png" ».
 
-## 4. Personnalisation (prénom)
+## 4. Personnalisation (prénom et nom)
 
-Le template utilise le prénom envoyé à l’inscription (`first_name` dans les metadata) :
+À l’inscription, le frontend envoie dans les metadata Supabase (`options.data`) :
 
-- Si présent : « Bonjour **Prénom**, »
-- Sinon : « Bonjour **futur alternant(e)** ».
+- `first_name` — prénom
+- `last_name` — nom
+- `full_name` — prénom et nom réunis (ex. `Michelle diango`)
 
-Cela correspond aux champs `first_name` / `last_name` envoyés dans `signUp` côté frontend.
+Le template affiche :
+
+- Si `full_name` est présent : « Bonjour **Michelle diango**, »
+- Sinon, s’il y a un prénom (et éventuellement un nom) : « Bonjour **Prénom Nom**, »
+- Sinon : « Bonjour **futur alternant(e)**, »
+
+`{{ .Data }}` dans les templates Supabase correspond à `user_metadata`. Il faut recopier le HTML mis à jour dans **Authentication → Email Templates** pour que les prochains mails l’utilisent.
 
 ## 5. Envoi des emails (SMTP)
 
