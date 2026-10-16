@@ -43,8 +43,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
     container_name: alternancetracker_frontend
     environment:
       VITE_API_URL: http://localhost:5000/api
