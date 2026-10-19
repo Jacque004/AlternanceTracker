@@ -9,6 +9,10 @@ export interface JobConnectorEnv {
   LBA_RADIUS?: string;
   FT_CLIENT_ID?: string;
   FT_CLIENT_SECRET?: string;
+  JOOBLE_API_KEY?: string;
+  JOOBLE_KEYWORDS?: string;
+  JOOBLE_LOCATION?: string;
+  JOOBLE_RESULTS?: string;
 }
 
 export interface ConnectorFetchResult {

@@ -102,6 +102,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   'mock-dev': 'Démonstration',
   'la-bonne-alternance': 'La bonne alternance',
   'france-travail': 'France Travail',
+  jooble: 'Jooble',
 };
 
 export function sourceLabel(source: string): string {

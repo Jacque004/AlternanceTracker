@@ -34,7 +34,28 @@ Ces lignes sont marquées `is_demo`. Ce ne sont pas de vraies annonces. Ne pas a
 | Fréquence conseillée | Une fois par jour |
 | Réglages | `LBA_ROMES` (défaut `M1805`), `LBA_LATITUDE`, `LBA_LONGITUDE`, `LBA_RADIUS` (défaut 30 km si les coordonnées sont fournies) |
 
-Les objets qui n'ont pas de titre, d'entreprise ou d'URL http(s) publique sont ignorés et comptés comme ignorés. Aucun contournement d'authentification : un refus de l'API (401, 429) arrête l'enregistrement de cette source.
+Les objets qui n'ont pas de titre, d'entreprise ou d'URL http(s) publique sont ignorés et comptés comme ignorés. Une offre dont le champ `is_delegated` vaut vrai est aussi ignorée : elle est diffusée par un centre de formation, pas par l'entreprise. Aucun contournement d'authentification : un refus de l'API (401, 429) arrête l'enregistrement de cette source.
+
+### Jooble
+
+| | |
+|---|---|
+| Nom | Jooble (recherche France) |
+| Méthode | API officielle, un seul `POST` par collecte |
+| URL | `https://fr.jooble.org/api/{clé}` |
+| Documentation | https://fr.jooble.org/api/about |
+| Authentification | Clé dans l'URL, créée sur le portail France |
+| Activation | `JOOBLE_API_KEY` sur la fonction. Sans clé, le connecteur ne part pas |
+| Limites | 500 requêtes au total sur l'offre gratuite, pas 500 par mois. Une collecte = une requête |
+| Champs utilisés | Identifiant, titre, entreprise, lieu, extrait, salaire, type, lien Jooble, date, site d'origine |
+| Fréquence conseillée | Quelques fois par semaine, pas un cron horaire |
+| Réglages | `JOOBLE_KEYWORDS` (défaut `alternance`), `JOOBLE_LOCATION` (défaut `France`), `JOOBLE_RESULTS` (1 à 20, défaut 20) |
+
+Seuls les stages et les alternances sont enregistrés. Le lien stocké est celui de Jooble. Le nom du site d'origine (quand Jooble le fournit) est ajouté en fin de description.
+
+## Entreprises seulement
+
+Quelle que soit la source, une annonce dont l'employeur est un CFA, un lycée, une école, une université ou un organisme de formation n'est pas enregistrée. Le secteur d'activité « enseignement » ou « formation continue » a le même effet, ainsi que le code NAF 85, sauf l'enseignement de la conduite. Une auto-école qui recrute un enseignant reste une entreprise. Les groupements d'employeurs (GEIQ) restent aussi : ils sont l'employeur du contrat.
 
 ### France Travail
 

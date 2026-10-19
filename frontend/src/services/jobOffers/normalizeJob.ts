@@ -1,3 +1,4 @@
+import { isSchoolPublishedOffer } from './companyPublisher.ts';
 import type { NormalizedJobOffer } from './types.ts';
 import { safePublicHttpUrl } from './sourceUrl.ts';
 
@@ -37,6 +38,7 @@ export function normalizeJob(input: Partial<NormalizedJobOffer>): NormalizedJobO
   const source = clean(input.source, 80);
   const sourceUrl = safePublicHttpUrl(input.sourceUrl);
   if (!title || !companyName || !source || !sourceUrl) return null;
+  if (isSchoolPublishedOffer({ companyName, domain: clean(input.domain, 120) })) return null;
 
   const remote = typeof input.remote === 'boolean' ? input.remote : undefined;
 

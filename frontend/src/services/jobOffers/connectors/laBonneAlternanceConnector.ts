@@ -1,3 +1,4 @@
+import { isEducationActivity } from '../companyPublisher.ts';
 import { normalizeJob } from '../normalizeJob.ts';
 import { studyContractLabel } from '../studyContract.ts';
 import type { NormalizedJobOffer } from '../types.ts';
@@ -116,6 +117,13 @@ export function mapLaBonneAlternanceItem(raw: unknown): NormalizedJobOffer | nul
   const publication = nested(offer, 'publication');
   const status = textAt(offer, 'status');
   if (status && !/^(active|actif)$/i.test(status)) return null;
+  // is_delegated : l'annonce est diffusée par un centre de formation, pas par l'entreprise.
+  if (item.is_delegated === true || offer.is_delegated === true) return null;
+  const naf = nested(workplace, 'domain')?.naf ?? nested(item, 'domain')?.naf;
+  const nafRecord = asRecord(naf);
+  const nafText =
+    (typeof naf === 'string' ? naf : undefined) ?? textAt(nafRecord, 'code') ?? textAt(nafRecord, 'label');
+  if (isEducationActivity(nafText)) return null;
 
   const city = textAt(location, 'city') ?? textAt(location, 'address') ?? textAt(item, 'location');
   const diploma =

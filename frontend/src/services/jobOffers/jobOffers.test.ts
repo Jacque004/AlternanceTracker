@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { applicationDraftFromJobOffer } from './applicationDraft';
 import { collectJobOffers } from './collectJobOffers';
 import { laBonneAlternanceConnector, mapLaBonneAlternanceItem } from './connectors/laBonneAlternanceConnector';
+import { joobleConnector, mapJoobleItem } from './connectors/joobleConnector';
 import { mapFranceTravailItem } from './connectors/franceTravailConnector';
 import { buildMockOffers, mockConnector } from './connectors/mockConnector';
 import { deduplicateJobs, splitOffersForUpsert } from './deduplicateJobs';
@@ -187,6 +188,25 @@ describe('La bonne alternance', () => {
     expect(mapped?.isDemo).toBe(false);
   });
 
+  it('ignore une offre déposée par un centre de formation', () => {
+    const base = {
+      identifier: 'lba-cfa',
+      offer: { title: 'Assistant commercial', status: 'Active' },
+      apply: { url: 'https://labonnealternance.apprentissage.beta.gouv.fr/emploi/lba-cfa' },
+    };
+    expect(mapLaBonneAlternanceItem({ ...base, is_delegated: true, workplace: { name: 'Atelier' } })).toBeNull();
+    expect(
+      mapLaBonneAlternanceItem({
+        ...base,
+        workplace: { name: 'Atelier', domain: { naf: { code: '8559A', label: "Formation continue d'adultes" } } },
+      })
+    ).toBeNull();
+    expect(mapLaBonneAlternanceItem({ ...base, workplace: { name: 'AUREIS FORMATION' } })).toBeNull();
+    expect(mapLaBonneAlternanceItem({ ...base, workplace: { name: 'AUTO-ECOLE BARNI' } })?.companyName).toBe(
+      'AUTO-ECOLE BARNI'
+    );
+  });
+
   it('ne contacte pas l’API sans clé et n’enregistre pas une réponse en erreur', async () => {
     expect(laBonneAlternanceConnector.isEnabled({})).toBe(false);
     const fetchImpl = vi.fn(async () => new Response('nope', { status: 401 }));
@@ -249,6 +269,104 @@ describe('France Travail', () => {
       origineOffre: { urlOrigine: 'https://candidat.francetravail.fr/offres/recherche/detail/CDI1' },
     })).toBeNull();
     expect(mapFranceTravailItem({ id: '1', intitule: 'CDI', alternance: false, natureContrat: 'CDI' })).toBeNull();
+    expect(mapFranceTravailItem({
+      id: 'CFA1',
+      intitule: 'Employé de rayon en alternance',
+      alternance: true,
+      entreprise: { nom: 'ALL TECHNICS COMMUNICATION' },
+      secteurActivite: '8559A',
+      secteurActiviteLibelle: "Formation continue d'adultes",
+      origineOffre: { urlOrigine: 'https://candidat.francetravail.fr/offres/recherche/detail/CFA1' },
+    })).toBeNull();
+    expect(mapFranceTravailItem({
+      id: 'AE1',
+      intitule: 'Enseignant de la conduite',
+      natureContrat: 'Cont. professionnalisation',
+      alternance: true,
+      entreprise: { nom: 'AUTO-ECOLE BARNI' },
+      secteurActiviteLibelle: 'Enseignement de la conduite',
+      origineOffre: { urlOrigine: 'https://candidat.francetravail.fr/offres/recherche/detail/AE1' },
+    })?.companyName).toBe('AUTO-ECOLE BARNI');
+  });
+});
+
+describe('Jooble', () => {
+  it('mappe une alternance et ignore un emploi sans stage ni alternance', () => {
+    const mapped = mapJoobleItem({
+      id: 42,
+      title: 'Développeur <b>alternance</b>',
+      company: 'Atelier',
+      location: 'Lyon',
+      snippet: 'Contrat d’apprentissage, télétravail possible.',
+      salary: '1 000 €',
+      source: 'LinkedIn',
+      type: 'Temps plein',
+      link: 'https://fr.jooble.org/jdp/42',
+      updated: '2026-09-01T08:00:00.0000000',
+    });
+    expect(mapped?.title).toBe('Développeur alternance');
+    expect(mapped?.companyName).toBe('Atelier');
+    expect(mapped?.contractType).toBe('Alternance');
+    expect(mapped?.remote).toBe(true);
+    expect(mapped?.source).toBe('jooble');
+    expect(mapped?.externalId).toBe('42');
+    expect(mapped?.publishedAt).toBe('2026-09-01T08:00:00.000Z');
+    expect(mapped?.description).toContain('Origine : LinkedIn.');
+    expect(mapped?.isDemo).toBe(false);
+    expect(mapJoobleItem({
+      id: 7,
+      title: 'Comptable CDI',
+      company: 'Atelier',
+      snippet: 'Poste en CDI à pourvoir.',
+      link: 'https://fr.jooble.org/jdp/7',
+    })).toBeNull();
+  });
+
+  it('reconnaît un apprenti et une entreprise absente', () => {
+    const mapped = mapJoobleItem({
+      id: '9',
+      title: 'Apprenti boulanger',
+      company: '  ',
+      link: 'https://fr.jooble.org/jdp/9',
+    });
+    expect(mapped?.contractType).toBe('Alternance');
+    expect(mapped?.companyName).toBe('Entreprise non précisée');
+    expect(mapJoobleItem({
+      id: 'cfa',
+      title: 'Assistant comptable en alternance',
+      company: 'CFA IESA Strasbourg',
+      link: 'https://fr.jooble.org/jdp/cfa',
+    })).toBeNull();
+  });
+
+  it('n’appelle pas l’API sans clé et ne recopie pas la clé dans l’erreur', async () => {
+    expect(joobleConnector.isEnabled({})).toBe(false);
+    const fetchImpl = vi.fn(async () => new Response('nope', { status: 403 }));
+    await expect(
+      joobleConnector.fetchOffers({ JOOBLE_API_KEY: 'cle-test' }, fetchImpl)
+    ).rejects.toThrow(/403/);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const [called, init] = fetchImpl.mock.calls[0] ?? [];
+    expect(String(called)).toBe('https://fr.jooble.org/api/cle-test');
+    expect(init?.method).toBe('POST');
+    const body = JSON.parse(String(init?.body));
+    expect(body.keywords).toBe('alternance');
+    expect(body.location).toBe('France');
+    expect(body.ResultOnPage).toBe(20);
+    try {
+      await joobleConnector.fetchOffers({ JOOBLE_API_KEY: 'cle-test' }, fetchImpl);
+    } catch (error) {
+      expect(error instanceof Error ? error.message : '').not.toContain('cle-test');
+    }
+  });
+
+  it('ne recopie pas la clé quand l’appel réseau échoue', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('connect ECONNREFUSED https://fr.jooble.org/api/cle-test');
+    });
+    await expect(joobleConnector.fetchOffers({ JOOBLE_API_KEY: 'cle-test' }, fetchImpl)).rejects.toThrow(
+      /injoignable/
+    );
   });
 });
 

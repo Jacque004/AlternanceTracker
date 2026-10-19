@@ -1,3 +1,4 @@
+import { isEducationActivity } from '../companyPublisher.ts';
 import { normalizeJob } from '../normalizeJob.ts';
 import { safePublicHttpUrl } from '../sourceUrl.ts';
 import { studyContractLabel } from '../studyContract.ts';
@@ -70,6 +71,9 @@ export function mapFranceTravailItem(raw: unknown): NormalizedJobOffer | null {
   const item = asRecord(raw);
   const contractType = item ? contractKind(item) : null;
   if (!item || !contractType) return null;
+  if (isEducationActivity(textAt(item, 'secteurActivite')) || isEducationActivity(textAt(item, 'secteurActiviteLibelle'))) {
+    return null;
+  }
   const id = textAt(item, 'id');
   const workplace = asRecord(item.lieuTravail);
   const company = asRecord(item.entreprise);

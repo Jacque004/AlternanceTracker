@@ -1,11 +1,12 @@
 import { deduplicateJobs } from './deduplicateJobs.ts';
 import { franceTravailConnector } from './connectors/franceTravailConnector.ts';
+import { joobleConnector } from './connectors/joobleConnector.ts';
 import { laBonneAlternanceConnector } from './connectors/laBonneAlternanceConnector.ts';
 import { mockConnector } from './connectors/mockConnector.ts';
 import type { JobConnector, JobConnectorEnv } from './connectors/types.ts';
 import type { NormalizedJobOffer } from './types.ts';
 
-const CONNECTORS: JobConnector[] = [laBonneAlternanceConnector, franceTravailConnector, mockConnector];
+const CONNECTORS: JobConnector[] = [laBonneAlternanceConnector, franceTravailConnector, joobleConnector, mockConnector];
 
 export interface CollectPlan {
   offers: NormalizedJobOffer[];
@@ -31,7 +32,7 @@ export async function collectJobOffers(
       skippedCount: 0,
       sources: [],
       error:
-        'Aucun connecteur activé. Définissez LBA_API_KEY pour La bonne alternance, ou JOB_OFFERS_ENABLE_MOCK=true uniquement en développement.',
+        'Aucun connecteur activé. Définissez LBA_API_KEY, JOOBLE_API_KEY, les identifiants France Travail, ou JOB_OFFERS_ENABLE_MOCK=true uniquement en développement.',
     };
   }
 

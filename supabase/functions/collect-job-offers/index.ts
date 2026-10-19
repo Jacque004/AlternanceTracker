@@ -63,6 +63,10 @@ serve(async (req) => {
       LBA_RADIUS: Deno.env.get('LBA_RADIUS'),
       FT_CLIENT_ID: Deno.env.get('FT_CLIENT_ID'),
       FT_CLIENT_SECRET: Deno.env.get('FT_CLIENT_SECRET'),
+      JOOBLE_API_KEY: Deno.env.get('JOOBLE_API_KEY'),
+      JOOBLE_KEYWORDS: Deno.env.get('JOOBLE_KEYWORDS'),
+      JOOBLE_LOCATION: Deno.env.get('JOOBLE_LOCATION'),
+      JOOBLE_RESULTS: Deno.env.get('JOOBLE_RESULTS'),
     });
 
     if (plan.error && plan.offers.length === 0) {
