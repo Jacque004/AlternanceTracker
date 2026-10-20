@@ -5,6 +5,7 @@ import { POST_LOGIN_PATH_KEY, safeNextPathFromString } from '../utils/safeNextPa
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import toast from '../components/toast';
 import { validateRegisterForm } from '../utils/validation';
+import { buildLegalConsent, legalConfig } from '../config/legal';
 
 const AuthDivider = () => (
   <div className="relative my-6">
@@ -25,6 +26,7 @@ const Register = () => {
     lastName: '',
     acceptPrivacyPolicy: false,
     acceptTerms: false,
+    confirmMinimumAge: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -68,10 +70,11 @@ const Register = () => {
       setErrors(errorsMap);
       return;
     }
-    if (!formData.acceptPrivacyPolicy || !formData.acceptTerms) {
+    if (!formData.acceptPrivacyPolicy || !formData.acceptTerms || !formData.confirmMinimumAge) {
       setErrors({
         acceptTerms: !formData.acceptTerms ? 'Vous devez accepter les conditions d\'utilisation' : '',
-        acceptPrivacyPolicy: !formData.acceptPrivacyPolicy ? 'Vous devez accepter la politique de confidentialité' : '',
+        acceptPrivacyPolicy: !formData.acceptPrivacyPolicy ? 'Veuillez confirmer avoir lu la politique de confidentialité' : '',
+        confirmMinimumAge: !formData.confirmMinimumAge ? `Vous devez avoir au moins ${legalConfig.minimumAge} ans` : '',
       });
       return;
     }
@@ -79,17 +82,13 @@ const Register = () => {
     setLoading(true);
     setErrors({});
 
-    const consentDate = new Date().toISOString();
     try {
       const { error } = await signUp(
         formData.email,
         formData.password,
         formData.firstName,
         formData.lastName,
-        {
-          privacyPolicyAcceptedAt: consentDate,
-          termsAcceptedAt: consentDate,
-        }
+        buildLegalConsent()
       );
       
       if (error) {
@@ -109,10 +108,11 @@ const Register = () => {
   };
 
   const handleGoogleSignUp = async () => {
-    if (!formData.acceptPrivacyPolicy || !formData.acceptTerms) {
+    if (!formData.acceptPrivacyPolicy || !formData.acceptTerms || !formData.confirmMinimumAge) {
       setErrors({
         acceptTerms: !formData.acceptTerms ? 'Vous devez accepter les conditions d\'utilisation' : '',
-        acceptPrivacyPolicy: !formData.acceptPrivacyPolicy ? 'Vous devez accepter la politique de confidentialité' : '',
+        acceptPrivacyPolicy: !formData.acceptPrivacyPolicy ? 'Veuillez confirmer avoir lu la politique de confidentialité' : '',
+        confirmMinimumAge: !formData.confirmMinimumAge ? `Vous devez avoir au moins ${legalConfig.minimumAge} ans` : '',
       });
       toast.error('Veuillez accepter les conditions avant de continuer avec Google');
       return;
@@ -121,12 +121,8 @@ const Register = () => {
     setGoogleLoading(true);
     setErrors({});
 
-    const consentDate = new Date().toISOString();
     try {
-      const { error } = await signInWithGoogle({
-        privacyPolicyAcceptedAt: consentDate,
-        termsAcceptedAt: consentDate,
-      });
+      const { error } = await signInWithGoogle(buildLegalConsent());
 
       if (error) {
         toast.error(error.message || 'Impossible de s\'inscrire avec Google');
@@ -239,7 +235,11 @@ const Register = () => {
             </div>
 
             <div className="space-y-3 pt-2 border-t border-gray-200">
-              <p className="text-sm font-medium text-gray-700">Consentements (RGPD)</p>
+              <p className="text-sm font-medium text-gray-700">Informations légales</p>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Le compte sert à suivre vos candidatures. La politique décrit les données utilisées, les
+                prestataires et la suppression du compte.
+              </p>
               <label className="flex items-start gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -249,11 +249,11 @@ const Register = () => {
                   className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
                 <span className="text-sm text-gray-600">
-                  J'accepte la{' '}
+                  J&apos;ai lu la{' '}
                   <Link to="/politique-confidentialite" className="text-primary-600 hover:underline">
                     politique de confidentialité
-                  </Link>{' '}
-                  et le traitement de mes données personnelles.
+                  </Link>
+                  .
                 </span>
               </label>
               {errors.acceptPrivacyPolicy && (
@@ -276,6 +276,21 @@ const Register = () => {
               </label>
               {errors.acceptTerms && (
                 <p className="text-sm text-red-600">{errors.acceptTerms}</p>
+              )}
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="confirmMinimumAge"
+                  checked={formData.confirmMinimumAge}
+                  onChange={handleChange}
+                  className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm text-gray-600">
+                  J&apos;ai au moins {legalConfig.minimumAge} ans.
+                </span>
+              </label>
+              {errors.confirmMinimumAge && (
+                <p className="text-sm text-red-600">{errors.confirmMinimumAge}</p>
               )}
             </div>
           </div>
@@ -314,6 +329,10 @@ const Register = () => {
           disabled={loading}
           label="S'inscrire avec Google"
         />
+        <p className="mt-3 text-xs text-gray-500 leading-relaxed">
+          Google reçoit la demande de connexion. AlternanceTracker reçoit l&apos;e-mail, le nom et, s&apos;il
+          existe, la photo du compte Google.
+        </p>
         </div>
       </div>
     </div>

@@ -23,3 +23,12 @@ verify_jwt = false
 # Collecte des offres. Appelée par un cron avec CRON_SECRET, pas par le navigateur.
 [functions.collect-job-offers]
 verify_jwt = false
+
+# Suppression des comptes inactifs. Cron avec CRON_SECRET, pas le navigateur.
+[functions.purge-inactive-accounts]
+verify_jwt = false
+
+# Droit à l'effacement, appelé par le navigateur. Le preflight OPTIONS n'envoie pas le JWT ;
+# la passerelle répondrait 401 avant la fonction. verify_jwt = false + contrôle du JWT dans le code Deno.
+[functions.delete-user]
+verify_jwt = false

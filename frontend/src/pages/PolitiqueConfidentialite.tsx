@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { legalConfig } from '../config/legal';
+import { legalConfig, legalProcessors } from '../config/legal';
 import { formatDisplayDate } from '../utils/dateDisplay';
 
 const PolitiqueConfidentialite = () => (
@@ -7,6 +7,8 @@ const PolitiqueConfidentialite = () => (
     <h1 className="text-2xl font-bold text-gray-900 mb-2">Politique de confidentialité</h1>
     <p className="text-sm text-gray-500 mb-6">
       Dernière mise à jour : {formatDisplayDate(legalConfig.lastLegalUpdate)}
+      {' · '}
+      Version {legalConfig.policyVersion}
     </p>
     <div className="prose prose-sm text-gray-700 space-y-4">
       <p>
@@ -16,128 +18,203 @@ const PolitiqueConfidentialite = () => (
 
       <h2 className="text-lg font-semibold mt-6 text-gray-900">1. Responsable du traitement</h2>
       <p>
-        Le responsable du traitement des données est :<br />
+        Le responsable du traitement est :<br />
         <strong>{legalConfig.editorName}</strong>, {legalConfig.editorForm}.
       </p>
-      <p>
-        Adresse : {legalConfig.editorAddress}.
-      </p>
-      <p>
-        {legalConfig.editorName} est responsable du traitement des données personnelles collectées sur ce site,
-        notamment pour la gestion des candidatures, des contacts professionnels et des informations liées à son
-        parcours et ses expériences professionnelles.
-      </p>
+      <p>Adresse : {legalConfig.editorAddress}.</p>
       <p>
         Contact :{' '}
-        <a
-          href={`mailto:${legalConfig.contactEmail}`}
-          className="text-primary-600 hover:underline"
-        >
+        <a href={`mailto:${legalConfig.contactEmail}`} className="text-primary-600 hover:underline">
           {legalConfig.contactEmail}
         </a>
       </p>
       <p>
         {legalConfig.contactWebsite && (
-          <>Site web : <a href={legalConfig.contactWebsite} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">{legalConfig.contactWebsite}</a></>
+          <>
+            Site web :{' '}
+            <a href={legalConfig.contactWebsite} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+              {legalConfig.contactWebsite}
+            </a>
+          </>
         )}
         {legalConfig.contactWebsite && legalConfig.contactLinkedIn && ' · '}
         {legalConfig.contactLinkedIn && (
-          <>LinkedIn : <a href={legalConfig.contactLinkedIn} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">{legalConfig.contactLinkedIn}</a></>
+          <>
+            LinkedIn :{' '}
+            <a href={legalConfig.contactLinkedIn} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+              {legalConfig.contactLinkedIn}
+            </a>
+          </>
         )}
       </p>
-
-      <h2 className="text-lg font-semibold mt-6 text-gray-900">2. Délégué à la protection des données (DPO)</h2>
       <p>
-        Pour toute question relative à vos données personnelles ou pour exercer vos droits, vous
-        pouvez contacter notre délégué à la protection des données à l'adresse :{' '}
-        <a href={`mailto:${legalConfig.dpoEmail}`} className="text-primary-600 hover:underline">{legalConfig.dpoEmail}</a>
+        Aucun délégué à la protection des données n’est désigné. Pour exercer vos droits ou poser une
+        question sur vos données, écrivez à l’adresse ci-dessus.
       </p>
 
-      <h2 className="text-lg font-semibold mt-6 text-gray-900">3. Données collectées</h2>
-      <p>Nous collectons les données que vous nous fournissez :</p>
+      <h2 className="text-lg font-semibold mt-6 text-gray-900">2. Données collectées</h2>
+      <p>Selon les fonctions que vous utilisez :</p>
       <ul className="list-disc pl-6 space-y-1">
-        <li><strong>Identité et contact</strong> : nom, prénom, adresse email</li>
-        <li><strong>Profil étudiant</strong> : école, formation, année, rythme d'alternance, date de début souhaitée, lien LinkedIn</li>
-        <li><strong>Candidatures</strong> : entreprise, poste, statut, dates, notes, URL de l'offre</li>
-        <li><strong>CV</strong> : contenu des CV que vous saisissez ou importez</li>
-        <li><strong>Lettres de motivation</strong> : lettres générées ou enregistrées</li>
-        <li><strong>Analyses</strong> : résultats des analyses CV (conseils, score ATS)</li>
-        <li><strong>Préférences</strong> : consentements (politique de confidentialité, CGU, marketing), préférences de notifications</li>
+        <li><strong>Compte</strong> : nom, prénom, adresse e-mail, mot de passe (stocké sous forme chiffrée par l’hébergeur), photo de profil envoyée par vous</li>
+        <li><strong>Compte Google</strong> : si vous choisissez cette connexion, e-mail, nom et photo transmis par Google. Cette photo reste à l’adresse fournie par Google</li>
+        <li><strong>Profil</strong> : école, formation, année, rythme, date de début souhaitée, lien LinkedIn, préférences d’offres et d’e-mails</li>
+        <li><strong>Candidatures</strong> : entreprise, poste, statut, dates, notes, URL, historique des changements</li>
+        <li><strong>Documents</strong> : CV, lettres, analyses, préparations d’entretien</li>
+        <li><strong>Notifications</strong> : messages affichés dans l’application, et e-mails de service si vous les laissez actifs</li>
+        <li><strong>Offres</strong> : identifiant de l’offre lorsque vous cliquez sur « Voir l’offre »</li>
+        <li><strong>Calendrier de rythme</strong> : réglages, nom et école saisis, enregistrés dans ce navigateur uniquement</li>
+        <li><strong>Connexion</strong> : date de dernière ouverture de l’application, utilisée pour la durée de conservation</li>
       </ul>
       <p className="text-sm text-gray-500 mt-2">
-        Les données de connexion (adresse IP, logs) peuvent être traitées pour la sécurité et le bon fonctionnement du service.
+        Des données techniques (adresse IP, journaux) peuvent être traitées par l’hébergeur pour la sécurité
+        et le fonctionnement du service. Il n’y a pas de cookie publicitaire ni de mesure d’audience.
       </p>
 
-      <h2 className="text-lg font-semibold mt-6 text-gray-900">4. Finalités et base légale</h2>
-      <p>Le traitement a pour finalités :</p>
-      <ul className="list-disc pl-6 space-y-1">
-        <li>Fourniture du service (suivi des candidatures, conseils CV, génération de lettres, notifications)</li>
-        <li>Gestion de votre compte et de l'authentification</li>
-        <li>Respect de nos obligations légales et exercice de vos droits</li>
-        <li>Envoi de communications marketing, uniquement si vous y avez consenti</li>
-      </ul>
-      <p className="mt-2">
-        La base légale est l'exécution du contrat (service demandé), notre intérêt légitime (sécurité, amélioration du service)
-        et, pour les consentements optionnels (marketing), votre consentement.
-      </p>
-
-      <h2 className="text-lg font-semibold mt-6 text-gray-900">5. Destinataires et hébergement</h2>
-      <p>
-        Les données sont accessibles aux seules personnes habilitées au sein de {legalConfig.editorName} et aux
-        sous-traitants strictement nécessaires au fonctionnement du service.
-      </p>
-      <p>
-        Les données sont hébergées par : <strong>{legalConfig.hostName}</strong>, {legalConfig.hostAddress}.
-        Des traitements (par exemple analyse de texte pour l'IA) peuvent être réalisés via des prestataires
-        (ex. OpenAI) selon les fonctionnalités utilisées ; les données sont alors traitées conformément à leurs
-        politiques de confidentialité et engagements contractuels.
-      </p>
-
-      <h2 className="text-lg font-semibold mt-6 text-gray-900">6. Durée de conservation</h2>
+      <h2 className="text-lg font-semibold mt-6 text-gray-900">3. Finalités et bases légales</h2>
       <ul className="list-disc pl-6 space-y-1">
         <li>
-          <strong>Compte actif</strong> : vos données sont conservées tant que votre compte est actif, et au plus
-          pendant {legalConfig.dataRetentionMonths} mois après votre dernière activité, sauf obligation légale de conservation.
+          <strong>Exécution du service demandé</strong> : compte, candidatures, CV, lettres, analyses,
+          préparation d’entretien, calendrier de rythme, notifications que vous activez
         </li>
         <li>
-          <strong>Après suppression du compte</strong> : certaines données peuvent être conservées en sauvegarde
-          ou pour des obligations légales pendant une durée maximale de {legalConfig.dataRetentionAfterDeletionMonths} mois,
-          puis supprimées de manière irréversible.
+          <strong>Intérêt légitime</strong> : sécurité du service, prévention des abus, statistiques internes
+          des clics sur les offres, e-mails de rappel activés par défaut (vous pouvez les couper dans Mon espace)
+        </li>
+        <li>
+          <strong>Obligation légale</strong> : réponse à une demande d’exercice de droits ou à une autorité
+        </li>
+      </ul>
+      <p>
+        La case cochée à l’inscription confirme que vous avez lu cette politique et que vous acceptez les
+        conditions d’utilisation, dans la version indiquée en tête de page. Le traitement nécessaire au
+        compte ne repose pas sur un consentement que vous pourriez retirer tout en continuant à utiliser
+        le service : pour l’arrêter, supprimez le compte.
+      </p>
+      <p>
+        Aucun e-mail de prospection n’est envoyé. Les textes produits par l’IA sont une aide : aucune
+        décision n’est prise automatiquement à votre sujet.
+      </p>
+
+      <h2 className="text-lg font-semibold mt-6 text-gray-900">4. Calendrier partagé avec un recruteur</h2>
+      <p>
+        Le lien de calendrier est construit dans votre navigateur. Il n’est pas enregistré sur nos serveurs.
+        Par défaut, il ne contient ni votre nom, ni votre école, ni votre e-mail. Si vous cochez l’option
+        prévue à cet effet, le nom et l’école sont placés dans l’adresse du lien.
+      </p>
+      <p>
+        Toute personne qui possède le lien peut ouvrir la page. L’adresse peut aussi rester dans l’historique
+        du navigateur, dans un e-mail, ou dans les journaux de l’hébergeur du site. Vous choisissez à qui vous
+        l’envoyez.
+      </p>
+
+      <h2 className="text-lg font-semibold mt-6 text-gray-900">5. Destinataires</h2>
+      <p>
+        Les données du compte sont accessibles au responsable du traitement et aux sous-traitants nécessaires
+        au service :
+      </p>
+      <ul className="list-disc pl-6 space-y-1">
+        {legalProcessors.map((processor) => (
+          <li key={processor.name}>
+            <strong>{processor.name}</strong> — {processor.role} Lieu : {processor.place}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2">
+        L’hébergeur du site est <strong>{legalConfig.siteHostName}</strong>, {legalConfig.siteHostAddress}
+        {' '}({legalConfig.siteUrl}). L’hébergeur des données est <strong>{legalConfig.hostName}</strong>,{' '}
+        {legalConfig.hostAddress}. Les données du projet sont stockées à {legalConfig.dataRegion}. Les
+        contenus envoyés à une IA se limitent à ce qui est nécessaire pour répondre à votre demande (par
+        exemple un CV ou le texte d’une offre). Ils ne sont pas vendus.
+      </p>
+      <p>
+        Le responsable du traitement voit, dans l’espace d’administration, le nom, le prénom et l’e-mail
+        des comptes, afin de gérer les accès. Il n’y consulte pas les CV ni les lettres.
+      </p>
+
+      <h2 className="text-lg font-semibold mt-6 text-gray-900">6. Transferts hors de l’Union européenne</h2>
+      <p>
+        Les données du compte sont stockées à {legalConfig.dataRegion}. Supabase, GitHub, Google, OpenAI
+        et Resend sont des sociétés qui peuvent accéder à des données depuis les États-Unis, ou d’autres
+        pays, pour faire fonctionner leur service. Ces accès s’appuient sur les clauses contractuelles
+        types incluses dans le contrat de sous-traitance de chaque prestataire. Le responsable accepte ce
+        contrat depuis le compte ouvert chez le prestataire.
+      </p>
+
+      <h2 className="text-lg font-semibold mt-6 text-gray-900">7. Durée de conservation</h2>
+      <ul className="list-disc pl-6 space-y-1">
+        <li>
+          <strong>Compte actif</strong> : les données sont conservées tant que vous ouvrez le service.
+        </li>
+        <li>
+          <strong>Inactivité</strong> : sans ouverture pendant {legalConfig.inactivityMonths} mois, un e-mail
+          vous prévient {legalConfig.inactivityWarningDays} jours avant la suppression. La connexion pendant
+          ce délai conserve le compte. Sans cet e-mail (envoi non configuré), le compte n’est pas effacé
+          automatiquement. Cette règle vaut pour les comptes qui ont accepté la présente version de la
+          politique.
+        </li>
+        <li>
+          <strong>Suppression</strong> : le compte, les candidatures, CV, lettres, analyses, préparations,
+          notifications, clics et la photo sont effacés. Les sauvegardes de Supabase sont ensuite écrasées
+          selon la durée du plan (sauvegardes quotidiennes, conservation limitée par l’hébergeur). Elles ne
+          servent pas à rouvrir un compte supprimé. Les journaux techniques de GitHub et de Supabase suivent
+          la durée propre à chaque hébergeur, en général quelques jours à quelques mois.
+        </li>
+        <li>
+          <strong>Navigateur</strong> : le calendrier de rythme reste dans le stockage local de cet appareil
+          jusqu’à ce que vous effaciez les données du site, ou jusqu’à la suppression du compte depuis ce
+          navigateur.
         </li>
       </ul>
 
-      <h2 className="text-lg font-semibold mt-6 text-gray-900">7. Vos droits</h2>
-      <p>Vous disposez des droits suivants :</p>
+      <h2 className="text-lg font-semibold mt-6 text-gray-900">8. Cookies et stockage local</h2>
+      <p>
+        La session est conservée dans le stockage local du navigateur pour vous maintenir connecté. Le
+        calendrier de rythme et quelques préférences d’affichage y sont aussi enregistrés. Ces stockages sont
+        nécessaires au service que vous demandez. Aucun traceur publicitaire n’est déposé, et aucun bandeau
+        de consentement n’est affiché pour cette raison.
+      </p>
+
+      <h2 className="text-lg font-semibold mt-6 text-gray-900">9. Vos droits</h2>
       <ul className="list-disc pl-6 space-y-1">
-        <li><strong>Droit d'accès</strong> : obtenir une copie de vos données</li>
-        <li><strong>Droit de rectification</strong> : faire corriger des données inexactes (depuis Mon espace)</li>
-        <li><strong>Droit à l'effacement</strong> : demander la suppression de vos données (suppression du compte depuis Mon espace)</li>
-        <li><strong>Droit à la portabilité</strong> : recevoir vos données dans un format structuré (bouton « Télécharger mes données » dans Mon espace)</li>
-        <li><strong>Droit d'opposition</strong> et <strong>limitation du traitement</strong> dans les cas prévus par le RGPD</li>
+        <li><strong>Accès et portabilité</strong> : bouton « Télécharger mes données » dans Mon espace (fichier JSON)</li>
+        <li><strong>Rectification</strong> : Mon espace, et modification de vos candidatures</li>
+        <li><strong>Effacement</strong> : « Supprimer mon compte » dans Mon espace, ou sur l’écran de confirmation si vous ne souhaitez pas accepter les documents</li>
+        <li><strong>Opposition et limitation</strong> : par e-mail à {legalConfig.contactEmail}</li>
+        <li><strong>E-mails de rappel</strong> : désactivation dans Mon espace, sans supprimer le compte</li>
       </ul>
       <p className="mt-2">
-        Pour exercer ces droits, contactez-nous à {legalConfig.dpoEmail} ou via Mon espace. Vous disposez également
-        du droit d'introduire une réclamation auprès de la CNIL :{' '}
-        <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">www.cnil.fr</a>.
+        Vous pouvez aussi introduire une réclamation auprès de la CNIL :{' '}
+        <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+          www.cnil.fr
+        </a>
+        .
       </p>
 
-      <h2 className="text-lg font-semibold mt-6 text-gray-900">8. Sécurité</h2>
+      <h2 className="text-lg font-semibold mt-6 text-gray-900">10. Sécurité</h2>
       <p>
-        Nous mettons en œuvre des mesures techniques et organisationnelles appropriées (accès restreint,
-        chiffrement, politiques de sécurité) pour protéger vos données contre l'accès non autorisé, la perte
-        ou l'altération.
+        L’accès aux données du compte est limité au titulaire, sauf l’identité visible par le responsable
+        dans l’administration. Le mot de passe n’est pas stocké en clair. Les échanges passent par une
+        connexion chiffrée. La photo que vous envoyez est dans un espace privé : elle n’est affichée que
+        par un lien temporaire créé pour votre session.
       </p>
 
-      <h2 className="text-lg font-semibold mt-6 text-gray-900">9. Modifications</h2>
+      <h2 className="text-lg font-semibold mt-6 text-gray-900">11. Mineurs</h2>
       <p>
-        Cette politique peut être modifiée. La date de dernière mise à jour est indiquée en tête de page.
-        En cas de changement substantiel, nous vous en informerons (par exemple par email ou message dans l'application).
+        Le service s’adresse aux personnes qui préparent une alternance. La création d’un compte demande de
+        confirmer avoir au moins {legalConfig.minimumAge} ans. Il n’est pas destiné aux enfants plus jeunes.
+      </p>
+
+      <h2 className="text-lg font-semibold mt-6 text-gray-900">12. Modifications</h2>
+      <p>
+        Cette politique peut être modifiée. La date et la version figurent en tête de page. Quand la version
+        change, une confirmation est demandée à la connexion suivante, avant d’utiliser le service. Vous
+        pouvez aussi supprimer le compte depuis cet écran, sans accepter la nouvelle version.
       </p>
 
       <p className="mt-8 pt-4 border-t border-gray-200">
-        <Link to="/register" className="text-primary-600 hover:underline">Retour à l'inscription</Link>
+        <Link to="/register" className="text-primary-600 hover:underline">Retour à l&apos;inscription</Link>
         {' · '}
-        <Link to="/cgu" className="text-primary-600 hover:underline">Conditions générales d'utilisation</Link>
+        <Link to="/cgu" className="text-primary-600 hover:underline">Conditions générales d&apos;utilisation</Link>
       </p>
     </div>
   </div>

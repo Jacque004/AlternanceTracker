@@ -229,6 +229,16 @@ export default function CalendarPage() {
         </div>
       </div>
 
+      <Link
+        to="/rythme"
+        className="block rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 hover:border-emerald-300"
+      >
+        <p className="font-semibold text-gray-900">Calendrier de rythme à envoyer à une entreprise</p>
+        <p className="text-sm text-gray-600 mt-1">
+          Zone de vacances, jours d&apos;école et d&apos;entreprise sur 12 ou 24 mois. Le recruteur ouvre le lien sans compte.
+        </p>
+      </Link>
+
       {loading && <SkeletonCalendarGrid />}
 
       {!loading && error && (

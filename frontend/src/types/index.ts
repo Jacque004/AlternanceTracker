@@ -16,7 +16,7 @@ export interface User {
   alternanceRhythm?: string;
   desiredStartDate?: string;
   linkedinUrl?: string;
-  /** URL publique de la photo de profil (Storage) */
+  /** Photo affichable : lien signé du bucket privé, ou URL Google */
   avatarUrl?: string | null;
   /** Recevoir un résumé hebdo par email (actif si cron + Edge Function configurés) */
   weeklySummaryEnabled?: boolean;
@@ -32,6 +32,10 @@ export interface User {
   privacyPolicyAcceptedAt?: string | null;
   /** RGPD : date d'acceptation des CGU */
   termsAcceptedAt?: string | null;
+  /** Version de politique confirmée. Une autre version redemande la lecture. */
+  privacyPolicyVersion?: string | null;
+  /** Version des CGU confirmée. */
+  termsVersion?: string | null;
   /** RGPD : consentement aux emails marketing */
   marketingEmailsConsent?: boolean;
 }

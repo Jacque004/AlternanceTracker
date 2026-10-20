@@ -7,6 +7,8 @@ const CGU = () => (
     <h1 className="text-2xl font-bold text-gray-900 mb-2">Conditions générales d'utilisation</h1>
     <p className="text-sm text-gray-500 mb-6">
       Dernière mise à jour : {formatDisplayDate(legalConfig.lastLegalUpdate)}
+      {' · '}
+      Version {legalConfig.termsVersion}
     </p>
     <div className="prose prose-sm text-gray-700 space-y-4">
       <p>
@@ -67,16 +69,26 @@ const CGU = () => (
       <p>{legalConfig.serviceName} est un outil d'aide à la recherche d'alternance permettant notamment :</p>
       <ul className="list-disc pl-6 space-y-1">
         <li>le suivi des candidatures (entreprises, postes, statuts, relances)</li>
-        <li>la préparation et l'amélioration du CV (conseils, analyse ATS)</li>
-        <li>la génération de lettres de motivation</li>
-        <li>l'analyse d'offres d'emploi et des conseils de candidature</li>
+        <li>la préparation et l&apos;amélioration du CV (conseils, analyse)</li>
+        <li>la génération de lettres de motivation et la préparation d&apos;entretien</li>
+        <li>un calendrier de rythme d&apos;alternance, que vous pouvez ouvrir à un recruteur par un lien</li>
+        <li>l&apos;analyse d&apos;offres d&apos;emploi et des conseils de candidature</li>
       </ul>
+      <p>
+        Le lien de calendrier est public pour quiconque le détient. Par défaut il ne contient pas votre nom.
+        Vous restez responsable des informations que vous choisissez d&apos;y ajouter et des personnes à qui
+        vous l&apos;envoyez.
+      </p>
 
       <h2 className="text-lg font-semibold mt-6 text-gray-900">3. Inscription et compte</h2>
       <p>
-        L'utilisation de certaines fonctionnalités nécessite la création d'un compte. Vous vous engagez à
-        fournir des informations exactes et à maintenir à jour vos données. Vous êtes responsable de la
-        confidentialité de vos identifiants et de toute activité réalisée depuis votre compte.
+        L&apos;utilisation de certaines fonctionnalités nécessite la création d&apos;un compte. Vous vous engagez à
+        fournir des informations exactes et à maintenir à jour vos données. Vous confirmez avoir au moins{' '}
+        {legalConfig.minimumAge} ans. Vous êtes responsable de la
+        confidentialité de vos identifiants et de toute activité réalisée depuis votre compte. La création
+        d&apos;un compte avec Google suit les mêmes conditions : elles sont confirmées à la première utilisation
+        si elles ne l&apos;ont pas déjà été, et de nouveau lorsque la version des documents change. Vous pouvez
+        supprimer le compte depuis cet écran sans les accepter.
       </p>
 
       <h2 className="text-lg font-semibold mt-6 text-gray-900">4. Règles d'utilisation</h2>

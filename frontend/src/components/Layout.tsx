@@ -8,6 +8,8 @@ import NotificationBell from './NotificationBell';
 import HeaderUserBadge from './HeaderUserBadge';
 import Logo from './Logo';
 import MobileBottomNav from './MobileBottomNav';
+import LegalAcceptance from './LegalAcceptance';
+import { hasCurrentLegalAcceptance } from '../config/legal';
 import { NotificationsProvider } from '../contexts/NotificationsContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
@@ -30,6 +32,12 @@ const Layout = () => {
   const skipMobileFocusRestoreRef = useRef(false);
 
   useFocusTrap(mobileMenuPanelRef, mobileNavToggleRef, mobileOpen, skipMobileFocusRestoreRef);
+
+  const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
+  const readingLegalDocs =
+    normalizedPath === '/politique-confidentialite' || normalizedPath === '/cgu';
+  const needsLegalAcceptance = Boolean(user && !hasCurrentLegalAcceptance(user));
+  const blockApp = needsLegalAcceptance && !readingLegalDocs;
 
   const closeMobileNavFromAction = () => {
     skipMobileFocusRestoreRef.current = true;
@@ -212,16 +220,6 @@ const Layout = () => {
                   >
                     Mon espace
                   </Link>
-                  <Link
-                    to="/politique-confidentialite"
-                    onClick={closeMobileNavFromAction}
-                    className={linkClass(false)}
-                  >
-                    Confidentialité
-                  </Link>
-                  <Link to="/cgu" onClick={closeMobileNavFromAction} className={linkClass(false)}>
-                    CGU
-                  </Link>
                 </>
               ) : null}
 
@@ -243,12 +241,28 @@ const Layout = () => {
                   </Link>
                 </div>
               ) : null}
+              <div className="pt-3 mt-3 border-t border-gray-200 space-y-1">
+                <Link
+                  to="/politique-confidentialite"
+                  onClick={closeMobileNavFromAction}
+                  className={linkClass(normalizedPath === '/politique-confidentialite')}
+                >
+                  Politique de confidentialité
+                </Link>
+                <Link
+                  to="/cgu"
+                  onClick={closeMobileNavFromAction}
+                  className={linkClass(normalizedPath === '/cgu')}
+                >
+                  Conditions d&apos;utilisation
+                </Link>
+              </div>
             </div>
           </div>
         )}
       </header>
 
-      {showOnboarding && (
+      {showOnboarding && !blockApp && (
         <OnboardingTour
           enabled={showOnboarding}
           onFinish={() => {
@@ -263,12 +277,16 @@ const Layout = () => {
         className="flex-1 min-w-0 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-safe box-border overflow-x-hidden"
         role="main"
       >
-        <PageTransition className="min-w-0 w-full max-w-full">
-          <Outlet />
-        </PageTransition>
+        {blockApp ? (
+          <LegalAcceptance />
+        ) : (
+          <PageTransition className="min-w-0 w-full max-w-full">
+            <Outlet />
+          </PageTransition>
+        )}
       </main>
 
-      {user ? <MobileBottomNav /> : null}
+      {user && !blockApp ? <MobileBottomNav /> : null}
 
       <Footer />
     </div>

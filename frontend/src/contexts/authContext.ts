@@ -1,5 +1,6 @@
 import { createContext } from 'react';
 import { Session, AuthError } from '@supabase/supabase-js';
+import type { LegalConsent } from '../config/legal';
 import { User as AppUser } from '../types';
 
 export interface SupabaseAuthContextType {
@@ -11,13 +12,10 @@ export interface SupabaseAuthContextType {
     password: string,
     firstName: string,
     lastName: string,
-    consent?: { privacyPolicyAcceptedAt: string; termsAcceptedAt: string }
+    consent?: LegalConsent
   ) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signInWithGoogle: (consent?: {
-    privacyPolicyAcceptedAt: string;
-    termsAcceptedAt: string;
-  }) => Promise<{ error: AuthError | null }>;
+  signInWithGoogle: (consent?: LegalConsent) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<{ error: AuthError | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: AuthError | null }>;
@@ -38,6 +36,11 @@ export interface SupabaseAuthContextType {
     inAppNotificationsEnabled?: boolean;
     applicationsGoal?: number | null;
     marketingEmailsConsent?: boolean;
+    privacyPolicyAcceptedAt?: string;
+    termsAcceptedAt?: string;
+    privacyPolicyVersion?: string;
+    termsVersion?: string;
+    minimumAgeConfirmedAt?: string;
     avatarUrl?: string | null;
   }) => Promise<{ error: unknown }>;
   refreshProfile: () => Promise<void>;

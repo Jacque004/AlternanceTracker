@@ -18,6 +18,7 @@ import {
 import { isSupabaseSchemaError } from '../utils/supabaseSchema';
 import { normalizeApplicationStatus } from '../utils/applicationStatus';
 import { weekStartIso } from '../utils/weeklyEffort';
+import { loadRhythmConfig, loadShareIdentity } from '../utils/rhythmCalendar';
 
 /** JWT session pour appeler les Edge Functions protégées (pas la clé anon en Bearer). */
 async function getUserAccessTokenForEdgeFunctions(): Promise<string> {
@@ -964,28 +965,80 @@ export const rgpdService = {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Non authentifié');
 
-    const [profileRes, applicationsRes, cvsRes, lettersRes, analysesRes] = await Promise.all([
+    const [
+      profileRes,
+      applicationsRes,
+      eventsRes,
+      cvsRes,
+      lettersRes,
+      analysesRes,
+      prepsRes,
+      notificationsRes,
+      clicksRes,
+    ] = await Promise.all([
       supabase.from('users').select('*').eq('id', authUser.id).single(),
       supabase.from('applications').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }),
+      supabase
+        .from('application_events')
+        .select('id, application_id, event_type, from_status, to_status, summary, metadata, created_at')
+        .eq('user_id', authUser.id)
+        .order('created_at', { ascending: false }),
       supabase.from('user_cvs').select('*').eq('user_id', authUser.id),
       supabase.from('generated_letters').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }),
       supabase.from('cv_analyses').select('id, type, result_text, result_json, created_at').eq('user_id', authUser.id).order('created_at', { ascending: false }),
+      supabase
+        .from('interview_preps')
+        .select('id, application_id, questions, cv_talking_points, generated_at')
+        .eq('user_id', authUser.id),
+      supabase
+        .from('user_notifications')
+        .select('id, type, title, body, link, read_at, metadata, created_at')
+        .eq('user_id', authUser.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('job_offer_clicks')
+        .select('id, job_offer_id, created_at')
+        .eq('user_id', authUser.id)
+        .order('created_at', { ascending: false }),
     ]);
 
     if (profileRes.error) throw profileRes.error;
     if (applicationsRes.error) throw applicationsRes.error;
+    if (eventsRes.error) throw eventsRes.error;
     if (cvsRes.error) throw cvsRes.error;
     if (lettersRes.error) throw lettersRes.error;
     if (analysesRes.error) throw analysesRes.error;
+    if (prepsRes.error) throw prepsRes.error;
+    if (notificationsRes.error) throw notificationsRes.error;
+    if (clicksRes.error) throw clicksRes.error;
+
+    const identities = Array.isArray(authUser.identities)
+      ? authUser.identities.map((identity) => identity.provider)
+      : [];
 
     return {
       exportDate: new Date().toISOString(),
       purpose: 'Export des données personnelles (RGPD - droit à la portabilité)',
+      account: {
+        id: authUser.id,
+        email: authUser.email ?? null,
+        createdAt: authUser.created_at ?? null,
+        lastSignInAt: authUser.last_sign_in_at ?? null,
+        providers: identities,
+      },
       profile: profileRes.data ?? null,
       applications: applicationsRes.data ?? [],
+      applicationEvents: eventsRes.data ?? [],
       cvs: cvsRes.data ?? [],
       generatedLetters: lettersRes.data ?? [],
       cvAnalyses: analysesRes.data ?? [],
+      interviewPreps: prepsRes.data ?? [],
+      notifications: notificationsRes.data ?? [],
+      jobOfferClicks: clicksRes.data ?? [],
+      browser: {
+        rhythmCalendar: loadRhythmConfig(),
+        rhythmShareIncludesNameAndSchool: loadShareIdentity(),
+      },
     };
   },
 

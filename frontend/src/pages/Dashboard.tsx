@@ -132,6 +132,13 @@ const Dashboard = () => {
           <p className="text-sm text-gray-500 mt-0.5">Voir et gérer la liste</p>
         </Link>
         <Link
+          to="/rythme"
+          className="block p-3 sm:p-4 bg-white rounded-xl border border-emerald-200 card-hover hover:border-emerald-300"
+        >
+          <p className="font-semibold text-gray-900">Calendrier de rythme</p>
+          <p className="text-sm text-gray-500 mt-0.5">Jours école et entreprise à envoyer</p>
+        </Link>
+        <Link
           to="/preparer/lettres"
           className="block p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
         >

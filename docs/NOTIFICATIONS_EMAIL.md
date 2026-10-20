@@ -148,3 +148,37 @@ Remplacer `VOTRE_PROJECT_REF` et `VOTRE_CRON_SECRET` par les valeurs réelles (s
    - soit avec un cron externe qui envoie `Authorization: Bearer <CRON_SECRET>`.
 
 Après cela, les utilisateurs qui ont coché les options dans **Mon espace → Notifications** recevront les rappels et/ou le résumé hebdo par email.
+
+---
+
+## 5. Comptes inactifs (RGPD)
+
+La fonction `purge-inactive-accounts` envoie un e-mail 30 jours avant la suppression, puis supprime les comptes qui n’ont pas été ouverts depuis 24 mois et qui ont accepté la politique décrivant cette règle.
+
+Sans `RESEND_API_KEY`, elle ne supprime personne.
+
+```bash
+supabase functions deploy purge-inactive-accounts
+```
+
+Planification suggérée : une fois par mois, avec le même `CRON_SECRET` que les autres tâches.
+
+```sql
+-- SELECT cron.schedule(
+--   'purge-inactive-accounts',
+--   '0 3 1 * *',
+--   $$
+--   SELECT net.http_post(
+--     url := 'https://VOTRE_PROJECT_REF.supabase.co/functions/v1/purge-inactive-accounts',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'Authorization', 'Bearer VOTRE_CRON_SECRET'
+--     ),
+--     body := '{}'::jsonb
+--   ) AS request_id;
+--   $$
+-- );
+```
+
+Secret optionnel : `APP_URL` (lien placé dans l’e-mail d’avertissement).
+

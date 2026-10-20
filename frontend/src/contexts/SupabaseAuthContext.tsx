@@ -3,7 +3,8 @@ import { User, Session } from '@supabase/supabase-js';
 import { SupabaseAuthReactContext } from './authContext';
 import { isInvalidRefreshTokenError, supabase } from '../lib/supabase';
 import { User as AppUser } from '../types';
-import { normalizeSupabaseAvatarPublicUrl } from '../utils/supabaseStorageUrl';
+import { resolveAvatarDisplayUrl } from '../utils/supabaseStorageUrl';
+import { legalConfig, type LegalConsent } from '../config/legal';
 import { isSupabaseSchemaError } from '../utils/supabaseSchema';
 import {
   isInAppNotificationsColumnMissing,
@@ -20,7 +21,25 @@ const USER_PROFILE_SELECT_BASE =
   'id, email, first_name, last_name, created_at, school, formation, study_year, alternance_rhythm, desired_start_date, linkedin_url, avatar_url, weekly_summary_enabled, reminder_emails_enabled, applications_goal, privacy_policy_accepted_at, terms_accepted_at, marketing_emails_consent';
 
 const USER_PROFILE_SELECT =
-  `${USER_PROFILE_SELECT_BASE}, preferred_location, preferred_domain, preferred_education_level`;
+  `${USER_PROFILE_SELECT_BASE}, preferred_location, preferred_domain, preferred_education_level, privacy_policy_version, terms_version, minimum_age_confirmed_at, last_seen_at`;
+
+const LAST_SEEN_DAY_KEY = 'alternancetracker_last_seen_day';
+
+function touchLastSeen(userId: string) {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem(LAST_SEEN_DAY_KEY) === today) return;
+    void supabase
+      .from('users')
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq('id', userId)
+      .then(({ error }) => {
+        if (!error) localStorage.setItem(LAST_SEEN_DAY_KEY, today);
+      });
+  } catch {
+    // stockage local indisponible
+  }
+}
 
 export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AppUser | null>(null);
@@ -110,10 +129,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     sessionStorage.removeItem(OAUTH_CONSENT_STORAGE_KEY);
 
     try {
-      const consent = JSON.parse(raw) as {
-        privacyPolicyAcceptedAt?: string;
-        termsAcceptedAt?: string;
-      };
+      const consent = JSON.parse(raw) as Partial<LegalConsent>;
 
       if (consent.privacyPolicyAcceptedAt && consent.termsAcceptedAt) {
         const { error } = await supabase
@@ -121,6 +137,9 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
           .update({
             privacy_policy_accepted_at: consent.privacyPolicyAcceptedAt,
             terms_accepted_at: consent.termsAcceptedAt,
+            privacy_policy_version: consent.privacyPolicyVersion ?? null,
+            terms_version: consent.termsVersion ?? null,
+            minimum_age_confirmed_at: consent.minimumAgeConfirmedAt ?? null,
           })
           .eq('id', userId);
 
@@ -156,7 +175,9 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         .eq('id', authUser.id)
         .single();
 
+      let legalVersionColumnReady = true;
       if (profileQuery.error && isSupabaseSchemaError(profileQuery.error)) {
+        legalVersionColumnReady = false;
         profileQuery = await supabase
           .from('users')
           .select(USER_PROFILE_SELECT_BASE)
@@ -211,13 +232,19 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         alternanceRhythm: profileRow.alternance_rhythm as string | undefined,
         desiredStartDate: profileRow.desired_start_date as string | undefined,
         linkedinUrl: profileRow.linkedin_url as string | undefined,
-        avatarUrl: normalizeSupabaseAvatarPublicUrl((profileRow.avatar_url as string | null) ?? null),
+        avatarUrl: await resolveAvatarDisplayUrl((profileRow.avatar_url as string | null) ?? null),
         weeklySummaryEnabled: (profileRow.weekly_summary_enabled as boolean | null) ?? false,
         reminderEmailsEnabled: (profileRow.reminder_emails_enabled as boolean | null) ?? true,
         inAppNotificationsEnabled: true,
         applicationsGoal: (profileRow.applications_goal as number | null) ?? null,
         privacyPolicyAcceptedAt: (profileRow.privacy_policy_accepted_at as string | null) ?? undefined,
         termsAcceptedAt: (profileRow.terms_accepted_at as string | null) ?? undefined,
+        privacyPolicyVersion: legalVersionColumnReady
+          ? ((profileRow.privacy_policy_version as string | null) ?? undefined)
+          : legalConfig.policyVersion,
+        termsVersion: legalVersionColumnReady
+          ? ((profileRow.terms_version as string | null) ?? undefined)
+          : legalConfig.termsVersion,
         marketingEmailsConsent: (profileRow.marketing_emails_consent as boolean | null) ?? false,
         isAdmin: false,
       };
@@ -232,6 +259,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       setUser(appUser);
+      touchLastSeen(authUser.id);
 
       if (!isInAppNotificationsColumnMissing()) {
         void supabase
@@ -294,7 +322,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     password: string,
     firstName: string,
     lastName: string,
-    consent?: { privacyPolicyAcceptedAt: string; termsAcceptedAt: string }
+    consent?: LegalConsent
   ) => {
     const trimmedFirstName = firstName.trim();
     const trimmedLastName = lastName.trim();
@@ -311,6 +339,9 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
           ...(consent && {
             privacy_policy_accepted_at: consent.privacyPolicyAcceptedAt,
             terms_accepted_at: consent.termsAcceptedAt,
+            privacy_policy_version: consent.privacyPolicyVersion,
+            terms_version: consent.termsVersion,
+            minimum_age_confirmed_at: consent.minimumAgeConfirmedAt,
           }),
         },
         emailRedirectTo: (() => {
@@ -333,10 +364,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     return { error };
   };
 
-  const signInWithGoogle = async (consent?: {
-    privacyPolicyAcceptedAt: string;
-    termsAcceptedAt: string;
-  }) => {
+  const signInWithGoogle = async (consent?: LegalConsent) => {
     if (consent) {
       sessionStorage.setItem(OAUTH_CONSENT_STORAGE_KEY, JSON.stringify(consent));
     }
@@ -400,6 +428,11 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     reminderEmailsEnabled?: boolean;
     inAppNotificationsEnabled?: boolean;
     marketingEmailsConsent?: boolean;
+    privacyPolicyAcceptedAt?: string;
+    termsAcceptedAt?: string;
+    privacyPolicyVersion?: string;
+    termsVersion?: string;
+    minimumAgeConfirmedAt?: string;
     applicationsGoal?: number | null;
     avatarUrl?: string | null;
   }) => {
@@ -424,6 +457,15 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     if (data.inAppNotificationsEnabled !== undefined) updates.in_app_notifications_enabled = data.inAppNotificationsEnabled;
     if (data.applicationsGoal !== undefined) updates.applications_goal = data.applicationsGoal === null || data.applicationsGoal === 0 ? null : data.applicationsGoal;
     if (data.marketingEmailsConsent !== undefined) updates.marketing_emails_consent = data.marketingEmailsConsent;
+    if (data.privacyPolicyAcceptedAt !== undefined) {
+      updates.privacy_policy_accepted_at = data.privacyPolicyAcceptedAt;
+    }
+    if (data.termsAcceptedAt !== undefined) updates.terms_accepted_at = data.termsAcceptedAt;
+    if (data.privacyPolicyVersion !== undefined) updates.privacy_policy_version = data.privacyPolicyVersion;
+    if (data.termsVersion !== undefined) updates.terms_version = data.termsVersion;
+    if (data.minimumAgeConfirmedAt !== undefined) {
+      updates.minimum_age_confirmed_at = data.minimumAgeConfirmedAt;
+    }
     if (data.avatarUrl !== undefined) updates.avatar_url = data.avatarUrl;
 
     let { error } = await supabase.from('users').update(updates).eq('id', session.user.id);

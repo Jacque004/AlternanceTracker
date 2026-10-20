@@ -196,6 +196,17 @@ const Login = () => {
             loading={googleLoading}
             disabled={loading}
           />
+          <p className="mt-3 text-xs text-gray-500 leading-relaxed">
+            Un premier passage par Google demande de confirmer la{' '}
+            <Link to="/politique-confidentialite" className="text-primary-600 hover:underline">
+              politique de confidentialité
+            </Link>{' '}
+            et les{' '}
+            <Link to="/cgu" className="text-primary-600 hover:underline">
+              conditions d&apos;utilisation
+            </Link>
+            .
+          </p>
         </div>
       </div>
     </div>

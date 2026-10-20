@@ -33,6 +33,8 @@ const profileRow = {
   applications_goal: null,
   privacy_policy_accepted_at: '2026-01-15T10:00:00.000Z',
   terms_accepted_at: '2026-01-15T10:00:00.000Z',
+  privacy_policy_version: '2026-10-20',
+  terms_version: '2026-10-20',
   marketing_emails_consent: false,
   in_app_notifications_enabled: true,
 };
@@ -134,7 +136,12 @@ vi.mock('./lib/supabase', () => {
       channel: () => channelApi,
       removeAllChannels: async () => undefined,
       realtime: { disconnect: () => undefined },
-      storage: { from: () => ({ getPublicUrl: () => ({ data: { publicUrl: '' } }) }) },
+      storage: {
+        from: () => ({
+          getPublicUrl: () => ({ data: { publicUrl: '' } }),
+          createSignedUrl: async () => ({ data: { signedUrl: 'https://example.test/avatar' }, error: null }),
+        }),
+      },
     },
   };
 });
@@ -259,11 +266,15 @@ describe('routes et redirections', () => {
     await expectPath('/a-propos/');
     await expectHeading(/À propos/);
 
-    for (const path of ['/applications', '/offres', '/preparer', '/calendar', '/profile', '/admin', '/coaching', '/offre/abc']) {
+    for (const path of ['/applications', '/offres', '/preparer', '/calendar', '/rythme', '/profile', '/admin', '/coaching', '/offre/abc']) {
       await go(path);
       await expectPath('/login');
       await expectHeading(/^Connexion$/);
     }
+
+    await go('/rythme/partage?z=A&mode=d&wd=12&sw=1&cw=1&fb=s&du=12&sd=2026-11-02');
+    await expectPath('/rythme/partage');
+    await expectHeading(/Calendrier d'alternance/);
 
     await go('/page-inconnue');
     await expectPath('/page-inconnue');
@@ -310,6 +321,10 @@ describe('routes et redirections', () => {
     clickHref('/calendar');
     await expectPath('/calendar');
     await expectHeading(/^Calendrier$/);
+
+    clickHref('/rythme');
+    await expectPath('/rythme');
+    await expectHeading(/Calendrier de rythme/);
 
     clickHref('/preparer');
     await expectPath('/preparer/cv');

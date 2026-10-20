@@ -35,6 +35,8 @@ const JobOfferDetail = lazy(() => import('./pages/JobOfferDetail'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminRoute = lazy(() => import('./components/AdminRoute'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const RhythmSharePage = lazy(() => import('./pages/RhythmShare'));
+const RhythmCalendarPage = lazy(() => import('./pages/RhythmCalendar'));
 
 function LegacyOffreRedirect() {
   const { id } = useParams();
@@ -107,6 +109,7 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/auth/confirm-success" element={<ConfirmSuccess />} />
+              <Route path="/rythme/partage" element={<RhythmSharePage />} />
               <Route
                 path="/"
                 element={
@@ -136,6 +139,7 @@ function App() {
                 <Route path="offre" element={<Navigate to="/offres" replace />} />
                 <Route path="offre/:id" element={<LegacyOffreRedirect />} />
                 <Route path="calendar" element={<CalendarPage />} />
+                <Route path="rythme" element={<RhythmCalendarPage />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="aide/notifications" element={<Navigate to="/profile#notifications" replace />} />
                 <Route path="a-propos" element={<APropos />} />

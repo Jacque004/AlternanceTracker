@@ -9,6 +9,8 @@ export function pageTitleFromPath(pathname: string): string {
   if (path === '/offres' || path === '/offre') return 'Offres d’emploi';
   if (path.startsWith('/offres/') || path.startsWith('/offre/')) return 'Offre d’emploi';
   if (path.startsWith('/calendar')) return 'Calendrier';
+  if (path.startsWith('/rythme/partage')) return 'Calendrier partagé';
+  if (path.startsWith('/rythme')) return 'Calendrier de rythme';
   if (path.startsWith('/preparer/cv')) return 'Mon CV';
   if (path.startsWith('/preparer/lettres')) return 'Lettres de motivation';
   if (path.startsWith('/preparer/analyser-offre')) return 'Analyser une offre';

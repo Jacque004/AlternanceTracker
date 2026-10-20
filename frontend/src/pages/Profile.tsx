@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import toast from '../components/toast';
 import { userFacingErrorMessage } from '../utils/errorMessage';
 import { rgpdService } from '../services/supabaseService';
+import { clearRhythmLocalData } from '../utils/rhythmCalendar';
 import { formatDateForInput, formatDisplayDate, formatLocalDateIso } from '../utils/dateDisplay';
 
 const AVATAR_BUCKET = 'avatars';
@@ -142,8 +143,7 @@ const Profile = () => {
         cacheControl: '3600',
       });
       if (uploadError) throw uploadError;
-      const { data: pub } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
-      const { error } = await updateProfile({ avatarUrl: pub.publicUrl });
+      const { error } = await updateProfile({ avatarUrl: path });
       if (error) throw error;
       setAvatarRev((n) => n + 1);
       toast.success('Photo mise à jour');
@@ -487,6 +487,9 @@ const Profile = () => {
                 className={inputClass}
                 placeholder="Ex. 2j école / 3j entreprise"
               />
+              <Link to="/rythme" className="mt-1.5 inline-flex text-sm font-medium text-primary-700 hover:text-primary-800">
+                Construire le calendrier à envoyer au recruteur
+              </Link>
             </div>
             <div>
               <label htmlFor="desiredStartDate" className={labelClass}>
@@ -597,7 +600,7 @@ const Profile = () => {
 
         <ProfileSection
           title="Données personnelles (RGPD)"
-          description="Exportez une copie de vos données ou demandez la suppression définitive du compte."
+          description="Le fichier JSON reprend le profil, les candidatures, l’historique, les CV, les lettres, les analyses, les préparations d’entretien, les notifications, les clics sur les offres, le compte de connexion, et le calendrier de rythme enregistré dans ce navigateur."
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap">
             <button
@@ -635,12 +638,18 @@ const Profile = () => {
               Supprimer mon compte
             </button>
           </div>
-          {user?.privacyPolicyAcceptedAt ? (
-            <p className="mt-5 text-xs text-gray-500 leading-relaxed border-t border-gray-100 pt-4">
-              Politique de confidentialité acceptée le {formatDisplayDate(user.privacyPolicyAcceptedAt)}
-              {user?.termsAcceptedAt ? ` · CGU acceptées le ${formatDisplayDate(user.termsAcceptedAt)}` : ''}.
-            </p>
-          ) : null}
+          <p className="mt-5 text-xs text-gray-500 leading-relaxed border-t border-gray-100 pt-4">
+            <Link to="/politique-confidentialite" className="text-primary-600 hover:underline">
+              Politique de confidentialité
+            </Link>
+            {user?.privacyPolicyAcceptedAt
+              ? ` · lue le ${formatDisplayDate(user.privacyPolicyAcceptedAt)}`
+              : ''}
+            {user?.termsAcceptedAt ? ` · CGU acceptées le ${formatDisplayDate(user.termsAcceptedAt)}` : ''}.
+            Les rappels par e-mail se coupent dans la section Notifications, sans supprimer le compte.
+            Un compte qui a accepté cette politique et qui n’est pas ouvert pendant 24 mois reçoit un e-mail,
+            puis est supprimé 30 jours plus tard si l’envoi d’e-mails est configuré.
+          </p>
         </ProfileSection>
 
         <ProfileSection title="Session">
@@ -682,8 +691,9 @@ const Profile = () => {
               </div>
               <div className="px-6 py-5">
                 <p className="text-sm leading-relaxed text-gray-600">
-                  Cette action est <strong className="text-gray-900">irréversible</strong>. Toutes vos données (compte,
-                  candidatures, CV, lettres) seront définitivement supprimées.
+                  Cette action est <strong className="text-gray-900">irréversible</strong>. Le compte, les
+                  candidatures, CV, lettres, analyses et la photo sont supprimés. Le calendrier de rythme
+                  enregistré dans ce navigateur est effacé aussi.
                 </p>
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <button
@@ -700,6 +710,7 @@ const Profile = () => {
                       setDeleting(true);
                       try {
                         await rgpdService.deleteMyAccount();
+                        clearRhythmLocalData();
                         await signOut();
                         toast.success('Compte supprimé');
                         navigate('/');
