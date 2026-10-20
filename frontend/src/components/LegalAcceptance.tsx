@@ -100,7 +100,9 @@ export default function LegalAcceptance() {
       <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <button
           type="button"
-          onClick={() => void signOut()}
+          onClick={() => {
+            void signOut().then(() => navigate('/', { replace: true }));
+          }}
           disabled={saving || deleting}
           className="rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50 min-h-[44px] disabled:opacity-50"
         >

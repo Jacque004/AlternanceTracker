@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect, ReactNode } from 'react';
+import { useCallback, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { SupabaseAuthReactContext } from './authContext';
 import { isInvalidRefreshTokenError, supabase } from '../lib/supabase';
@@ -13,6 +13,7 @@ import {
 } from '../utils/inAppNotificationsSchema';
 import { queryClient } from '../query/client';
 import { getAppBaseUrl } from '../utils/appUrl';
+import { clearPostLoginPath } from '../utils/safeNextPath';
 import { getOAuthAvatarUrl, getOAuthFirstName, getOAuthLastName } from '../utils/oauthUserMetadata';
 
 const OAUTH_CONSENT_STORAGE_KEY = 'alternancetracker_oauth_consent';
@@ -45,6 +46,10 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingLogoutRedirect, setPendingLogoutRedirect] = useState(false);
+  const clearLogoutRedirect = useCallback(() => {
+    setPendingLogoutRedirect(false);
+  }, []);
 
   useEffect(() => {
     const clearLocalSession = async () => {
@@ -381,6 +386,8 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    setPendingLogoutRedirect(true);
+    clearPostLoginPath();
     const { error } = await supabase.auth.signOut();
     // Après suppression de compte ou session déjà révoquée, le logout global renvoie 403 :
     // on efface quand même la session locale.
@@ -509,6 +516,8 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         session,
         loading,
+        pendingLogoutRedirect,
+        clearLogoutRedirect,
         signUp,
         signIn,
         signInWithGoogle,

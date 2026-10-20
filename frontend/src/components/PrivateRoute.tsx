@@ -10,7 +10,7 @@ interface PrivateRouteProps {
 }
 
 const PrivateRoute = ({ children }: PrivateRouteProps) => {
-  const { session, loading } = useSupabaseAuth();
+  const { session, loading, pendingLogoutRedirect, clearLogoutRedirect } = useSupabaseAuth();
   const location = useLocation();
   const path = location.pathname.replace(/\/+$/, '') || '/';
   const guestAllowed = GUEST_PATHS.has(path);
@@ -26,9 +26,14 @@ const PrivateRoute = ({ children }: PrivateRouteProps) => {
   );
 
   useEffect(() => {
-    if (loading || session || guestAllowed) return;
+    if (loading || session || guestAllowed || pendingLogoutRedirect) return;
     rememberPostLoginPath(safeNextPath(loginState.from));
-  }, [loading, session, guestAllowed, loginState]);
+  }, [loading, session, guestAllowed, pendingLogoutRedirect, loginState]);
+
+  useEffect(() => {
+    if (!pendingLogoutRedirect || path !== '/') return;
+    clearLogoutRedirect();
+  }, [pendingLogoutRedirect, path, clearLogoutRedirect]);
 
   if (loading) {
     return (
@@ -52,6 +57,9 @@ const PrivateRoute = ({ children }: PrivateRouteProps) => {
     // y compris avec un slash final (/a-propos/).
     if (guestAllowed) {
       return <>{children}</>;
+    }
+    if (pendingLogoutRedirect) {
+      return <Navigate to="/" replace />;
     }
     return <Navigate to="/login" replace state={loginState} />;
   }

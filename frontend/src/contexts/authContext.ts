@@ -7,6 +7,9 @@ export interface SupabaseAuthContextType {
   user: AppUser | null;
   session: Session | null;
   loading: boolean;
+  /** Déconnexion explicite : renvoyer vers l’accueil plutôt que le formulaire de connexion. */
+  pendingLogoutRedirect: boolean;
+  clearLogoutRedirect: () => void;
   signUp: (
     email: string,
     password: string,

@@ -80,5 +80,35 @@ describe('PrivateRoute', () => {
 
     expect(screen.getByText('Accueil public')).toBeInTheDocument();
   });
+
+  it('renvoie vers l accueil apres une deconnexion explicite', () => {
+    mockUseSupabaseAuth.mockReturnValue({
+      session: null,
+      loading: false,
+      pendingLogoutRedirect: true,
+      clearLogoutRedirect: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/profile']}>
+        <Routes>
+          <Route path="/" element={<h1>Accueil</h1>} />
+          <Route path="/login" element={<h1>Connexion</h1>} />
+          <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <div>Profil</div>
+              </PrivateRoute>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('heading', { name: 'Accueil' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Connexion' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Profil')).not.toBeInTheDocument();
+  });
 });
 

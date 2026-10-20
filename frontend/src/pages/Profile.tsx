@@ -658,7 +658,9 @@ const Profile = () => {
           </p>
           <button
             type="button"
-            onClick={() => void signOut()}
+            onClick={() => {
+              void signOut().then(() => navigate('/', { replace: true }));
+            }}
             className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl border border-red-200 bg-white px-5 py-3 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 min-h-[48px]"
           >
             Déconnexion
