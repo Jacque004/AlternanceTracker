@@ -1,4 +1,5 @@
 import type { Application } from '../types';
+import { getCalendarDaysAgo } from './dateDisplay';
 
 export const APPLICATION_STATUSES = [
   'to_apply',
@@ -101,4 +102,17 @@ export const APPLICATION_STATUS_OPTIONS = PIPELINE_COLUMNS.map(({ key, label }) 
 /** Candidatures encore dans le flux « relancer si silence ». */
 export function isRelanceEligibleStatus(status: Application['status'] | string): boolean {
   return status === 'pending' || status === 'followed_up';
+}
+
+/** Silence à partir duquel une candidature envoyée mérite une relance. */
+export const DAYS_BEFORE_FOLLOW_UP = 7;
+
+export function applicationNeedsFollowUp(
+  app: Pick<Application, 'status' | 'lastRelanceAt' | 'applicationDate' | 'createdAt'>
+): boolean {
+  if (!isRelanceEligibleStatus(app.status)) return false;
+  if (app.lastRelanceAt && getCalendarDaysAgo(app.lastRelanceAt) < DAYS_BEFORE_FOLLOW_UP) return false;
+  const refDate = app.applicationDate || app.createdAt;
+  if (!refDate) return false;
+  return getCalendarDaysAgo(refDate) >= DAYS_BEFORE_FOLLOW_UP;
 }

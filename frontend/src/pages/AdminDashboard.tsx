@@ -10,6 +10,7 @@ import { SkeletonCharts } from '../components/Skeleton';
 import { userFacingErrorMessage } from '../utils/errorMessage';
 import { formatDisplayDate } from '../utils/dateDisplay';
 import JobOffersAdminPanel from '../components/JobOffersAdminPanel';
+import OnboardingAdminPanel from '../components/OnboardingAdminPanel';
 
 function StatCard({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
@@ -162,6 +163,8 @@ const AdminDashboard = () => {
           </ul>
         </section>
       </div>
+
+      <OnboardingAdminPanel userId={currentUser?.id != null ? String(currentUser.id) : null} />
 
       <JobOffersAdminPanel />
 

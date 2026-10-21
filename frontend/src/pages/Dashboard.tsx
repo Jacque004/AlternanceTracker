@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { applicationService, dashboardService } from '../services/supabaseService';
-import type { Application } from '../types';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import toast from '../components/toast';
 import { SkeletonCharts, SkeletonList } from '../components/Skeleton';
@@ -11,7 +10,12 @@ import { ApplicationsMonthlyChart } from '../components/ApplicationsMonthlyChart
 import { ApplicationsStatusChart } from '../components/ApplicationsStatusChart';
 import { WeeklyEffortCard } from '../components/WeeklyEffortCard';
 import { userFacingErrorMessage } from '../utils/errorMessage';
-import { applicationStatusBadgeClass, applicationStatusLabel, isRelanceEligibleStatus } from '../utils/applicationStatus';
+import {
+  DAYS_BEFORE_FOLLOW_UP,
+  applicationNeedsFollowUp,
+  applicationStatusBadgeClass,
+  applicationStatusLabel,
+} from '../utils/applicationStatus';
 import { formatDisplayDate, formatDisplayTime, getCalendarDaysAgo } from '../utils/dateDisplay';
 import {
   WEEKLY_LETTERS_TARGET,
@@ -21,19 +25,6 @@ import {
 } from '../utils/weeklyEffort';
 import { queryKeys } from '../query/keys';
 import { invalidateApplicationCaches } from '../query/client';
-
-const DAYS_BEFORE_REMINDER = 7;
-
-function isToRelance(app: Application): boolean {
-  if (!isRelanceEligibleStatus(app.status)) return false;
-  if (app.lastRelanceAt) {
-    const daysSinceRelance = getCalendarDaysAgo(app.lastRelanceAt);
-    if (daysSinceRelance < DAYS_BEFORE_REMINDER) return false;
-  }
-  const refDate = app.applicationDate || app.createdAt;
-  if (!refDate) return false;
-  return getCalendarDaysAgo(refDate) >= DAYS_BEFORE_REMINDER;
-}
 
 const Dashboard = () => {
   const { user } = useSupabaseAuth();
@@ -64,7 +55,7 @@ const Dashboard = () => {
   const recent = recentQuery.data ?? [];
   const allApps = appsQuery.data?.data ?? [];
   const toRelance = useMemo(
-    () => allApps.filter((app) => isToRelance(app) && !optimisticRelanceIds.includes(app.id)),
+    () => allApps.filter((app) => applicationNeedsFollowUp(app) && !optimisticRelanceIds.includes(app.id)),
     [allApps, optimisticRelanceIds]
   );
   const upcomingInterviews = upcomingQuery.data ?? [];
@@ -240,7 +231,7 @@ const Dashboard = () => {
                   </span>
                 </h2>
                 <p className="text-sm text-amber-900/85 mt-2 max-w-prose leading-relaxed">
-                  En attente depuis au moins {DAYS_BEFORE_REMINDER} jours sans nouvelle : un petit message court suffit souvent.
+                  En attente depuis au moins {DAYS_BEFORE_FOLLOW_UP} jours sans nouvelle : un petit message court suffit souvent.
                 </p>
               </div>
             </div>

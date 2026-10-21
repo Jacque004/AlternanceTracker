@@ -281,15 +281,28 @@ const Applications = () => {
     }
   };
 
+  const handleMarkRelance = async (id: number) => {
+    setMovingId(id);
+    try {
+      const updated = await applicationService.markRelance(id);
+      await invalidateApplicationCaches();
+      toast.success(`${updated.companyName} : relance enregistrée`);
+    } catch (err) {
+      toast.error(userFacingErrorMessage(err, 'Impossible d’enregistrer la relance.'));
+    } finally {
+      setMovingId(null);
+    }
+  };
+
   return (
-    <div className="max-w-7xl mx-auto stack-page page-shell">
+    <div className="stack-page page-shell">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Mes candidatures</h1>
           <p className="mt-1 text-sm sm:text-base text-gray-600">
-            <span className="sm:hidden">Changez le statut d’une carte, ou passez en liste.</span>
+            <span className="sm:hidden">Balayez les étapes, déplacez une carte, ou passez en liste.</span>
             <span className="hidden sm:inline">
-              Pipeline Kanban : glissez les cartes d’une étape à l’autre, ou utilisez la liste.
+              Glissez une carte d’une étape à l’autre. Les silences de plus de 7 jours sont signalés.
             </span>
           </p>
         </div>
@@ -548,6 +561,7 @@ const Applications = () => {
             <ApplicationsKanban
               applications={list}
               onStatusChange={handleStatusChange}
+              onMarkRelance={handleMarkRelance}
               movingId={movingId}
             />
           ) : (

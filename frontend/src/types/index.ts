@@ -4,6 +4,11 @@ export interface User {
   firstName: string;
   lastName: string;
   createdAt?: string;
+  /**
+   * null : le compte n’a encore jamais ouvert l’application.
+   * undefined : l’information n’est pas encore connue.
+   */
+  onboardingCompletedAt?: string | null;
   school?: string;
   formation?: string;
   studyYear?: string;

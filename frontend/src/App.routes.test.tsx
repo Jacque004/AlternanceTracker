@@ -37,6 +37,7 @@ const profileRow = {
   terms_version: '2026-10-20',
   marketing_emails_consent: false,
   in_app_notifications_enabled: true,
+  onboarding_completed_at: '2026-01-15T10:00:00.000Z',
 };
 
 vi.mock('@react-pdf/renderer', () => ({
@@ -207,6 +208,8 @@ beforeAll(() => {
 
 beforeEach(() => {
   queryClient.clear();
+  localStorage.clear();
+  sessionStorage.clear();
   localStorage.setItem('alternancetracker_onboarding_done_v3', '1');
   clearPostLoginPath();
 });
@@ -388,6 +391,22 @@ describe('routes et redirections', () => {
     await expectHeading(/Page introuvable/);
   }, 30000);
 
+  it('ne relance la visite d’un compte déjà connecté que sur demande', async () => {
+    asMember(false);
+    window.history.pushState({}, '', '/');
+    render(<App />);
+
+    await expectHeading(/Tableau de bord/);
+    expect(screen.queryByRole('heading', { name: /^Cette semaine$/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
+    expect(screen.queryByRole('button', { name: 'Guide' })).not.toBeInTheDocument();
+
+    await go('/profile');
+    await expectHeading(/Camille Martin/);
+    expect(screen.queryByRole('button', { name: 'Revoir la visite' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^Cette semaine$/ })).not.toBeInTheDocument();
+  }, 20000);
+
   it('affiche le panneau admin pour un compte administrateur', async () => {
     asMember(true);
     window.history.pushState({}, '', '/admin');
@@ -396,5 +415,17 @@ describe('routes et redirections', () => {
     await expectPath('/admin');
     await expectHeading(/^Administration$/);
     await waitFor(() => expect(document.title).toMatch(/Administration/));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Tester' }));
+    expect(await screen.findByRole('heading', { name: /^Cette semaine$/ })).toBeInTheDocument();
+    await waitFor(() => expect(window.location.pathname).toBe('/'));
+    fireEvent.click(screen.getByRole('button', { name: 'Plus tard' }));
+    expect(screen.queryByRole('heading', { name: /^Cette semaine$/ })).not.toBeInTheDocument();
+
+    await go('/admin');
+    await expectHeading(/^Administration$/);
+    fireEvent.click(await screen.findByRole('button', { name: 'Tester' }));
+    expect(await screen.findByRole('heading', { name: /^Cette semaine$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Recommencer' })).toBeInTheDocument();
   }, 20000);
 });

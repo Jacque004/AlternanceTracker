@@ -14,6 +14,7 @@ import {
 import { queryClient } from '../query/client';
 import { getAppBaseUrl } from '../utils/appUrl';
 import { clearPostLoginPath } from '../utils/safeNextPath';
+import { endOnboardingSession } from '../components/OnboardingTour';
 import { getOAuthAvatarUrl, getOAuthFirstName, getOAuthLastName } from '../utils/oauthUserMetadata';
 
 const OAUTH_CONSENT_STORAGE_KEY = 'alternancetracker_oauth_consent';
@@ -22,7 +23,7 @@ const USER_PROFILE_SELECT_BASE =
   'id, email, first_name, last_name, created_at, school, formation, study_year, alternance_rhythm, desired_start_date, linkedin_url, avatar_url, weekly_summary_enabled, reminder_emails_enabled, applications_goal, privacy_policy_accepted_at, terms_accepted_at, marketing_emails_consent';
 
 const USER_PROFILE_SELECT =
-  `${USER_PROFILE_SELECT_BASE}, preferred_location, preferred_domain, preferred_education_level, privacy_policy_version, terms_version, minimum_age_confirmed_at, last_seen_at`;
+  `${USER_PROFILE_SELECT_BASE}, preferred_location, preferred_domain, preferred_education_level, privacy_policy_version, terms_version, minimum_age_confirmed_at, last_seen_at, onboarding_completed_at`;
 
 const LAST_SEEN_DAY_KEY = 'alternancetracker_last_seen_day';
 
@@ -157,6 +158,23 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
     return false;
   };
 
+  const attachOnboardingFlag = (userId: string) => {
+    void supabase
+      .from('users')
+      .select('onboarding_completed_at')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error || !data || !Object.prototype.hasOwnProperty.call(data, 'onboarding_completed_at')) {
+          return;
+        }
+        const onboardingCompletedAt = (data.onboarding_completed_at as string | null) ?? null;
+        setUser((prev) =>
+          prev && String(prev.id) === userId ? { ...prev, onboardingCompletedAt } : prev
+        );
+      });
+  };
+
   const loadUserProfile = async (authUser: User) => {
     try {
       // Garantit que la ligne dans `public.users` existe (fonction SECURITY DEFINER)
@@ -219,6 +237,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
           isAdmin: false,
           avatarUrl: getOAuthAvatarUrl(meta),
         });
+        attachOnboardingFlag(authUser.id);
         return;
       }
 
@@ -251,6 +270,9 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
           ? ((profileRow.terms_version as string | null) ?? undefined)
           : legalConfig.termsVersion,
         marketingEmailsConsent: (profileRow.marketing_emails_consent as boolean | null) ?? false,
+        onboardingCompletedAt: Object.prototype.hasOwnProperty.call(profileRow, 'onboarding_completed_at')
+          ? ((profileRow.onboarding_completed_at as string | null) ?? null)
+          : undefined,
         isAdmin: false,
       };
 
@@ -263,7 +285,16 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         // migration 021 non appliquée ou RPC indisponible
       }
 
-      setUser(appUser);
+      setUser((prev) => ({
+        ...appUser,
+        onboardingCompletedAt:
+          appUser.onboardingCompletedAt !== undefined
+            ? appUser.onboardingCompletedAt
+            : prev && String(prev.id) === String(appUser.id)
+              ? prev.onboardingCompletedAt
+              : undefined,
+      }));
+      if (appUser.onboardingCompletedAt === undefined) attachOnboardingFlag(authUser.id);
       touchLastSeen(authUser.id);
 
       if (!isInAppNotificationsColumnMissing()) {
@@ -317,6 +348,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
         isAdmin: false,
         avatarUrl: getOAuthAvatarUrl(meta),
       });
+      attachOnboardingFlag(authUser.id);
     } finally {
       setLoading(false);
     }
@@ -387,6 +419,7 @@ export const SupabaseAuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     setPendingLogoutRedirect(true);
+    endOnboardingSession();
     clearPostLoginPath();
     const { error } = await supabase.auth.signOut();
     // Après suppression de compte ou session déjà révoquée, le logout global renvoie 403 :

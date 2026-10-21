@@ -16,7 +16,6 @@
 
   html {
     scroll-behavior: smooth;
-    overflow-x: hidden;
     min-height: 100dvh;
     -webkit-text-size-adjust: 100%;
   }
@@ -25,7 +24,6 @@
     margin: 0;
     min-height: 100dvh;
     width: 100%;
-    overflow-x: hidden;
     background-color: rgb(var(--color-bg));
     font-family: var(--font-sans);
     font-feature-settings: 'kern' 1, 'liga' 1;
@@ -37,7 +35,7 @@
   #root {
     min-height: 100dvh;
     width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
     min-width: 0;
   }
 
@@ -154,6 +152,16 @@
   outline: 2px solid #0284c7;
   outline-offset: 3px;
   border-radius: 0.75rem;
+  scroll-margin-top: 5.5rem;
+  scroll-margin-bottom: 18rem;
+  box-shadow: 0 0 0 6px rgba(2, 132, 199, 0.18);
+}
+
+@media (min-width: 1024px) {
+  .onboarding-target {
+    scroll-margin-bottom: 2rem;
+    box-shadow: none;
+  }
 }
 
 .menu-enter {
