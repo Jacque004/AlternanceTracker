@@ -138,123 +138,151 @@ export default function RhythmCalendarPage() {
           </div>
 
           <fieldset>
-            <legend className="text-sm font-medium text-gray-800">Rythme par semaine</legend>
-            <div className="mt-2 flex flex-col gap-2">
-              {DAY_PRESETS.map((preset) => {
-                const active =
-                  config.mode === 'days' &&
-                  preset.schoolWeekdays.join() === [...config.schoolWeekdays].sort((a, b) => a - b).join();
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => update({ mode: 'days', schoolWeekdays: preset.schoolWeekdays })}
-                    className={`min-h-[44px] rounded-lg border px-3 py-2 text-left text-sm ${
-                      active
-                        ? 'border-primary-500 bg-primary-50 text-primary-900'
-                        : 'border-gray-200 text-gray-800 hover:bg-gray-50'
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                );
-              })}
+            <legend className="text-sm font-medium text-gray-800">Type de rythme</legend>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {(
+                [
+                  ['days', 'Jours fixes'],
+                  ['weeks', 'Semaines'],
+                ] as const
+              ).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={config.mode === mode}
+                  onClick={() => update({ mode })}
+                  className={`min-h-[44px] rounded-lg border px-3 text-sm font-medium ${
+                    config.mode === mode
+                      ? 'border-primary-500 bg-primary-50 text-primary-900'
+                      : 'border-gray-200 text-gray-800 hover:bg-gray-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
+            <p className="mt-2 text-xs text-gray-500">
+              {config.mode === 'days'
+                ? 'Les mêmes jours chaque semaine, par exemple lundi et mardi à l’école.'
+                : 'Des blocs qui alternent, par exemple une semaine à l’école puis une en entreprise.'}
+            </p>
           </fieldset>
 
           {config.mode === 'days' ? (
-            <fieldset>
-              <legend className="text-sm font-medium text-gray-800">Jours à l&apos;école</legend>
-              <div className="mt-2 grid grid-cols-5 gap-1.5">
-                {WEEKDAY_BUTTONS.map((button) => {
-                  const on = config.schoolWeekdays.includes(button.day);
-                  return (
+            <>
+              <fieldset>
+                <legend className="text-sm font-medium text-gray-800">Rythme habituel</legend>
+                <div className="mt-2 flex flex-col gap-2">
+                  {DAY_PRESETS.map((preset) => {
+                    const active =
+                      preset.schoolWeekdays.join() === [...config.schoolWeekdays].sort((a, b) => a - b).join();
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => update({ mode: 'days', schoolWeekdays: preset.schoolWeekdays })}
+                        className={`min-h-[44px] rounded-lg border px-3 py-2 text-left text-sm ${
+                          active
+                            ? 'border-primary-500 bg-primary-50 text-primary-900'
+                            : 'border-gray-200 text-gray-800 hover:bg-gray-50'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+              <fieldset>
+                <legend className="text-sm font-medium text-gray-800">Jours à l&apos;école</legend>
+                <div className="mt-2 grid grid-cols-5 gap-1.5">
+                  {WEEKDAY_BUTTONS.map((button) => {
+                    const on = config.schoolWeekdays.includes(button.day);
+                    return (
+                      <button
+                        key={button.day}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() =>
+                          update({ mode: 'days', schoolWeekdays: toggleSchoolWeekday(config.schoolWeekdays, button.day) })
+                        }
+                        className={`min-h-[44px] rounded-lg border text-sm font-medium ${
+                          on
+                            ? 'border-indigo-400 bg-indigo-100 text-indigo-950'
+                            : 'border-emerald-300 bg-emerald-50 text-emerald-950'
+                        }`}
+                      >
+                        {button.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  École : {weekdayNames(config.schoolWeekdays)}. Entreprise :{' '}
+                  {weekdayNames(companyWeekdays(config.schoolWeekdays))}. Au moins un jour de chaque.
+                </p>
+              </fieldset>
+            </>
+          ) : (
+            <>
+              <fieldset>
+                <legend className="text-sm font-medium text-gray-800">Blocs</legend>
+                <div className="mt-2 flex flex-col gap-2">
+                  {WEEK_PRESETS.map((preset) => {
+                    const active =
+                      config.schoolWeeks === preset.schoolWeeks && config.companyWeeks === preset.companyWeeks;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() =>
+                          update({
+                            mode: 'weeks',
+                            schoolWeeks: preset.schoolWeeks,
+                            companyWeeks: preset.companyWeeks,
+                          })
+                        }
+                        className={`min-h-[44px] rounded-lg border px-3 py-2 text-left text-sm ${
+                          active
+                            ? 'border-primary-500 bg-primary-50 text-primary-900'
+                            : 'border-gray-200 text-gray-800 hover:bg-gray-50'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+              <fieldset>
+                <legend className="text-sm font-medium text-gray-800">La première semaine du contrat</legend>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      ['school', "À l'école"],
+                      ['company', 'En entreprise'],
+                    ] as const
+                  ).map(([value, label]) => (
                     <button
-                      key={button.day}
+                      key={value}
                       type="button"
-                      aria-pressed={on}
-                      onClick={() =>
-                        update({ mode: 'days', schoolWeekdays: toggleSchoolWeekday(config.schoolWeekdays, button.day) })
-                      }
-                      className={`min-h-[44px] rounded-lg border text-sm font-medium ${
-                        on
-                          ? 'border-indigo-400 bg-indigo-100 text-indigo-950'
-                          : 'border-emerald-300 bg-emerald-50 text-emerald-950'
+                      aria-pressed={config.firstBlock === value}
+                      onClick={() => update({ firstBlock: value })}
+                      className={`min-h-[44px] rounded-lg border px-3 text-sm ${
+                        config.firstBlock === value
+                          ? 'border-primary-500 bg-primary-50 text-primary-900'
+                          : 'border-gray-200 text-gray-800 hover:bg-gray-50'
                       }`}
                     >
-                      {button.label}
+                      {label}
                     </button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-xs text-gray-500">
-                École : {weekdayNames(config.schoolWeekdays)}. Entreprise :{' '}
-                {weekdayNames(companyWeekdays(config.schoolWeekdays))}. Au moins un jour de chaque.
-              </p>
-            </fieldset>
-          ) : null}
-
-          <fieldset>
-            <legend className="text-sm font-medium text-gray-800">Rythme par blocs de semaines</legend>
-            <div className="mt-2 flex flex-col gap-2">
-              {WEEK_PRESETS.map((preset) => {
-                const active =
-                  config.mode === 'weeks' &&
-                  config.schoolWeeks === preset.schoolWeeks &&
-                  config.companyWeeks === preset.companyWeeks;
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() =>
-                      update({
-                        mode: 'weeks',
-                        schoolWeeks: preset.schoolWeeks,
-                        companyWeeks: preset.companyWeeks,
-                      })
-                    }
-                    className={`min-h-[44px] rounded-lg border px-3 py-2 text-left text-sm ${
-                      active
-                        ? 'border-primary-500 bg-primary-50 text-primary-900'
-                        : 'border-gray-200 text-gray-800 hover:bg-gray-50'
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-
-          {config.mode === 'weeks' ? (
-            <fieldset>
-              <legend className="text-sm font-medium text-gray-800">La première semaine du contrat</legend>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                {(
-                  [
-                    ['school', "À l'école"],
-                    ['company', 'En entreprise'],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={config.firstBlock === value}
-                    onClick={() => update({ firstBlock: value })}
-                    className={`min-h-[44px] rounded-lg border px-3 text-sm ${
-                      config.firstBlock === value
-                        ? 'border-primary-500 bg-primary-50 text-primary-900'
-                        : 'border-gray-200 text-gray-800 hover:bg-gray-50'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-          ) : null}
+                  ))}
+                </div>
+              </fieldset>
+            </>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -349,6 +377,66 @@ export default function RhythmCalendarPage() {
             </p>
           </section>
 
+          <section className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-3">
+            <h2 className="text-lg font-semibold text-gray-900">Envoyer au recruteur</h2>
+            <p className="text-sm text-gray-600">
+              Le lien est public : toute personne qui l&apos;a peut l&apos;ouvrir. Il contient le rythme, la zone et
+              les dates. Il ne contient pas votre e-mail. Le nom et l&apos;école n&apos;y sont ajoutés que si vous
+              cochez la case ci-dessous. Rien de ce lien n&apos;est enregistré sur le serveur.
+            </p>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeIdentity}
+                onChange={(event) => {
+                  const next = event.target.checked;
+                  setIncludeIdentity(next);
+                  saveShareIdentity(next);
+                }}
+                className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm text-gray-700">
+                Inclure mon nom et mon école dans le lien. Ils resteront lisibles par quiconque ouvre l&apos;adresse.
+              </span>
+            </label>
+            <label htmlFor="rhythm-link" className="block text-sm font-medium text-gray-800">
+              Lien
+            </label>
+            <input
+              id="rhythm-link"
+              readOnly
+              value={shareUrl}
+              onFocus={(event) => event.target.select()}
+              className="input-base"
+            />
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+              <button type="button" className="btn-primary min-h-[44px]" onClick={() => copy(shareUrl, 'Lien copié')}>
+                Copier le lien
+              </button>
+              <button
+                type="button"
+                className="btn-secondary min-h-[44px]"
+                onClick={() => copy(message, 'Message copié')}
+              >
+                Copier le message
+              </button>
+              <a href={shareUrl} target="_blank" rel="noreferrer" className="btn-secondary min-h-[44px]">
+                Ouvrir la page recruteur
+              </a>
+            </div>
+            <label htmlFor="rhythm-message" className="block text-sm font-medium text-gray-800">
+              Message
+            </label>
+            <textarea
+              id="rhythm-message"
+              readOnly
+              rows={8}
+              value={message}
+              onFocus={(event) => event.target.select()}
+              className="input-base font-sans"
+            />
+          </section>
+
           <section className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-gray-900 capitalize">
@@ -420,65 +508,6 @@ export default function RhythmCalendarPage() {
             </p>
           </section>
 
-          <section className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-3">
-            <h2 className="text-lg font-semibold text-gray-900">Envoyer au recruteur</h2>
-            <p className="text-sm text-gray-600">
-              Le lien est public : toute personne qui l&apos;a peut l&apos;ouvrir. Il contient le rythme, la zone et
-              les dates. Il ne contient pas votre e-mail. Le nom et l&apos;école n&apos;y sont ajoutés que si vous
-              cochez la case ci-dessous. Rien de ce lien n&apos;est enregistré sur le serveur.
-            </p>
-            <label className="flex items-start gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={includeIdentity}
-                onChange={(event) => {
-                  const next = event.target.checked;
-                  setIncludeIdentity(next);
-                  saveShareIdentity(next);
-                }}
-                className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              <span className="text-sm text-gray-700">
-                Inclure mon nom et mon école dans le lien. Ils resteront lisibles par quiconque ouvre l&apos;adresse.
-              </span>
-            </label>
-            <label htmlFor="rhythm-link" className="block text-sm font-medium text-gray-800">
-              Lien
-            </label>
-            <input
-              id="rhythm-link"
-              readOnly
-              value={shareUrl}
-              onFocus={(event) => event.target.select()}
-              className="input-base"
-            />
-            <div className="flex flex-col sm:flex-row flex-wrap gap-2">
-              <button type="button" className="btn-primary min-h-[44px]" onClick={() => copy(shareUrl, 'Lien copié')}>
-                Copier le lien
-              </button>
-              <button
-                type="button"
-                className="btn-secondary min-h-[44px]"
-                onClick={() => copy(message, 'Message copié')}
-              >
-                Copier le message
-              </button>
-              <a href={shareUrl} target="_blank" rel="noreferrer" className="btn-secondary min-h-[44px]">
-                Ouvrir la page recruteur
-              </a>
-            </div>
-            <label htmlFor="rhythm-message" className="block text-sm font-medium text-gray-800">
-              Message
-            </label>
-            <textarea
-              id="rhythm-message"
-              readOnly
-              rows={8}
-              value={message}
-              onFocus={(event) => event.target.select()}
-              className="input-base font-sans"
-            />
-          </section>
         </div>
       </div>
     </div>

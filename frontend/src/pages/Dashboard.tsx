@@ -93,6 +93,8 @@ const Dashboard = () => {
     upcomingQuery.error,
   ]);
 
+  const firstName = user?.firstName?.trim();
+
   const handleMarkRelance = async (id: number) => {
     setMarkingId(id);
     setOptimisticRelanceIds((prev) => [...prev, id]);
@@ -110,113 +112,43 @@ const Dashboard = () => {
 
   return (
     <div className="max-w-5xl mx-auto stack-page page-shell">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Tableau de bord</h1>
-        <p className="mt-1 text-sm sm:text-base text-gray-600">Vue d'ensemble de vos candidatures et accès rapides.</p>
-      </div>
-
-      {/* Liens rapides */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Tableau de bord</h1>
+          <p className="mt-1 text-sm sm:text-base text-gray-600">
+            {firstName ? `Bonjour ${firstName}. ` : null}
+            Ce qu’il reste à faire cette semaine, puis vos dernières candidatures.
+          </p>
+        </div>
         <Link
           to="/applications/new"
-          className="block p-3 sm:p-4 min-h-[44px] bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
+          className="btn-primary min-h-[44px] w-full sm:w-auto"
         >
-          <p className="font-semibold text-gray-900">Ajouter une candidature</p>
-          <p className="text-sm text-gray-500 mt-0.5">Enregistrer une nouvelle candidature</p>
-        </Link>
-        <Link
-          to="/applications"
-          className="block p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
-        >
-          <p className="font-semibold text-gray-900">Mes candidatures</p>
-          <p className="text-sm text-gray-500 mt-0.5">Voir et gérer la liste</p>
-        </Link>
-        <Link
-          to="/rythme"
-          className="block p-3 sm:p-4 bg-white rounded-xl border border-emerald-200 card-hover hover:border-emerald-300"
-        >
-          <p className="font-semibold text-gray-900">Calendrier de rythme</p>
-          <p className="text-sm text-gray-500 mt-0.5">Jours école et entreprise à envoyer</p>
-        </Link>
-        <Link
-          to="/preparer/lettres"
-          className="block p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
-        >
-          <p className="font-semibold text-gray-900">Modèles de lettres</p>
-          <p className="text-sm text-gray-500 mt-0.5">Lettres par type d'entreprise</p>
-        </Link>
-        <Link
-          to="/preparer/conseils"
-          className="block p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
-        >
-          <p className="font-semibold text-gray-900">Coaching</p>
-          <p className="text-sm text-gray-500 mt-0.5">Techniques pour décrocher l'alternance</p>
-        </Link>
-        <Link
-          to="/preparer/cv"
-          className="block p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
-        >
-          <p className="font-semibold text-gray-900">Conseils CV</p>
-          <p className="text-sm text-gray-500 mt-0.5">Améliorer son CV avec l'IA</p>
-        </Link>
-        <Link
-          to="/preparer/analyser-offre"
-          className="block p-3 sm:p-4 bg-white rounded-xl border border-gray-200 card-hover hover:border-primary-300"
-        >
-          <p className="font-semibold text-gray-900">Analyser une offre</p>
-          <p className="text-sm text-gray-500 mt-0.5">Conseils pour candidater à une offre</p>
+          Ajouter une candidature
         </Link>
       </div>
 
-      <div className="bg-white rounded-xl shadow-card border border-gray-200 overflow-hidden">
-        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-gray-900">Dernières candidatures</h2>
-          <Link to="/applications" className="text-sm font-medium text-primary-600 hover:text-primary-700">
-            Voir tout
+      <nav aria-label="Accès rapides" className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        {[
+          { to: '/offres', title: 'Offres', text: 'Annonces d’entreprises', accent: false },
+          { to: '/applications', title: 'Candidatures', text: 'Kanban et liste', accent: false },
+          { to: '/rythme', title: 'Rythme', text: 'À envoyer au recruteur', accent: true },
+          { to: '/preparer', title: 'Préparer', text: 'CV, lettres, entretien', accent: false },
+        ].map((item) => (
+          <Link
+            key={item.to}
+            to={item.to}
+            className={`block rounded-xl border bg-white px-3 py-3 min-h-[44px] card-hover ${
+              item.accent
+                ? 'border-emerald-200 hover:border-emerald-300'
+                : 'border-gray-200 hover:border-primary-300'
+            }`}
+          >
+            <p className="font-semibold text-gray-900">{item.title}</p>
+            <p className="text-sm text-gray-500 mt-0.5">{item.text}</p>
           </Link>
-        </div>
-        <div className="p-4 sm:p-6">
-          {recentLoading ? (
-            <SkeletonList lines={5} />
-          ) : recentQuery.isError ? (
-            <p className="text-sm text-gray-600">Impossible de charger les dernières candidatures.</p>
-          ) : recent.length === 0 ? (
-            <EmptyState
-              compact
-              title="Aucune candidature récente"
-              description="Ajoutez une candidature pour la voir apparaître ici avec son statut."
-              icon="📭"
-              className="border-gray-100 bg-white"
-            >
-              <Link
-                to="/applications/new"
-                className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 min-h-[44px]"
-              >
-                Ajouter une candidature
-              </Link>
-            </EmptyState>
-          ) : (
-            <ul className="divide-y divide-gray-200">
-              {recent.map((app) => (
-                <li key={app.id}>
-                  <Link
-                    to={`/applications/${app.id}/edit`}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 hover:bg-gray-50 -mx-2 px-2 rounded"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium text-gray-900">{app.companyName}</p>
-                      <p className="text-sm text-gray-500 break-words">{app.position}</p>
-                    </div>
-                    <span className={`text-sm font-medium px-2 py-0.5 rounded ${applicationStatusBadgeClass(app.status)}`}>
-                      {applicationStatusLabel(app.status)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+        ))}
+      </nav>
 
       {/* À faire cette semaine */}
       {detailsReady && statsLoading ? (
@@ -250,21 +182,6 @@ const Dashboard = () => {
         />
       ) : null}
 
-      {/* Statistiques */}
-      {detailsReady && statsLoading ? (
-        <SkeletonCharts count={2} />
-      ) : stats ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ApplicationsStatusChart
-            counts={stats.statusDistribution}
-            total={stats.total}
-          />
-          {stats.monthlyData.length > 0 ? (
-            <ApplicationsMonthlyChart monthlyData={stats.monthlyData} />
-          ) : null}
-        </div>
-      ) : null}
-
       {/* Entretiens à venir */}
       {upcomingInterviews.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6">
@@ -272,7 +189,7 @@ const Dashboard = () => {
             <span>📅</span> Entretiens à venir
           </h2>
           <p className="text-sm text-blue-800 mt-1">
-            Pensez à vous préparer. Un rappel la veille ou le jour J pourra être ajouté (notifications par email à venir).
+            Ouvrez la fiche pour revoir le lieu, l’heure et préparer l’entretien.
           </p>
           <ul className="mt-4 space-y-2">
             {upcomingInterviews.map((app) => (
@@ -391,6 +308,76 @@ const Dashboard = () => {
               </span>
             </Link>
           </div>
+        </div>
+      ) : null}
+      <div className="bg-white rounded-xl shadow-card border border-gray-200 overflow-hidden">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-gray-900">Dernières candidatures</h2>
+          <Link to="/applications" className="text-sm font-medium text-primary-600 hover:text-primary-700">
+            Voir tout
+          </Link>
+        </div>
+        <div className="p-4 sm:p-6">
+          {recentLoading ? (
+            <SkeletonList lines={5} />
+          ) : recentQuery.isError ? (
+            <p className="text-sm text-gray-600">Impossible de charger les dernières candidatures.</p>
+          ) : recent.length === 0 ? (
+            <EmptyState
+              compact
+              title="Aucune candidature récente"
+              description="Enregistrez une candidature, ou partez d’une offre d’entreprise."
+              icon="📭"
+              className="border-gray-100 bg-white"
+            >
+              <Link
+                to="/applications/new"
+                className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 min-h-[44px]"
+              >
+                Ajouter une candidature
+              </Link>
+              <Link
+                to="/offres"
+                className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium text-primary-700 bg-white border border-primary-200 hover:bg-primary-50 min-h-[44px]"
+              >
+                Voir les offres
+              </Link>
+            </EmptyState>
+          ) : (
+            <ul className="divide-y divide-gray-200">
+              {recent.map((app) => (
+                <li key={app.id}>
+                  <Link
+                    to={`/applications/${app.id}/edit`}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 hover:bg-gray-50 -mx-2 px-2 rounded"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900">{app.companyName}</p>
+                      <p className="text-sm text-gray-500 break-words">{app.position}</p>
+                    </div>
+                    <span className={`text-sm font-medium px-2 py-0.5 rounded ${applicationStatusBadgeClass(app.status)}`}>
+                      {applicationStatusLabel(app.status)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Statistiques */}
+      {detailsReady && statsLoading ? (
+        <SkeletonCharts count={2} />
+      ) : stats ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ApplicationsStatusChart
+            counts={stats.statusDistribution}
+            total={stats.total}
+          />
+          {stats.monthlyData.length > 0 ? (
+            <ApplicationsMonthlyChart monthlyData={stats.monthlyData} />
+          ) : null}
         </div>
       ) : null}
     </div>

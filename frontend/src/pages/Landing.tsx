@@ -10,9 +10,7 @@ export default function Landing() {
         </h1>
 
         <p className="text-base sm:text-lg text-gray-600">
-          Organisez vos candidatures, préparez votre CV et vos lettres, et gagnez du temps avec des conseils ciblés.
-          <br />
-          <span className="font-medium text-gray-800">Pour tester les fonctionnalités, créez un compte.</span>
+          Suivez vos candidatures, trouvez des offres d’entreprises, et envoyez votre rythme d’alternance à un recruteur.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3">
@@ -33,32 +31,32 @@ export default function Landing() {
 
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-2">
-          <h2 className="font-semibold text-gray-900">Mes candidatures</h2>
-          <p className="text-sm text-gray-600">Suivez les statuts, relances et entretiens depuis un seul endroit.</p>
+          <h2 className="font-semibold text-gray-900">Suivi des candidatures</h2>
+          <p className="text-sm text-gray-600">Statuts, relances et entretiens au même endroit, en liste ou en colonnes.</p>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-2">
-          <h2 className="font-semibold text-gray-900">Conseils CV & lettres</h2>
-          <p className="text-sm text-gray-600">Améliorez votre dossier grâce à des recommandations structurées.</p>
+          <h2 className="font-semibold text-gray-900">Offres d’entreprises</h2>
+          <p className="text-sm text-gray-600">Des annonces d’alternance et de stage, filtrées selon votre profil.</p>
+        </div>
+
+        <div className="bg-white rounded-xl border border-emerald-200 shadow-card p-4 sm:p-5 space-y-2">
+          <h2 className="font-semibold text-gray-900">Calendrier de rythme</h2>
+          <p className="text-sm text-gray-600">Jours d’école et d’entreprise sur 12 ou 24 mois, avec un lien pour le recruteur.</p>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-2">
-          <h2 className="font-semibold text-gray-900">Analyse d’offre</h2>
-          <p className="text-sm text-gray-600">Obtenez des conseils pour mieux cibler votre candidature.</p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-2">
-          <h2 className="font-semibold text-gray-900">Coaching & préparation</h2>
-          <p className="text-sm text-gray-600">Des ressources pour vous préparer aux entretiens.</p>
+          <h2 className="font-semibold text-gray-900">CV, lettres, entretien</h2>
+          <p className="text-sm text-gray-600">Un dossier préparé à partir de l’offre, pas une liste de conseils génériques.</p>
         </div>
       </section>
 
       <section className="bg-gradient-to-b from-primary-50 to-white rounded-2xl border border-primary-100 p-5 sm:p-6">
-        <h3 className="text-lg font-semibold text-gray-900">En 3 étapes</h3>
+        <h2 className="text-lg font-semibold text-gray-900">En 3 étapes</h2>
         <ol className="mt-3 space-y-2 text-sm text-gray-700 list-decimal list-inside">
-          <li>Créez votre compte (1 minute).</li>
-          <li>Complétez Mon espace.</li>
-          <li>Commencez à tester : candidatures, analyses, lettres.</li>
+          <li>Créez un compte.</li>
+          <li>Enregistrez vos candidatures, ou partez d’une offre.</li>
+          <li>Préparez le dossier et partagez votre rythme avant l’entretien.</li>
         </ol>
       </section>
     </div>

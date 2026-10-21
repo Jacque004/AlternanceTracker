@@ -26,27 +26,27 @@ const steps: {
   },
   {
     id: 2,
-    title: 'Mes candidatures',
+    title: 'Candidatures et offres',
     description:
-      'Allez dans « Candidatures » pour ajouter vos candidatures, mettre à jour les statuts et suivre vos relances.',
-    ctaLabel: 'Ouvrir Mes candidatures',
-    ctaTo: '/applications',
+      'Dans « Offres », partez d’une annonce d’entreprise. Dans « Candidatures », suivez le statut, les relances et les entretiens.',
+    ctaLabel: 'Voir les offres',
+    ctaTo: '/offres',
   },
   {
     id: 3,
-    title: 'Préparer CV et lettres',
+    title: 'Préparer le dossier',
     description:
-      'Dans « Préparer », vous trouvez les conseils CV, l’analyse et la génération de lettres avec l’IA.',
-    ctaLabel: 'Voir Préparer',
+      'Dans « Préparer », vous trouvez le CV, les lettres, l’analyse d’une offre et les conseils d’entretien.',
+    ctaLabel: 'Ouvrir Préparer',
     ctaTo: '/preparer/cv',
   },
   {
     id: 4,
-    title: 'Calendrier & Mon espace',
+    title: 'Agenda et rythme',
     description:
-      'Utilisez le calendrier pour voir les relances et entretiens à venir, et renseignez Mon espace pour des conseils plus personnalisés.',
-    ctaLabel: 'Aller au calendrier',
-    ctaTo: '/calendar',
+      'Le calendrier montre les entretiens. Depuis l’accueil, le calendrier de rythme se partage avec un recruteur, sans créer de compte.',
+    ctaLabel: 'Préparer mon rythme',
+    ctaTo: '/rythme',
   },
 ];
 

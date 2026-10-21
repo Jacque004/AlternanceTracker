@@ -96,6 +96,7 @@ export default function JobOffersPage() {
   const [draftSearch, setDraftSearch] = useState(params.search ?? '');
   const [draftLocation, setDraftLocation] = useState(params.location ?? '');
   const [fromProfile, setFromProfile] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [profileReady, setProfileReady] = useState(() => searchParams.toString() !== '');
   const profileFiltersApplied = useRef(false);
   const { user } = useSupabaseAuth();
@@ -183,6 +184,52 @@ export default function JobOffersPage() {
       params.source ||
       params.contract
   );
+  const advancedCount = [
+    params.domain,
+    params.educationLevel,
+    params.remote,
+    params.publishedWithin,
+    params.source,
+    params.contract,
+  ].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setDraftSearch('');
+    setDraftLocation('');
+    setFromProfile(false);
+    setSearchParams(new URLSearchParams());
+  };
+
+  const chips: { key: string; label: string; patch: Record<string, string> }[] = [];
+  if (params.search) chips.push({ key: 'q', label: params.search, patch: { q: '' } });
+  if (params.location) chips.push({ key: 'location', label: params.location, patch: { location: '' } });
+  if (params.domain) chips.push({ key: 'domain', label: params.domain, patch: { domain: '' } });
+  if (params.educationLevel) {
+    chips.push({ key: 'education', label: params.educationLevel, patch: { education: '' } });
+  }
+  if (params.remote) {
+    chips.push({
+      key: 'remote',
+      label: params.remote === 'yes' ? 'Télétravail' : 'Sur site',
+      patch: { remote: '' },
+    });
+  }
+  if (params.publishedWithin === '1' || params.publishedWithin === '7' || params.publishedWithin === '30') {
+    const publishedLabels = { '1': 'Dernières 24 h', '7': '7 derniers jours', '30': '30 derniers jours' };
+    chips.push({
+      key: 'published',
+      label: publishedLabels[params.publishedWithin],
+      patch: { published: '' },
+    });
+  }
+  if (params.contract) {
+    chips.push({
+      key: 'contrat',
+      label: params.contract === 'stage' ? 'Stage' : 'Alternance',
+      patch: { contrat: '' },
+    });
+  }
+  if (params.source) chips.push({ key: 'source', label: sourceLabel(params.source), patch: { source: '' } });
 
   useEffect(() => {
     if (!offersQuery.data) return;
@@ -199,7 +246,7 @@ export default function JobOffersPage() {
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Offres d’emploi</h1>
         <p className="mt-1 text-sm sm:text-base text-gray-600">
-          Trouve ton alternance parmi plusieurs sources.
+          Alternances et stages publiés par des entreprises. Affinez seulement si la liste est trop large.
         </p>
         {fromProfile ? (
           <p className="mt-2 text-sm text-gray-600">
@@ -234,7 +281,7 @@ export default function JobOffersPage() {
             />
           </label>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className={`${filtersOpen ? 'grid' : 'hidden'} lg:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3`}>
           <label className="block text-sm text-gray-600">
             Domaine
             <select className={`${fieldClass} mt-1`} value={params.domain || ''} onChange={(event) => commit({ domain: event.target.value })}>
@@ -288,12 +335,52 @@ export default function JobOffersPage() {
             </select>
           </label>
         </div>
-        <button
-          type="submit"
-          className="inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
-        >
-          Rechercher
-        </button>
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+          <button
+            type="submit"
+            className="inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
+          >
+            Rechercher
+          </button>
+          <button
+            type="button"
+            className="lg:hidden inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700"
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen((open) => !open)}
+          >
+            {filtersOpen ? 'Masquer les filtres' : `Affiner${advancedCount > 0 ? ` (${advancedCount})` : ''}`}
+          </button>
+          {hasFilters ? (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center justify-center px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Effacer les filtres
+            </button>
+          ) : null}
+        </div>
+        {chips.length > 0 ? (
+          <ul className="flex flex-wrap gap-2" aria-label="Filtres actifs">
+            {chips.map((chip) => (
+              <li key={chip.key}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (chip.key === 'q') setDraftSearch('');
+                    if (chip.key === 'location') setDraftLocation('');
+                    commit(chip.patch);
+                  }}
+                  className="inline-flex items-center gap-1.5 max-w-full min-h-[44px] rounded-full bg-primary-50 px-3 py-1 text-sm text-primary-900 hover:bg-primary-100"
+                >
+                  <span className="truncate">{chip.label}</span>
+                  <span aria-hidden>×</span>
+                  <span className="sr-only">Retirer {chip.label}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </form>
 
       {offersQuery.isError ? (
@@ -314,14 +401,15 @@ export default function JobOffersPage() {
           title="Aucune offre trouvée."
           description={
             hasFilters
-              ? 'Essayez de modifier vos critères de recherche.'
-              : 'Les annonces réelles viennent de l’API officielle La bonne alternance. Créez un jeton gratuit sur leur espace développeurs, puis lancez la collecte.'
+              ? 'Élargissez le lieu, le domaine ou la période, ou effacez les filtres.'
+              : 'Aucune annonce n’est disponible pour le moment. Réessayez un peu plus tard.'
           }
         />
       ) : (
         <>
-          <p className="text-sm text-gray-500">
-            {total} offre{total > 1 ? 's' : ''} · page {page} / {pageCount}
+          <p className="text-sm text-gray-600">
+            <span className="font-medium text-gray-900">{total}</span> offre{total > 1 ? 's' : ''}
+            {pageCount > 1 ? ` · page ${page} sur ${pageCount}` : ''}
           </p>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {offers.map((offer) => (
