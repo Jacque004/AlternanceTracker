@@ -119,7 +119,7 @@ export default function RhythmCalendarPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] gap-5 lg:gap-8 lg:items-start">
-        <section className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-5">
+        <section data-tour="rhythm-settings" className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-5">
           <div>
             <label htmlFor="rhythm-zone" className="block text-sm font-medium text-gray-800">
               Zone de vacances
@@ -377,7 +377,7 @@ export default function RhythmCalendarPage() {
             </p>
           </section>
 
-          <section className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-3">
+          <section data-tour="rhythm-share" className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-3">
             <h2 className="text-lg font-semibold text-gray-900">Envoyer au recruteur</h2>
             <p className="text-sm text-gray-600">
               Le lien est public : toute personne qui l&apos;a peut l&apos;ouvrir. Il contient le rythme, la zone et

@@ -231,6 +231,7 @@ export default function CalendarPage() {
 
       <Link
         to="/rythme"
+        data-tour="calendar-rhythm"
         className="block rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 hover:border-emerald-300"
       >
         <p className="font-semibold text-gray-900">Calendrier de rythme à envoyer à une entreprise</p>

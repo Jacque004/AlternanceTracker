@@ -1,10 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom';
 
 const tabs = [
-  { to: '/preparer/cv', label: 'Mon CV', shortLabel: 'CV' },
-  { to: '/preparer/lettres', label: 'Lettres', shortLabel: 'Lettres' },
-  { to: '/preparer/analyser-offre', label: 'Analyser une offre', shortLabel: 'Offre' },
-  { to: '/preparer/conseils', label: 'Conseils', shortLabel: 'Conseils' },
+  { to: '/preparer/cv', label: 'Mon CV', shortLabel: 'CV', tour: 'preparer-cv' },
+  { to: '/preparer/lettres', label: 'Lettres', shortLabel: 'Lettres', tour: 'preparer-lettres' },
+  { to: '/preparer/analyser-offre', label: 'Analyser une offre', shortLabel: 'Offre', tour: 'preparer-analyser' },
+  { to: '/preparer/conseils', label: 'Conseils', shortLabel: 'Conseils', tour: 'preparer-conseils' },
 ];
 
 export default function PreparerLayout() {
@@ -24,10 +24,11 @@ export default function PreparerLayout() {
         aria-label="Sections Préparer"
       >
         <ul className="flex gap-1 min-w-max sm:min-w-0 sm:w-full">
-          {tabs.map(({ to, label, shortLabel }) => (
+          {tabs.map(({ to, label, shortLabel, tour }) => (
             <li key={to} className="flex-none min-w-[5.5rem] sm:flex-1 sm:min-w-0">
               <NavLink
                 to={to}
+                data-tour={tour}
                 end={false}
                 className={({ isActive }) =>
                   `flex w-full items-center justify-center text-center px-3 sm:px-4 py-2.5 sm:py-3 min-h-[44px] text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap ${

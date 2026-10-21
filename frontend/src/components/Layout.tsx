@@ -3,7 +3,12 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import PageTransition from './PageTransition';
 import Footer from './Footer';
-import OnboardingTour, { shouldShowOnboarding, markOnboardingDone } from './OnboardingTour';
+import OnboardingTour, {
+  ONBOARDING_REPLAY_EVENT,
+  markOnboardingDone,
+  replayOnboarding,
+  shouldShowOnboarding,
+} from './OnboardingTour';
 import NotificationBell from './NotificationBell';
 import HeaderUserBadge from './HeaderUserBadge';
 import Logo from './Logo';
@@ -14,12 +19,12 @@ import { NotificationsProvider } from '../contexts/NotificationsContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
 const navItems = [
-  { to: '/', label: 'Accueil', match: (path: string) => path === '/' },
-  { to: '/applications', label: 'Candidatures', match: (path: string) => path.startsWith('/applications') },
-  { to: '/offres', label: 'Offres d’emploi', match: (path: string) => path.startsWith('/offres') },
-  { to: '/calendar', label: 'Calendrier', match: (path: string) => path.startsWith('/calendar') },
-  { to: '/preparer', label: 'Préparer', match: (path: string) => path.startsWith('/preparer') },
-  { to: '/a-propos', label: 'À propos', match: (path: string) => path === '/a-propos' },
+  { to: '/', label: 'Accueil', tour: 'nav-home', match: (path: string) => path === '/' },
+  { to: '/applications', label: 'Candidatures', tour: 'nav-applications', match: (path: string) => path.startsWith('/applications') },
+  { to: '/offres', label: 'Offres d’emploi', tour: 'nav-offers', match: (path: string) => path.startsWith('/offres') },
+  { to: '/calendar', label: 'Calendrier', tour: 'nav-calendar', match: (path: string) => path.startsWith('/calendar') },
+  { to: '/preparer', label: 'Préparer', tour: 'nav-preparer', match: (path: string) => path.startsWith('/preparer') },
+  { to: '/a-propos', label: 'À propos', tour: '', match: (path: string) => path === '/a-propos' },
 ];
 
 const Layout = () => {
@@ -27,6 +32,8 @@ const Layout = () => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingRun, setOnboardingRun] = useState(0);
+  const [onboardingFromHome, setOnboardingFromHome] = useState(false);
   const mobileMenuPanelRef = useRef<HTMLDivElement>(null);
   const mobileNavToggleRef = useRef<HTMLButtonElement>(null);
   const skipMobileFocusRestoreRef = useRef(false);
@@ -68,6 +75,16 @@ const Layout = () => {
       setShowOnboarding(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    const onReplay = () => {
+      setOnboardingFromHome(true);
+      setOnboardingRun((run) => run + 1);
+      setShowOnboarding(true);
+    };
+    window.addEventListener(ONBOARDING_REPLAY_EVENT, onReplay);
+    return () => window.removeEventListener(ONBOARDING_REPLAY_EVENT, onReplay);
+  }, []);
 
   useEffect(() => {
     if (mobileOpen) {
@@ -119,12 +136,13 @@ const Layout = () => {
             </Link>
               {user ? (
                 <nav className="hidden lg:flex lg:gap-0.5 lg:flex-1 lg:justify-center lg:px-2 min-w-0" aria-label="Navigation principale">
-                  {navItems.map(({ to, label, match }) => {
+                  {navItems.map(({ to, label, match, tour }) => {
                     const active = match(location.pathname);
                     return (
                       <Link
                         key={to}
                         to={to}
+                        data-tour={tour || undefined}
                         aria-current={active ? 'page' : undefined}
                         className={`px-2.5 xl:px-3 py-2.5 text-sm font-medium rounded-lg whitespace-nowrap transition-all duration-200 ${
                           active
@@ -141,6 +159,13 @@ const Layout = () => {
 
             {user ? (
               <div className="hidden lg:flex lg:items-center lg:gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => replayOnboarding()}
+                  className="px-2.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                >
+                  Guide
+                </button>
                 <NotificationBell />
                 <HeaderUserBadge user={user} />
               </div>
@@ -215,11 +240,22 @@ const Layout = () => {
                   </Link>
                   <Link
                     to="/profile"
+                    data-tour="nav-profile"
                     onClick={closeMobileNavFromAction}
                     className={linkClass(location.pathname.startsWith('/profile'))}
                   >
                     Mon espace
                   </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeMobileNavFromAction();
+                      replayOnboarding();
+                    }}
+                    className={linkClass(false)}
+                  >
+                    Guide
+                  </button>
                 </>
               ) : null}
 
@@ -264,17 +300,25 @@ const Layout = () => {
 
       {showOnboarding && !blockApp && (
         <OnboardingTour
+          key={onboardingRun}
           enabled={showOnboarding}
+          startAtHome={onboardingFromHome}
+          hidden={mobileOpen}
           onFinish={() => {
             markOnboardingDone();
             setShowOnboarding(false);
+            setOnboardingFromHome(false);
           }}
         />
       )}
 
       <main
         id="main"
-        className="flex-1 min-w-0 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-safe box-border overflow-x-hidden"
+        className={`flex-1 min-w-0 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 box-border overflow-x-hidden ${
+          showOnboarding && !blockApp
+            ? 'pb-[calc(13rem+env(safe-area-inset-bottom,0px))] lg:pb-16'
+            : 'pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-safe'
+        }`}
         role="main"
       >
         {blockApp ? (

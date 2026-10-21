@@ -4,6 +4,7 @@ const tabs = [
   {
     to: '/',
     label: 'Accueil',
+    tour: 'nav-home',
     match: (path: string) => path === '/',
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -14,6 +15,7 @@ const tabs = [
   {
     to: '/applications',
     label: 'Suivi',
+    tour: 'nav-applications',
     match: (path: string) => path.startsWith('/applications'),
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -24,6 +26,7 @@ const tabs = [
   {
     to: '/offres',
     label: 'Offres',
+    tour: 'nav-offers',
     match: (path: string) => path.startsWith('/offres'),
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -35,6 +38,7 @@ const tabs = [
   {
     to: '/calendar',
     label: 'Agenda',
+    tour: 'nav-calendar',
     match: (path: string) => path.startsWith('/calendar'),
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -45,6 +49,7 @@ const tabs = [
   {
     to: '/preparer',
     label: 'Préparer',
+    tour: 'nav-preparer',
     match: (path: string) => path.startsWith('/preparer'),
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -63,12 +68,13 @@ export default function MobileBottomNav() {
       aria-label="Navigation mobile"
     >
       <ul className="grid grid-cols-5 max-w-lg mx-auto">
-        {tabs.map(({ to, label, match, icon }) => {
+        {tabs.map(({ to, label, match, icon, tour }) => {
           const active = match(location.pathname);
           return (
             <li key={to}>
               <Link
                 to={to}
+                data-tour={tour}
                 aria-current={active ? 'page' : undefined}
                 className={`flex flex-col items-center justify-center gap-0.5 min-h-[56px] px-1 text-[11px] font-medium ${
                   active ? 'text-primary-700' : 'text-gray-500'

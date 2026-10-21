@@ -128,7 +128,7 @@ const Dashboard = () => {
         </Link>
       </div>
 
-      <nav aria-label="Accès rapides" className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+      <nav aria-label="Accès rapides" data-tour="home-shortcuts" className="grid grid-cols-2 lg:grid-cols-4 gap-2">
         {[
           { to: '/offres', title: 'Offres', text: 'Annonces d’entreprises', accent: false },
           { to: '/applications', title: 'Candidatures', text: 'Kanban et liste', accent: false },

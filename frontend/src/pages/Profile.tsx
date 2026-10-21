@@ -8,6 +8,7 @@ import { userFacingErrorMessage } from '../utils/errorMessage';
 import { rgpdService } from '../services/supabaseService';
 import { clearRhythmLocalData } from '../utils/rhythmCalendar';
 import { formatDateForInput, formatDisplayDate, formatLocalDateIso } from '../utils/dateDisplay';
+import { replayOnboarding } from '../components/OnboardingTour';
 
 const AVATAR_BUCKET = 'avatars';
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
@@ -249,6 +250,13 @@ const Profile = () => {
               Panel admin
             </Link>
           ) : null}
+          <button
+            type="button"
+            onClick={() => replayOnboarding()}
+            className="inline-flex items-center rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary-600"
+          >
+            Revoir la visite
+          </button>
         </div>
       </header>
 
@@ -518,7 +526,7 @@ const Profile = () => {
                 placeholder="https://linkedin.com/in/…"
               />
             </div>
-            <div className="sm:col-span-2 rounded-xl border border-sky-100 bg-sky-50/40 p-4">
+            <div data-tour="profile-goal" className="sm:col-span-2 rounded-xl border border-sky-100 bg-sky-50/40 p-4">
               <label htmlFor="applicationsGoal" className={labelClass}>
                 Objectif candidatures par semaine
               </label>

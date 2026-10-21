@@ -207,7 +207,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   queryClient.clear();
-  localStorage.setItem('alternancetracker_onboarding_done_v2', '1');
+  localStorage.setItem('alternancetracker_onboarding_done_v3', '1');
   clearPostLoginPath();
 });
 

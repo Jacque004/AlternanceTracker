@@ -301,7 +301,7 @@ const Applications = () => {
             >
               Ajouter
             </Link>
-            <div className="inline-flex flex-1 sm:flex-none rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+            <div data-tour="applications-views" className="inline-flex flex-1 sm:flex-none rounded-lg border border-gray-200 p-0.5 bg-gray-50">
               <button
                 type="button"
                 onClick={() => setView('kanban')}

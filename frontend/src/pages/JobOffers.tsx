@@ -258,7 +258,7 @@ export default function JobOffersPage() {
         ) : null}
       </div>
 
-      <form onSubmit={onSearch} className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-4">
+      <form onSubmit={onSearch} data-tour="offers-search" className="bg-white rounded-xl border border-gray-200 shadow-card p-4 sm:p-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <label className="block min-w-0 text-sm text-gray-600">
             Métier, compétence ou entreprise

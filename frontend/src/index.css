@@ -150,6 +150,12 @@
 }
 
 /* Menu mobile slide */
+.onboarding-target {
+  outline: 2px solid #0284c7;
+  outline-offset: 3px;
+  border-radius: 0.75rem;
+}
+
 .menu-enter {
   animation: menuSlide 0.2s ease-out forwards;
 }
