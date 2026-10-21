@@ -177,7 +177,6 @@ export default function OnboardingTour({
     () => tourStepsFromContent(stepContent ?? DEFAULT_ONBOARDING_STEPS),
     [stepContent]
   );
-  const initialPath = useRef(location.pathname);
   const followRoute = useRef(!startAtHome);
   const pendingStep = useRef<number | null>(null);
   const [stepIndex, setStepIndex] = useState(() => {
