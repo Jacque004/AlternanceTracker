@@ -382,7 +382,7 @@ const Layout = () => {
           normalizedPath.startsWith('/applications') ? 'max-w-screen-2xl' : 'max-w-7xl'
         } ${
           showOnboarding && !blockApp
-            ? 'pb-[calc(18rem+env(safe-area-inset-bottom,0px))] lg:pb-16'
+            ? 'pb-[calc(17rem+env(safe-area-inset-bottom,0px))] lg:pb-16'
             : 'pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-safe'
         }`}
         role="main"

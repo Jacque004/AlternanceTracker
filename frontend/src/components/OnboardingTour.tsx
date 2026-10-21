@@ -193,7 +193,6 @@ export default function OnboardingTour({
   const panelRef = useRef<HTMLElement>(null);
   const focusTitle = useRef(false);
   const scrolledHighlight = useRef<string | null>(null);
-  const swipeStart = useRef<number | null>(null);
 
   const step = steps.length > 0 ? steps[Math.min(stepIndex, steps.length - 1)] : undefined;
   const path = normalizeOnboardingPath(location.pathname);
@@ -354,28 +353,13 @@ export default function OnboardingTour({
     goTo(stepIndex + 1);
   };
 
-  const onHandlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    swipeStart.current = event.clientY;
-    try {
-      event.currentTarget.setPointerCapture?.(event.pointerId);
-    } catch {
-      // ignore
-    }
-  };
-
-  const onHandlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
-    const start = swipeStart.current;
-    swipeStart.current = null;
-    if (start != null && event.clientY - start > 36) setCollapsed(true);
-  };
-
   if (collapsed) {
     return createPortal(
       <button
         type="button"
         onClick={() => setCollapsed(false)}
         aria-label="Reprendre"
-        className="fixed z-[100] inset-x-3 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] inline-flex min-h-[44px] max-w-[calc(100vw-1.5rem)] items-center justify-center rounded-xl border border-primary-200 bg-white px-3 py-2 text-sm font-medium text-gray-800 shadow-[0_-8px_24px_rgba(15,23,42,0.12)] ring-2 ring-primary-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 lg:inset-x-auto lg:bottom-6 lg:right-6 lg:w-auto lg:justify-start lg:rounded-lg lg:shadow-card"
+        className="fixed z-[100] inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] inline-flex min-h-11 max-w-[calc(100vw-1.5rem)] items-center justify-center rounded-2xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-800 shadow-[0_12px_32px_-8px_rgba(15,23,42,0.28)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 lg:inset-x-auto lg:bottom-6 lg:right-6 lg:w-auto lg:justify-start"
       >
         <span className="min-w-0 truncate">Reprendre · {title}</span>
       </button>,
@@ -383,22 +367,17 @@ export default function OnboardingTour({
     );
   }
 
+  const quietButton =
+    'inline-flex min-h-11 items-center justify-center rounded-lg px-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-default disabled:opacity-40 lg:min-h-10';
+
   return createPortal(
     <aside
       ref={panelRef}
-      className="fixed z-[100] inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] flex max-h-[min(42dvh,17rem)] flex-col overflow-hidden rounded-t-2xl border border-b-0 border-primary-200 bg-white shadow-[0_-12px_40px_rgba(15,23,42,0.14)] lg:inset-x-auto lg:bottom-6 lg:right-6 lg:max-h-[min(70dvh,32rem)] lg:w-[22rem] lg:rounded-xl lg:border-b lg:shadow-card lg:ring-2 lg:ring-primary-500"
+      className="fixed z-[100] inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] flex max-h-[min(40dvh,16rem)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_16px_40px_-12px_rgba(15,23,42,0.28)] lg:inset-x-auto lg:bottom-6 lg:right-6 lg:max-h-[min(70dvh,28rem)] lg:w-96"
       aria-label="Visite de l’application"
     >
       <div
-        data-testid="onboarding-sheet-handle"
-        className="flex touch-none justify-center pb-1 pt-2 lg:hidden"
-        onPointerDown={onHandlePointerDown}
-        onPointerUp={onHandlePointerUp}
-      >
-        <span className="h-1 w-10 rounded-full bg-gray-300" aria-hidden />
-      </div>
-      <div
-        className="mx-4 mt-1 h-1 overflow-hidden rounded-full bg-gray-100 lg:mt-3"
+        className="h-1 shrink-0 bg-primary-100"
         role="progressbar"
         aria-valuemin={1}
         aria-valuemax={steps.length}
@@ -406,77 +385,62 @@ export default function OnboardingTour({
         aria-label="Étape de la visite"
       >
         <div
-          className="h-full rounded-full bg-primary-600"
+          className="h-full bg-primary-600 transition-[width] duration-200"
           style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }}
         />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500 tabular-nums lg:text-sm lg:normal-case lg:tracking-normal">
-            {stepIndex + 1} sur {steps.length}
-          </p>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3.5 pb-1 pt-3 lg:px-5 lg:pt-4">
+        <div className="flex items-start justify-between gap-2">
+          <div aria-live="polite" className="min-w-0">
+            <p className="text-xs font-medium text-primary-700 tabular-nums">
+              {stepIndex + 1} sur {steps.length}
+            </p>
+            <h2 ref={titleRef} tabIndex={-1} className="mt-0.5 text-base font-semibold leading-snug text-gray-900 outline-none">
+              {title}
+            </h2>
+          </div>
           <button
             type="button"
             onClick={() => setCollapsed(true)}
-            className="inline-flex min-h-[44px] items-center justify-center rounded-lg px-2 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 lg:min-w-[44px] lg:px-0"
+            aria-label="Réduire"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
           >
-            <span className="lg:sr-only">Réduire</span>
-            <svg className="hidden h-5 w-5 lg:block" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
               <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
             </svg>
           </button>
         </div>
-        <div aria-live="polite">
-          <h2 ref={titleRef} tabIndex={-1} className="text-base font-semibold text-gray-900 outline-none">
-            {title}
-          </h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-gray-600">{text}</p>
-          {!placed ? (
-            <p className="mt-2 text-sm text-gray-500">Vous n’êtes pas sur cette page.</p>
-          ) : null}
-        </div>
+        <p className="mt-1.5 text-sm leading-relaxed text-gray-600">{text}</p>
+        {!placed ? (
+          <p className="mt-2 text-sm text-gray-500">Vous n’êtes pas sur cette page.</p>
+        ) : null}
       </div>
-      <div className="flex flex-col-reverse gap-1 border-t border-gray-100 px-3 py-2.5 lg:flex-row lg:items-center lg:justify-between lg:px-4">
-        <div className="flex flex-wrap items-center justify-between gap-1 lg:contents">
+      <div className="flex shrink-0 flex-wrap items-center gap-1 border-t border-gray-100 px-2 py-2 lg:px-3 lg:py-3">
+        <button type="button" onClick={finish} className={quietButton}>
+          Plus tard
+        </button>
+        {startAtHome ? (
+          <button type="button" onClick={restart} className={`${quietButton} text-primary-700 hover:bg-primary-50`}>
+            Recommencer
+          </button>
+        ) : null}
+        {onAside && step.aside ? (
           <button
             type="button"
-            onClick={finish}
-            className="min-h-[44px] flex-1 rounded-lg px-2 py-2 text-sm text-gray-500 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 lg:flex-none"
+            onClick={() => navigate(step.path)}
+            className={`${quietButton} text-center leading-tight text-primary-700 hover:bg-primary-50`}
           >
-            Plus tard
+            {step.aside.backLabel}
           </button>
-          {startAtHome ? (
-            <button
-              type="button"
-              onClick={restart}
-              className="min-h-[44px] flex-1 rounded-lg px-2 py-2 text-sm font-medium text-primary-700 hover:bg-primary-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 lg:flex-none"
-            >
-              Recommencer
-            </button>
-          ) : null}
-          {onAside && step.aside ? (
-            <button
-              type="button"
-              onClick={() => navigate(step.path)}
-              className="min-h-[44px] flex-1 rounded-lg px-2 py-2 text-center text-sm font-medium leading-tight text-primary-700 hover:bg-primary-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 lg:order-2 lg:ml-auto lg:flex-none"
-            >
-              {step.aside.backLabel}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => goTo(stepIndex - 1)}
-              disabled={stepIndex === 0}
-              className="min-h-[44px] flex-1 rounded-lg px-2 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:cursor-default disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 lg:order-2 lg:ml-auto lg:flex-none"
-            >
-              Retour
-            </button>
-          )}
-        </div>
+        ) : (
+          <button type="button" onClick={() => goTo(stepIndex - 1)} disabled={stepIndex === 0} className={quietButton}>
+            Retour
+          </button>
+        )}
         <button
           type="button"
           onClick={advance}
-          className="btn-primary min-h-[44px] w-full whitespace-normal px-3 text-center leading-snug lg:order-3 lg:w-auto"
+          className="btn-primary ml-auto min-h-11 shrink-0 px-3.5 text-sm lg:min-h-10"
         >
           {primaryLabel}
         </button>
