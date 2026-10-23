@@ -567,7 +567,11 @@ const Profile = () => {
             </p>
             <p className="text-xs text-gray-500 px-1 -mt-1">
               Les rappels et le résumé hebdomadaire nécessitent une configuration Resend + cron côté
-              hébergement.
+              hébergement. Les alertes d’offres se créent sur la page{' '}
+              <Link to="/offres" className="font-medium text-primary-700 hover:text-primary-800">
+                Offres
+              </Link>
+              : un e-mail part dès qu’une nouvelle annonce correspond.
             </p>
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-gray-50/30 p-4 transition hover:border-primary-200 hover:bg-primary-50/20 focus-within:ring-2 focus-within:ring-primary-500/25">
               <input
@@ -600,7 +604,7 @@ const Profile = () => {
 
         <ProfileSection
           title="Données personnelles (RGPD)"
-          description="Le fichier JSON reprend le profil, les candidatures, l’historique, les CV, les lettres, les analyses, les préparations d’entretien, les notifications, les clics sur les offres, le compte de connexion, et le calendrier de rythme enregistré dans ce navigateur."
+          description="Le fichier JSON reprend le profil, les candidatures, l’historique, les CV, les lettres, les analyses, les préparations d’entretien, les notifications, les alertes d’offres, les clics sur les offres, le compte de connexion, et le calendrier de rythme enregistré dans ce navigateur."
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap">
             <button

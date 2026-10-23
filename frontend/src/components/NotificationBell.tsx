@@ -9,6 +9,7 @@ const typeIcon: Record<UserNotificationType, string> = {
   welcome: '👋',
   application_created: '✅',
   weekly_followup: '📅',
+  job_alert: '💼',
 };
 
 function DismissButton({ onDismiss, label }: { onDismiss: () => void; label: string }) {

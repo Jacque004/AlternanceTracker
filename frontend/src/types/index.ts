@@ -45,7 +45,7 @@ export interface User {
   marketingEmailsConsent?: boolean;
 }
 
-export type UserNotificationType = 'welcome' | 'application_created' | 'weekly_followup';
+export type UserNotificationType = 'welcome' | 'application_created' | 'weekly_followup' | 'job_alert';
 
 export interface AdminRecentUser {
   id: string;

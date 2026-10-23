@@ -8,8 +8,9 @@ Ce guide explique comment activer l’envoi d’emails pour les **rappels** (rel
 |----------------|---------------|---------------------|---------|
 | **Rappels** (relances + entretiens + alertes ~30 min / ~5 min) | `send-reminders` | **Souvent** (ex. toutes les 5 min) | Relances (≥ 7 jours), entretiens aujourd’hui/demain, rappels juste avant l’heure d’entretien |
 | **Résumé hebdo** | `send-weekly-summary` | Hebdo (ex. lundi 8h) | Stats + nouvelles candidatures + relances à faire |
+| **Alertes d’offres** | `send-job-alerts` | Dès qu’une offre est collectée, plus un passage de secours toutes les 15 min | E-mail immédiat pour chaque recherche enregistrée sur Offres |
 
-Les utilisateurs activent/désactivent ces emails dans **Mon espace → Notifications**.
+Les utilisateurs activent/désactivent les rappels et le résumé dans **Mon espace → Notifications**. Les alertes d’offres se créent sur **Offres** : elles envoient un e-mail dès qu’une nouvelle annonce correspond à la recherche. Les offres déjà en ligne au moment de la création ne sont pas renvoyées.
 
 ---
 
@@ -31,7 +32,7 @@ Les utilisateurs activent/désactivent ces emails dans **Mon espace → Notifica
 
 ## 2. Edge Functions
 
-Deux fonctions sont fournies :
+Trois fonctions sont fournies :
 
 - **`send-reminders`**  
   - Lit les utilisateurs avec `reminder_emails_enabled = true`.  
@@ -43,15 +44,23 @@ Deux fonctions sont fournies :
   - Pour chacun : stats (total, par statut), dernières candidatures, nombre de relances à faire.  
   - Envoie un email de résumé par utilisateur (Resend).
 
-Les deux fonctions :
+- **`send-job-alerts`**
+  - Lit les alertes actives (`job_alerts`).
+  - Pour chacune : offres actives ajoutées après la création de l’alerte, pas encore signalées, qui correspondent au métier, au lieu et aux filtres.
+  - Envoie un e-mail (Resend), note l’envoi dans `job_alert_deliveries`, et ajoute une notification dans la cloche si elle est activée.
+  - `collect-job-offers` l’appelle dès qu’au moins une offre nouvelle a été enregistrée.
+
+Ces fonctions :
 - N’agissent que si l’en-tête `Authorization: Bearer <CRON_SECRET>` est correct (appel réservé au cron ou à un script).
-- Utilisent le **service role** Supabase pour lire `users` et `applications` (RLS contourné pour le job).
+- Utilisent le **service role** Supabase pour lire les données (RLS contourné pour le job).
 
 Déploiement :
 
 ```bash
 supabase functions deploy send-reminders
 supabase functions deploy send-weekly-summary
+supabase functions deploy send-job-alerts
+supabase functions deploy collect-job-offers
 ```
 
 Le dépôt définit `verify_jwt = false` pour ces fonctions dans `supabase/config.toml` (appel réservé au cron avec `CRON_SECRET`). Sinon, déployez avec `--no-verify-jwt` à la place.
@@ -112,6 +121,22 @@ SELECT cron.schedule(
   ) AS request_id;
   $$
 );
+
+-- Alertes d'offres : secours toutes les 15 minutes (la collecte les déclenche déjà)
+SELECT cron.schedule(
+  'send-job-alerts',
+  '*/15 * * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://VOTRE_PROJECT_REF.supabase.co/functions/v1/send-job-alerts',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || current_setting('app.cron_secret', true)
+    ),
+    body := '{}'::jsonb
+  ) AS request_id;
+  $$
+);
 ```
 
 Si vous ne utilisez pas le Vault, vous pouvez passer le secret en body et le lire dans la fonction, ou appeler depuis un cron externe qui envoie `Authorization: Bearer <CRON_SECRET>`.
@@ -132,6 +157,11 @@ curl -X POST "https://VOTRE_PROJECT_REF.supabase.co/functions/v1/send-reminders"
 curl -X POST "https://VOTRE_PROJECT_REF.supabase.co/functions/v1/send-weekly-summary" \
   -H "Authorization: Bearer VOTRE_CRON_SECRET" \
   -H "Content-Type: application/json"
+
+# Alertes d'offres (secours, ex. toutes les 15 min ; la collecte les déclenche déjà)
+curl -X POST "https://VOTRE_PROJECT_REF.supabase.co/functions/v1/send-job-alerts" \
+  -H "Authorization: Bearer VOTRE_CRON_SECRET" \
+  -H "Content-Type: application/json"
 ```
 
 Remplacer `VOTRE_PROJECT_REF` et `VOTRE_CRON_SECRET` par les valeurs réelles (secret = celui défini dans les secrets des Edge Functions).
@@ -142,12 +172,13 @@ Remplacer `VOTRE_PROJECT_REF` et `VOTRE_CRON_SECRET` par les valeurs réelles (s
 
 1. **Resend** : compte, clé API, domaine (ou email de test).
 2. **Secrets Supabase** : `RESEND_API_KEY`, `CRON_SECRET`, `FROM_EMAIL`.
-3. **Déployer** les Edge Functions `send-reminders` et `send-weekly-summary`.
-4. **Planifier** :
+3. **Déployer** les Edge Functions `send-reminders`, `send-weekly-summary`, `send-job-alerts` et `collect-job-offers`.
+4. **Appliquer** la migration `20261023111826_job_alerts.sql`.
+5. **Planifier** :
    - soit avec pg_cron + pg_net (migration ou SQL manuel),
    - soit avec un cron externe qui envoie `Authorization: Bearer <CRON_SECRET>`.
 
-Après cela, les utilisateurs qui ont coché les options dans **Mon espace → Notifications** recevront les rappels et/ou le résumé hebdo par email.
+Après cela, les utilisateurs qui ont coché les options dans **Mon espace → Notifications** recevront les rappels et/ou le résumé hebdo par email. Ceux qui ont créé une alerte sur **Offres** reçoivent un e-mail dès qu’une nouvelle offre correspond.
 
 ---
 

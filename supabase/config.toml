@@ -24,6 +24,10 @@ verify_jwt = false
 [functions.collect-job-offers]
 verify_jwt = false
 
+# Alertes e-mail des nouvelles offres. Cron ou collect-job-offers, avec CRON_SECRET.
+[functions.send-job-alerts]
+verify_jwt = false
+
 # Suppression des comptes inactifs. Cron avec CRON_SECRET, pas le navigateur.
 [functions.purge-inactive-accounts]
 verify_jwt = false

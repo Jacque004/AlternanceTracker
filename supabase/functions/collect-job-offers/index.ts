@@ -98,6 +98,10 @@ serve(async (req) => {
       })
       .eq('id', run.id);
 
+    if (persisted.insertedCount > 0) {
+      await notifyJobAlerts(supabaseUrl, secret);
+    }
+
     return json({
       ok: true,
       inserted: persisted.insertedCount,
@@ -110,6 +114,24 @@ serve(async (req) => {
     return fail(message);
   }
 });
+
+async function notifyJobAlerts(supabaseUrl: string, secret: string): Promise<void> {
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-job-alerts`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    });
+    if (!response.ok) {
+      console.error('Alertes offres:', response.status, await response.text());
+    }
+  } catch (error) {
+    console.error('Alertes offres:', error instanceof Error ? error.message : error);
+  }
+}
 
 async function persist(
   supabase: ReturnType<typeof createClient>,

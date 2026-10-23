@@ -61,7 +61,7 @@ const PolitiqueConfidentialite = () => (
         <li><strong>Candidatures</strong> : entreprise, poste, statut, dates, notes, URL, historique des changements</li>
         <li><strong>Documents</strong> : CV, lettres, analyses, préparations d’entretien</li>
         <li><strong>Notifications</strong> : messages affichés dans l’application, et e-mails de service si vous les laissez actifs</li>
-        <li><strong>Offres</strong> : identifiant de l’offre lorsque vous cliquez sur « Voir l’offre »</li>
+        <li><strong>Offres</strong> : recherches enregistrées pour les alertes e-mail, et identifiant de l’offre lorsque vous cliquez sur « Voir l’offre »</li>
         <li><strong>Calendrier de rythme</strong> : réglages, nom et école saisis, enregistrés dans ce navigateur uniquement</li>
         <li><strong>Connexion</strong> : date de dernière ouverture de l’application, utilisée pour la durée de conservation</li>
       </ul>
@@ -74,7 +74,7 @@ const PolitiqueConfidentialite = () => (
       <ul className="list-disc pl-6 space-y-1">
         <li>
           <strong>Exécution du service demandé</strong> : compte, candidatures, CV, lettres, analyses,
-          préparation d’entretien, calendrier de rythme, notifications que vous activez
+          préparation d’entretien, calendrier de rythme, notifications et alertes d’offres que vous activez
         </li>
         <li>
           <strong>Intérêt légitime</strong> : sécurité du service, prévention des abus, statistiques internes

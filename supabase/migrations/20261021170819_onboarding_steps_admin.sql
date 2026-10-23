@@ -116,7 +116,8 @@ BEGIN
     RAISE EXCEPTION '30 étapes au maximum';
   END IF;
 
-  DELETE FROM public.onboarding_steps;
+  -- safeupdate, préchargé sur authenticator, refuse un DELETE sans WHERE.
+  DELETE FROM public.onboarding_steps WHERE id IS NOT NULL;
 
   FOR item IN SELECT value FROM jsonb_array_elements(p_steps)
   LOOP

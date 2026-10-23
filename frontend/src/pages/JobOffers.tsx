@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import EmptyState from '../components/EmptyState';
+import JobAlertsPanel from '../components/JobAlertsPanel';
 import OriginalOfferLink from '../components/OriginalOfferLink';
 import { SkeletonList } from '../components/Skeleton';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
@@ -382,6 +383,18 @@ export default function JobOffersPage() {
           </ul>
         ) : null}
       </form>
+
+      <JobAlertsPanel
+        criteria={{
+          keywords: draftSearch,
+          location: draftLocation,
+          domain: params.domain,
+          educationLevel: params.educationLevel,
+          contract: params.contract,
+          remote: params.remote,
+          source: params.source,
+        }}
+      />
 
       {offersQuery.isError ? (
         <EmptyState

@@ -310,6 +310,8 @@ describe('routes et redirections', () => {
     clickHref('/offres');
     await expectPath('/offres');
     await expectHeading(/Offres d.emploi/);
+    expect(screen.getByRole('heading', { name: 'Alerte e-mail' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Créer l’alerte' })).toBeInTheDocument();
 
     await go('/offre');
     await expectPath('/offres');

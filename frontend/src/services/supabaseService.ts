@@ -975,6 +975,7 @@ export const rgpdService = {
       prepsRes,
       notificationsRes,
       clicksRes,
+      alertsRes,
     ] = await Promise.all([
       supabase.from('users').select('*').eq('id', authUser.id).single(),
       supabase.from('applications').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }),
@@ -1000,6 +1001,11 @@ export const rgpdService = {
         .select('id, job_offer_id, created_at')
         .eq('user_id', authUser.id)
         .order('created_at', { ascending: false }),
+      supabase
+        .from('job_alerts')
+        .select('id, label, keywords, location, domain, education_level, contract, remote, source, active, created_at, updated_at')
+        .eq('user_id', authUser.id)
+        .order('created_at', { ascending: false }),
     ]);
 
     if (profileRes.error) throw profileRes.error;
@@ -1011,6 +1017,7 @@ export const rgpdService = {
     if (prepsRes.error) throw prepsRes.error;
     if (notificationsRes.error) throw notificationsRes.error;
     if (clicksRes.error) throw clicksRes.error;
+    if (alertsRes.error && !isSupabaseSchemaError(alertsRes.error)) throw alertsRes.error;
 
     const identities = Array.isArray(authUser.identities)
       ? authUser.identities.map((identity) => identity.provider)
@@ -1035,6 +1042,7 @@ export const rgpdService = {
       interviewPreps: prepsRes.data ?? [],
       notifications: notificationsRes.data ?? [],
       jobOfferClicks: clicksRes.data ?? [],
+      jobAlerts: alertsRes.error ? [] : (alertsRes.data ?? []),
       browser: {
         rhythmCalendar: loadRhythmConfig(),
         rhythmShareIncludesNameAndSchool: loadShareIdentity(),
